@@ -1,6 +1,6 @@
 //! A source's tracks as another installation observes them, read by key.
 use crate::catalog::views::{Art, Owner};
-use crate::{Catalog, Freshness, LibraryResult, SourceId, TrackObservation};
+use crate::{Catalog, Freshness, LibraryResult, PeerTrack, SourceId, TrackObservation};
 
 const SOURCE_KEY: &str = "(SELECT source_key FROM sources WHERE object_id=?1)";
 
@@ -97,7 +97,7 @@ impl Catalog {
         &self,
         source: &SourceId,
         ids: &[String],
-    ) -> LibraryResult<Vec<TrackObservation>> {
+    ) -> LibraryResult<Vec<PeerTrack>> {
         let mut connection = self.acquire_reader().await?;
         let rows: Vec<ObservedTrack> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
             "SELECT track.track_key,track.object_id,album.object_id album_object_id,{} metadata,
@@ -117,37 +117,75 @@ impl Catalog {
         .bind(serde_json::to_string(ids)?)
         .fetch_all(&mut *connection)
         .await?;
-        // Only pictures from the source's files: a cover or artist lookup is the observer's own.
-        let arts = self
-            .arts(rows.iter().map(|row| Some(Owner::Track(row.track_key))))
+        // Only pictures from the source's files: a cover or artist lookup is the observer's
+        // own, and so is the choice between a track's cover and its album's.
+        let (own, album): (Vec<_>, Vec<_>) = self
+            .file_arts(rows.iter().map(|row| row.track_key))
             .into_iter()
-            .map(|art| match art {
-                Art::Track(_) | Art::Album(_) => art,
-                _ => Art::None,
-            })
-            .collect::<Vec<_>>();
-        let pictures = crate::catalog::fetch::bindings(&mut connection, &arts).await?;
+            .unzip();
+        let own = crate::catalog::fetch::bindings(&mut connection, &own).await?;
+        let album = crate::catalog::fetch::bindings(&mut connection, &album).await?;
         let hash = |bytes: Option<Vec<u8>>| bytes.and_then(|bytes| bytes.try_into().ok());
         rows.into_iter()
-            .zip(pictures)
-            .map(|(row, artwork_binding)| {
-                Ok(TrackObservation {
-                    object_id: row.object_id,
-                    album_object_id: row.album_object_id,
-                    metadata: serde_json::from_str(&row.metadata)?,
-                    source_path: row.source_path,
-                    cue_path: row.cue_path,
-                    cue_start_millis: row.cue_start_millis,
-                    cue_end_millis: row.cue_end_millis,
-                    first_seen_at: row.first_seen_at,
-                    audio_revision: hash(row.audio_revision),
-                    audio_hash: hash(row.audio_hash),
-                    source_lyrics: row.source_lyrics,
-                    artwork_binding,
-                    ..Default::default()
+            .zip(own.into_iter().zip(album))
+            .map(|(row, (artwork_binding, album_artwork_binding))| {
+                Ok(PeerTrack {
+                    track: TrackObservation {
+                        object_id: row.object_id,
+                        album_object_id: row.album_object_id,
+                        metadata: serde_json::from_str(&row.metadata)?,
+                        source_path: row.source_path,
+                        cue_path: row.cue_path,
+                        cue_start_millis: row.cue_start_millis,
+                        cue_end_millis: row.cue_end_millis,
+                        first_seen_at: row.first_seen_at,
+                        audio_revision: hash(row.audio_revision),
+                        audio_hash: hash(row.audio_hash),
+                        source_lyrics: row.source_lyrics,
+                        artwork_binding,
+                        ..Default::default()
+                    },
+                    album_artwork_binding,
                 })
             })
             .collect()
+    }
+
+    /// The picture `source_observations` names for a track of the source, or for an album.
+    pub async fn source_picture(
+        &self,
+        source: &SourceId,
+        album: bool,
+        object: &str,
+    ) -> LibraryResult<Option<Vec<u8>>> {
+        let mut connection = self.acquire_reader().await?;
+        let sql = if album {
+            format!("SELECT album_key FROM albums WHERE source_key={SOURCE_KEY} AND object_id=?2")
+        } else {
+            format!(
+                "SELECT track_key FROM tracks WHERE source_key={SOURCE_KEY} AND object_id=?2 AND indexed=1"
+            )
+        };
+        let Some(key) = sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(sql))
+            .bind(source.as_str())
+            .bind(object)
+            .fetch_optional(&mut *connection)
+            .await?
+        else {
+            return Ok(None);
+        };
+        let art = if album {
+            match self.arts([Some(Owner::Album(key))])[0] {
+                art @ Art::Album(_) => art,
+                _ => Art::None,
+            }
+        } else {
+            self.file_arts([key])[0].0
+        };
+        Ok(crate::catalog::fetch::bindings(&mut connection, &[art])
+            .await?
+            .pop()
+            .flatten())
     }
 
     /// A page of the source's indexed tracks that came from files, after track key `after`:

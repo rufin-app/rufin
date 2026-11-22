@@ -103,7 +103,7 @@ pub use artwork::{
 pub use backup::{BackupRestoreReport, StateGroups};
 pub use catalog::{
     AlbumObservation, ArtistObservation, CachedSource, CatalogBatch, Change, DownloadChange,
-    FileBatch, FolderObservation, Freshness, LocalArtworkCandidate, Observation,
+    FileBatch, FolderObservation, Freshness, LocalArtworkCandidate, Observation, PeerTrack,
     PlaylistEntryObservation, PlaylistObservation, Scope, ShowsState, SourcePhase, StateChange,
     StoredFile, TagObservation, TrackObservation, walk_key,
 };

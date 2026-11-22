@@ -3123,6 +3123,34 @@ impl Catalog {
             .collect()
     }
 
+    /// The pictures of these tracks in the source's files, whichever cover the rows show
+    /// here: each track's own, else its album's; and the one its album has of its own.
+    pub(crate) fn file_arts(&self, tracks: impl IntoIterator<Item = i64>) -> Vec<(Art, Art)> {
+        let snapshot = self.snapshot();
+        let context = Context::new(&snapshot);
+        let derived = self.derived(&context, None);
+        tracks
+            .into_iter()
+            .map(|key| {
+                let Some(record) = snapshot.tracks.get(key) else {
+                    return (Art::None, Art::None);
+                };
+                let album = context
+                    .album_of(record)
+                    .map(|album| context.album_art(&derived, album));
+                let own = match album {
+                    _ if record.flags & PICTURE != 0 => Art::Track(key),
+                    Some(art @ (Art::Track(_) | Art::Album(_))) => art,
+                    _ => Art::None,
+                };
+                let album = album
+                    .filter(|art| matches!(art, Art::Album(_)))
+                    .unwrap_or(Art::None);
+                (own, album)
+            })
+            .collect()
+    }
+
     /// Where the pictures the rows of these tracks show come from: each track's own, its
     /// album's and its artists', once each.
     pub(crate) fn track_arts(&self, tracks: impl IntoIterator<Item = i64>) -> Vec<Art> {

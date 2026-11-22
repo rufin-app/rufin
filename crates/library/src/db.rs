@@ -493,10 +493,6 @@ impl Catalog {
         self.set_display(|snapshot| &mut snapshot.distinct_track_covers, enabled);
     }
 
-    pub fn distinct_track_covers(&self) -> bool {
-        self.snapshot().distinct_track_covers
-    }
-
     /// Whether albums without a picture look their cover up, from the external metadata
     /// setting. Nothing stored depends on it; clients redraw every cover when it changes.
     pub fn set_cover_lookup(&self, enabled: bool) {

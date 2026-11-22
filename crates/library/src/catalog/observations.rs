@@ -29,6 +29,16 @@ pub struct TrackObservation {
     pub folders: Option<Vec<String>>,
 }
 
+/// A track as the device that holds its file tells a peer: its own picture, else its album's,
+/// and the picture its album has of its own.
+#[derive(Serialize, Deserialize)]
+pub struct PeerTrack {
+    #[serde(flatten)]
+    pub track: TrackObservation,
+    #[serde(default)]
+    pub album_artwork_binding: Option<Vec<u8>>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct AlbumObservation {
     pub object_id: String,

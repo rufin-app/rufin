@@ -45,6 +45,9 @@ pub(crate) async fn upgrade(path: &Path) -> LibraryResult<Option<bool>> {
         if version < 65 {
             to_65(&mut *transaction).await?;
         }
+        if version < 66 {
+            to_66(&mut *transaction).await?;
+        }
         sqlx::query(sqlx::AssertSqlSafe(format!(
             "PRAGMA user_version={STORE_VERSION}"
         )))
@@ -231,6 +234,15 @@ async fn to_65(connection: &mut SqliteConnection) -> LibraryResult<()> {
     )
     .execute(connection)
     .await?;
+    Ok(())
+}
+
+/// A peer source is listed whole again: its owner now tells each track's own picture and its
+/// album's, which no change since the last sync names.
+async fn to_66(connection: &mut SqliteConnection) -> LibraryResult<()> {
+    sqlx::raw_sql("UPDATE sources SET synced_at=NULL, freshness=NULL WHERE kind='peer';")
+        .execute(connection)
+        .await?;
     Ok(())
 }
 

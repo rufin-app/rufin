@@ -338,7 +338,6 @@ impl<'a> ArtworkFiles<'a> {
     ) -> SourceResult<()> {
         let catalog = observation.catalog;
         let source_id = observation.source_id;
-        let distinct = catalog.distinct_track_covers();
         // Folder lookups, shared by the pass: a folder's images, and whether it holds one album.
         let mut listings = HashMap::new();
         let mut single = HashMap::new();
@@ -379,28 +378,23 @@ impl<'a> ArtworkFiles<'a> {
                         }
                     }
                 }
-                if cover.is_none() || distinct {
-                    for track in tracks {
-                        check_cancelled(cancelled)?;
-                        let (index, _, observed) = self.embedded_file_images(track)?;
-                        if let Some((index, pictures)) = observed {
-                            images.push((track.path.clone(), index, pictures));
-                        }
-                        let image = index.map(|picture_index| LocalImageRef::Embedded {
-                            source_id: crate::SourceId::new(source_id),
-                            path: track.path.clone(),
-                            picture_index,
-                            revision: track.revision.clone().unwrap_or_default(),
-                        });
-                        let found = image.is_some();
-                        track_art.push((
-                            track.object_id.clone(),
-                            image.map(|image| image.artwork_binding()),
-                        ));
-                        if found && !distinct {
-                            break;
-                        }
+                // Every track's own picture, whichever cover the rows show.
+                for track in tracks {
+                    check_cancelled(cancelled)?;
+                    let (index, _, observed) = self.embedded_file_images(track)?;
+                    if let Some((index, pictures)) = observed {
+                        images.push((track.path.clone(), index, pictures));
                     }
+                    let image = index.map(|picture_index| LocalImageRef::Embedded {
+                        source_id: crate::SourceId::new(source_id),
+                        path: track.path.clone(),
+                        picture_index,
+                        revision: track.revision.clone().unwrap_or_default(),
+                    });
+                    track_art.push((
+                        track.object_id.clone(),
+                        image.map(|image| image.artwork_binding()),
+                    ));
                 }
                 album_art.push((album.clone(), cover.map(|image| image.artwork_binding())));
             }

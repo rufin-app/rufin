@@ -291,7 +291,7 @@ mod tests {
             let mut batch = library::CatalogBatch::default();
             let result = batch
                 .tracks
-                .extend_from_slice(&[(track_from_navidrome(&baseline, "track", &item)).clone()]);
+                .extend_from_slice(&[track_from_navidrome(&baseline, "source", "track", &item)?]);
             observation.apply_catalog(&batch, true).await?;
             Ok::<_, library::LibraryError>(result)
         })
@@ -299,12 +299,12 @@ mod tests {
         .unwrap();
         (async {
             let mut batch = library::CatalogBatch::default();
-            let result = batch.tracks.extend_from_slice(&[(track_from_navidrome(
+            let result = batch.tracks.extend_from_slice(&[track_from_navidrome(
                 &baseline,
+                "source",
                 "second",
                 &serde_json::json!({"id":"second","title":"Second"}),
-            ))
-            .clone()]);
+            )?]);
             observation.apply_catalog(&batch, true).await?;
             Ok::<_, library::LibraryError>(result)
         })

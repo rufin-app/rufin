@@ -189,8 +189,15 @@ impl SubsonicSource {
                 .navidrome_items("song", values)
                 .await?
                 .iter()
-                .filter_map(|value| Some(track_from_navidrome(self, &id(&value["id"])?, value)))
-                .collect())
+                .filter_map(|value| {
+                    Some(track_from_navidrome(
+                        self,
+                        source_id,
+                        &id(&value["id"])?,
+                        value,
+                    ))
+                })
+                .collect::<library::LibraryResult<Vec<_>>>()?)
         } else {
             values
                 .iter()
@@ -285,7 +292,9 @@ impl SubsonicSource {
                         Album => batch
                             .albums
                             .push(album_from_navidrome(self, source_id, &id, item)?),
-                        Track => batch.tracks.push(track_from_navidrome(self, &id, item)),
+                        Track => batch
+                            .tracks
+                            .push(track_from_navidrome(self, source_id, &id, item)?),
                         Artist => batch
                             .artists
                             .push(artist_from_navidrome(self, source_id, &id, item)?),
@@ -632,9 +641,10 @@ fn album_from_navidrome(
 
 fn track_from_navidrome(
     source: &SubsonicSource,
+    source_id: &str,
     raw_id: &str,
     track: &Value,
-) -> library::TrackObservation {
+) -> library::LibraryResult<library::TrackObservation> {
     let mut artists = participant_credits(
         source,
         &track["participants"],
@@ -693,7 +703,17 @@ fn track_from_navidrome(
         source_format.as_deref(),
         duration_seconds,
     );
-    library::TrackObservation {
+    // Only a song with a picture of its own: the others show their album's.
+    let artwork_binding = boolean(&track["hasCoverArt"])
+        .unwrap_or(false)
+        .then(|| {
+            crate::native_artwork_binding(
+                source_id,
+                &navidrome_image_ref(source, "mf", raw_id, field(track, "updatedAt")),
+            )
+        })
+        .transpose()?;
+    Ok(library::TrackObservation {
         metadata: library::TrackMetadata {
             audio_properties: library::AudioProperties {
                 bitrate_kbps: field(track, "bitRate"),
@@ -756,6 +776,7 @@ fn track_from_navidrome(
         album_object_id: album_id,
         audio_revision: Some(audio_revision),
         audio_hash: Some(audio_revision),
+        artwork_binding,
         source_path,
         folders: Some(
             field::<i64>(track, "libraryId")
@@ -765,7 +786,7 @@ fn track_from_navidrome(
                 .collect(),
         ),
         ..Default::default()
-    }
+    })
 }
 
 fn artist_from_navidrome(
@@ -937,9 +958,11 @@ mod tests {
         );
         let track = track_from_navidrome(
             &source,
+            "source",
             "track",
             &serde_json::json!({"title":"The Song", "sortTitle":"Song, The", "participants":{"artist":[{"id":"artist", "name":"The Artist", "sortArtistName":"Artist, The"}]}}),
-        );
+        )
+        .unwrap();
         assert_eq!(track.metadata.title, "The Song");
         assert_eq!(track.metadata.sort_text, "song, the");
         assert_eq!(
@@ -1032,7 +1055,7 @@ mod tests {
         });
 
         let source = navidrome_source("http://localhost/");
-        let track = track_from_navidrome(&source, "track-one", &track);
+        let track = track_from_navidrome(&source, "source", "track-one", &track).unwrap();
         assert_eq!(
             track
                 .metadata
@@ -1157,7 +1180,8 @@ mod tests {
                 expected
             );
             assert_eq!(
-                track_from_navidrome(&source, "dates", &data)
+                track_from_navidrome(&source, "source", "dates", &data)
+                    .unwrap()
                     .metadata
                     .release_date
                     .as_deref(),
@@ -1802,7 +1826,8 @@ mod tests {
             .expect("second Navidrome page");
 
         assert_eq!(
-            track_from_navidrome(&source, "song-one", &first.remove(0))
+            track_from_navidrome(&source, "source", "song-one", &first.remove(0))
+                .unwrap()
                 .source_path
                 .as_deref(),
             Some("/music/Artist/Album/Track.flac")

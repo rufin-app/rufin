@@ -1,11 +1,11 @@
 //! A paired device's Local library, read through Rufin Connect like a read-only server.
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::pin::Pin;
 use std::sync::Arc;
 
 use audio_processing::ResolvedStream;
 use futures_util::future::BoxFuture;
-use library::{AudioEncoding, Freshness, SourceId, TrackObservation};
+use library::{AudioEncoding, Freshness, SourceId};
 use serde::Deserialize;
 
 use crate::file::remote::input::{FileInput, FileInputServer};
@@ -52,7 +52,7 @@ pub trait PeerLink: Send + Sync {
         device: &'a str,
         source: &'a SourceId,
         ids: &'a [String],
-    ) -> BoxFuture<'a, SourceResult<Vec<TrackObservation>>>;
+    ) -> BoxFuture<'a, SourceResult<Vec<library::PeerTrack>>>;
     /// A line whenever the owner's marker moved, until the reader is dropped.
     fn watch<'a>(
         &'a self,
@@ -183,18 +183,33 @@ impl PeerSource {
             if cancelled() {
                 return Err(SourceError::Cancelled);
             }
-            let tracks = self
+            let rows = self
                 .link
                 .observations(&self.device, &self.source, page)
                 .await?;
+            // An album's own cover; an owner that tells none leaves the album its tracks'.
+            let covers = rows
+                .iter()
+                .filter_map(|row| {
+                    Some((
+                        row.track.album_object_id.clone()?,
+                        row.album_artwork_binding.clone(),
+                    ))
+                })
+                .collect::<BTreeMap<_, _>>()
+                .into_iter()
+                .collect::<Vec<_>>();
             observation
                 .apply_catalog(
                     &library::CatalogBatch {
-                        tracks,
+                        tracks: rows.into_iter().map(|row| row.track).collect(),
                         ..Default::default()
                     },
                     true,
                 )
+                .await?;
+            observation
+                .set_source_artwork(&[], &[("album", &covers)])
                 .await?;
             completed += page.len();
             progress(SourceProgress {

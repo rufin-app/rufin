@@ -103,7 +103,7 @@ impl sources::PeerLink for Link {
         device: &'a str,
         source: &'a SourceId,
         ids: &'a [String],
-    ) -> BoxFuture<'a, SourceResult<Vec<library::TrackObservation>>> {
+    ) -> BoxFuture<'a, SourceResult<Vec<library::PeerTrack>>> {
         Box::pin(self.read(device, source, Read::Observations { ids: ids.to_vec() }))
     }
 
@@ -228,19 +228,31 @@ impl ConnectOwner {
                             .source_observations(&source, &ids)
                             .await
                             .map_err(string_error)?;
-                        // The image changes with the local picture it is read from.
-                        for track in &mut tracks {
-                            let Some(binding) = &track.artwork_binding else {
-                                continue;
+                        // A picture is named by its row and changes with the local picture
+                        // it is read from.
+                        let name = |row: String, binding: &mut Option<Vec<u8>>| {
+                            let Some(local) = binding else {
+                                return Ok(());
                             };
                             let image = sources::NativeImageRef::new(
-                                format!("track:{}", track.object_id),
-                                Some(blake3::hash(binding).to_hex().to_string()),
+                                row,
+                                Some(blake3::hash(local).to_hex().to_string()),
                             );
-                            track.artwork_binding = Some(
+                            *binding = Some(
                                 sources::native_artwork_binding(source.as_str(), &image)
                                     .map_err(string_error)?,
                             );
+                            Ok::<_, String>(())
+                        };
+                        for row in &mut tracks {
+                            let track = &mut row.track;
+                            name(
+                                format!("track:{}", track.object_id),
+                                &mut track.artwork_binding,
+                            )?;
+                            if let Some(album) = &track.album_object_id {
+                                name(format!("album:{album}"), &mut row.album_artwork_binding)?;
+                            }
                         }
                         serde_json::to_vec(&tracks)
                     }
@@ -323,34 +335,25 @@ impl ConnectOwner {
             .ok_or_else(|| "This device does not hold the requested source".into())
     }
 
-    async fn local_track(&self, source: &SourceId, object: &str) -> Result<String, String> {
-        self.local_source(source)?;
-        self.catalog
-            .track_uris(&[(source.clone(), object.to_owned())])
-            .await
-            .map_err(string_error)?
-            .pop()
-            .map(|(_, _, uri)| uri)
-            .ok_or_else(|| "The requested track is unavailable on this device".into())
-    }
-
-    /// The picture the track's row shows here, from its own files; no picture is an empty body.
+    /// A track's own picture, else its album's, or an album's own, from the source's files;
+    /// no picture is an empty body.
     async fn answer_image(
         &self,
         source: &SourceId,
         image: &str,
         size: Option<u32>,
     ) -> Result<PeerByteResponse, String> {
-        let object = image
-            .strip_prefix("track:")
-            .ok_or("The requested image is unavailable on this device")?;
-        let uri = self.local_track(source, object).await?;
+        let (album, object) = match image.split_once(':') {
+            Some(("track", object)) => (false, object),
+            Some(("album", object)) => (true, object),
+            _ => return Err("The requested image is unavailable on this device".into()),
+        };
+        self.local_source(source)?;
         let binding = self
             .catalog
-            .track_artwork_bindings(&[uri], &library::ReadCancellation::new())
+            .source_picture(source, album, object)
             .await
-            .map_err(string_error)?
-            .pop();
+            .map_err(string_error)?;
         let bytes = match binding {
             Some(binding) => {
                 let binding = artwork::ArtworkBinding::opaque(&binding);
