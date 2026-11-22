@@ -28,6 +28,7 @@ class AndroidAudioFocusTest {
         val focus = AndroidAudioFocus(context,
             isPlayingLocally = { playingLocally },
             pause = { pauses++; playingLocally = false },
+            duck = {},
             resume = { resumes++; playingLocally = true },
         )
         assertTrue(focus.acquire())
@@ -39,9 +40,6 @@ class AndroidAudioFocusTest {
         assertFalse(focus.hasFocus)
         assertNull(audio.lastAbandonedAudioFocusListener)
 
-        listener.onAudioFocusChange(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK)
-        assertEquals(1, pauses)
-        assertTrue(focus.resumeOnGain)
         listener.onAudioFocusChange(AudioManager.AUDIOFOCUS_GAIN)
         assertEquals(1, resumes)
         assertTrue(focus.hasFocus)
@@ -54,6 +52,36 @@ class AndroidAudioFocusTest {
     }
 
     @Test
+    fun aDuckableInterruptionLowersTheVolumeAndKeepsPlaying() {
+        val context = RuntimeEnvironment.getApplication()
+        val audio = shadowOf(context.getSystemService(AudioManager::class.java))
+        var pauses = 0
+        var resumes = 0
+        var ducked = false
+        val focus = AndroidAudioFocus(context,
+            isPlayingLocally = { true },
+            pause = { pauses++ },
+            duck = { ducked = it },
+            resume = { resumes++ },
+        )
+        assertTrue(focus.acquire())
+        val listener = audio.lastAudioFocusRequest.listener
+
+        listener.onAudioFocusChange(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK)
+        assertTrue(ducked)
+        assertTrue(focus.hasFocus)
+        assertFalse(focus.resumeOnGain)
+        listener.onAudioFocusChange(AudioManager.AUDIOFOCUS_GAIN)
+        assertFalse(ducked)
+        assertEquals(0, pauses)
+        assertEquals(0, resumes)
+
+        listener.onAudioFocusChange(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK)
+        focus.close()
+        assertFalse(ducked)
+    }
+
+    @Test
     fun manualPauseCancelsResumeAfterAnInterruption() {
         val context = RuntimeEnvironment.getApplication()
         val audio = shadowOf(context.getSystemService(AudioManager::class.java))
@@ -62,6 +90,7 @@ class AndroidAudioFocusTest {
         val focus = AndroidAudioFocus(context,
             isPlayingLocally = { playingLocally },
             pause = { playingLocally = false },
+            duck = {},
             resume = { resumes++; playingLocally = true },
         )
         assertTrue(focus.acquire())
@@ -88,6 +117,7 @@ class AndroidAudioFocusTest {
         val focus = AndroidAudioFocus(context,
             isPlayingLocally = { playingLocally },
             pause = { pauses++; playingLocally = false },
+            duck = {},
             resume = { resumes++; playingLocally = true },
         )
         assertTrue(focus.acquire())
@@ -112,6 +142,7 @@ class AndroidAudioFocusTest {
         val focus = AndroidAudioFocus(context,
             isPlayingLocally = { false },
             pause = { pauses++ },
+            duck = {},
             resume = { resumes++ },
         )
         assertTrue(focus.acquire())

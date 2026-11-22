@@ -225,11 +225,7 @@ impl PlayRequest {
             };
             index.min(batch.entries.len() - 1)
         };
-        let shuffle = (replacing && shuffled).then_some(if random_start {
-            QueueShuffle::FromSelected(seed)
-        } else {
-            QueueShuffle::AfterSelected(seed)
-        });
+        let shuffle = (replacing && shuffled).then_some(seed);
         let requested = batch
             .entries
             .get(selected)
@@ -257,18 +253,13 @@ enum QueueStart {
     Shuffled,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum QueueShuffle {
-    AfterSelected(u64),
-    FromSelected(u64),
-}
-
 #[derive(Clone, Debug)]
 pub(crate) struct QueueBatch {
     pub entries: Vec<library::QueueEntry>,
     pub rows: Vec<Arc<library::QueueRow>>,
     pub current_index: usize,
-    pub shuffle: Option<QueueShuffle>,
+    /// The seed of a shuffled queue: the current entry plays first, every other one after it.
+    pub shuffle: Option<u64>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -12,6 +12,7 @@ internal class AndroidAudioFocus(
     context: Context,
     private val isPlayingLocally: () -> Boolean,
     private val pause: () -> Unit,
+    private val duck: (Boolean) -> Unit,
     private val resume: () -> Unit,
 ) : AutoCloseable {
     private val manager = context.getSystemService(AudioManager::class.java)
@@ -23,17 +24,19 @@ internal class AndroidAudioFocus(
     private val listener = AudioManager.OnAudioFocusChangeListener { change ->
         when (change) {
             AudioManager.AUDIOFOCUS_GAIN -> {
+                duck(false)
                 hasFocus = true
                 val shouldResume = resumeOnGain
                 resumeOnGain = false
                 if (shouldResume) resume()
             }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 hasFocus = false
                 resumeOnGain = resumeOnGain || isPlayingLocally()
                 if (isPlayingLocally()) pause()
             }
+            // Android 8 and later lower the track themselves and do not ask.
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> duck(true)
             AudioManager.AUDIOFOCUS_LOSS -> {
                 abandon()
                 if (isPlayingLocally()) pause()
@@ -46,7 +49,6 @@ internal class AndroidAudioFocus(
                 .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build())
-            .setWillPauseWhenDucked(true)
             .setOnAudioFocusChangeListener(listener, Handler(Looper.getMainLooper()))
             .build()
     } else null
@@ -66,6 +68,7 @@ internal class AndroidAudioFocus(
 
     @Suppress("DEPRECATION")
     fun abandon() {
+        duck(false)
         hasFocus = false
         resumeOnGain = false
         if (!hasRequest) return

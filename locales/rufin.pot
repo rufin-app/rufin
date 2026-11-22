@@ -3905,6 +3905,9 @@ msgstr ""
 msgid "Select {title}"
 msgstr ""
 
+msgid "Selected audio output is unavailable"
+msgstr ""
+
 msgid "Selected folders"
 msgstr ""
 
@@ -4585,6 +4588,9 @@ msgid "Typography"
 msgstr ""
 
 msgid "UPnP"
+msgstr ""
+
+msgid "Unavailable output"
 msgstr ""
 
 msgid "Unavailable"

@@ -300,7 +300,6 @@ impl GoogleCastController {
                 Ok(vec![BackendEvent::AudioApplied {
                     volume: self.output_volume,
                     muted,
-                    output: None,
                 }])
             }
             BackendCommand::SetVisualizerEnabled(enabled) => {
@@ -555,7 +554,6 @@ impl GoogleCastController {
                     update.push(BackendEvent::AudioApplied {
                         volume: self.output_volume,
                         muted: true,
-                        output: None,
                     });
                 } else {
                     self.output_volume = volume.clamp(0.0, 1.0);
@@ -563,7 +561,6 @@ impl GoogleCastController {
                     update.push(BackendEvent::AudioApplied {
                         volume: self.output_volume,
                         muted: false,
-                        output: None,
                     });
                 }
             }

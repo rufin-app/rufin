@@ -1,4 +1,7 @@
-use super::audio::{SharedQueuedLoudness, audio_output_is_available, passthrough_allowed};
+use super::audio::{
+    SharedQueuedLoudness, audio_output_change, audio_output_is_available, passthrough_allowed,
+    selected_output_unavailable, watch_audio_outputs,
+};
 use super::pipeline::{AboutToFinishAction, PlayerPipeline, SourceClock};
 #[cfg(test)]
 use super::visualizer::visualizer_pipeline_is_live;
@@ -35,6 +38,7 @@ pub(super) enum WorkerInput {
     Command(Box<BackendCommand>),
     Processing(ProcessingRequest),
     Bus(Slot, PipelineId, gst::Message),
+    OutputsChanged,
     Wake,
     Shutdown,
 }
@@ -143,6 +147,7 @@ fn telemetry_key(event: &BackendEvent) -> Option<(RunId, TelemetryKind)> {
         | BackendEvent::NextNeeded { .. }
         | BackendEvent::NextPreparationFailed { .. }
         | BackendEvent::AudioApplied { .. }
+        | BackendEvent::OutputReturned
         | BackendEvent::ProcessingApplied { .. }
         | BackendEvent::ProcessingFailed { .. }
         | BackendEvent::ProcessingMeter { .. }
@@ -1020,7 +1025,7 @@ impl GstEngine {
                 }
                 Ok(())
             }
-            BackendCommand::ConfigureAudio(mut settings) => {
+            BackendCommand::ConfigureAudio(settings) => {
                 debug!(
                     fade_on_play_stop = settings.fade_on_status_change,
                     volume_gain = settings.output_gain(),
@@ -1029,21 +1034,20 @@ impl GstEngine {
                     "GStreamer audio configuration requested"
                 );
                 let previous_settings = self.settings();
-                if let Some(selected) = settings.audio_output.as_deref()
-                    && !audio_output_is_available(selected)
-                {
-                    settings.audio_output =
-                        if settings.audio_output != previous_settings.audio_output {
-                            previous_settings.audio_output.clone()
-                        } else {
-                            None
-                        };
-                }
-                let previous_output = previous_settings.audio_output.clone();
-                let output_changed = previous_output != settings.audio_output;
+                let output_changed = previous_settings.audio_output != settings.audio_output;
                 if output_changed {
                     // A crossfade tail never moves to the new device.
                     self.finish_overlap();
+                    // The choice stands: what plays waits for a device that is not there.
+                    if let Some(selected) = settings.audio_output.as_deref()
+                        && self.active_pipeline().has_session()
+                        && !audio_output_is_available(selected)
+                    {
+                        let failure = selected_output_unavailable(selected);
+                        lock_recover(&self.shared).settings = settings;
+                        self.fail_playback(command_run, failure);
+                        return;
+                    }
                 }
                 let preserve_pitch_changed =
                     previous_settings.preserve_pitch != settings.preserve_pitch;
@@ -1118,7 +1122,6 @@ impl GstEngine {
                         BackendEvent::AudioApplied {
                             volume: settings.volume,
                             muted,
-                            output: settings.audio_output.clone(),
                         },
                     );
                     Ok(())
@@ -1156,14 +1159,7 @@ impl GstEngine {
                 }
                 let (gain, muted) = self.output_gain_state();
                 self.apply_output_gain_to_pipelines(gain, muted);
-                push_event(
-                    &self.events,
-                    BackendEvent::AudioApplied {
-                        volume,
-                        muted,
-                        output: lock_recover(&self.shared).settings.audio_output.clone(),
-                    },
-                );
+                push_event(&self.events, BackendEvent::AudioApplied { volume, muted });
                 self.end_passthrough_if_needed()
             }
             BackendCommand::SetPlaybackRate(rate) => self.set_playback_rate(rate),
@@ -1729,8 +1725,10 @@ impl GstEngine {
 
     fn handle_inputs(&mut self, inputs: VecDeque<WorkerInput>) -> bool {
         let mut inputs = inputs.into_iter().peekable();
+        let mut outputs_changed = false;
         while let Some(input) = inputs.next() {
             match input {
+                WorkerInput::OutputsChanged => outputs_changed = true,
                 WorkerInput::Command(command) => self.handle_command(*command),
                 WorkerInput::Processing(request) => self.set_processing(request),
                 WorkerInput::Bus(slot, id, message) => {
@@ -1750,7 +1748,25 @@ impl GstEngine {
                 WorkerInput::Shutdown => return false,
             }
         }
+        if outputs_changed {
+            self.outputs_changed();
+        }
         true
+    }
+
+    /// What plays on a device that left stops where it is, to play on when the device is back.
+    fn outputs_changed(&mut self) {
+        let settings = self.settings();
+        let change = audio_output_change(settings.audio_output.as_deref());
+        if change.returned {
+            push_event(&self.events, BackendEvent::OutputReturned);
+        }
+        if change.lost
+            && let Some(run) = self.timing_run_id()
+            && let Some(selected) = settings.audio_output.as_deref()
+        {
+            self.fail_playback(Some(run), selected_output_unavailable(selected));
+        }
     }
 
     /// The next time the worker must act without a new input.
@@ -3343,6 +3359,10 @@ fn run_gstreamer_thread(
         elapsed_ms = startup_started_at.elapsed().as_millis(),
         "GStreamer playback backend is ready"
     );
+    let outputs_changed = engine.input_sender.clone();
+    watch_audio_outputs(move || {
+        let _ = outputs_changed.send(WorkerInput::OutputsChanged);
+    });
 
     loop {
         let first = match engine.next_deadline() {
@@ -3954,7 +3974,7 @@ mod tests {
     }
 
     #[test]
-    fn unavailable_device_selection_keeps_the_working_output() {
+    fn an_unavailable_device_selection_stands_and_stops_what_plays() {
         ensure_gstreamer_initialized().expect("initialize GStreamer");
         let directory = tempfile::tempdir().expect("playback fixture directory");
         let path = directory.path().join("unavailable-audio-device.wav");
@@ -3995,31 +4015,20 @@ mod tests {
         changed.audio_output = Some("gst-device:unavailable".to_string());
         engine.handle_command(BackendCommand::ConfigureAudio(changed));
 
-        assert!(engine.desired_playing);
+        assert!(!engine.desired_playing);
+        assert!(!engine.primary.has_session());
         assert_eq!(
             lock_recover(&engine.shared)
                 .settings
                 .audio_output
                 .as_deref(),
-            Some("fakesink")
+            Some("gst-device:unavailable")
         );
-        assert_eq!(
-            engine.primary.audio_output_factory().as_deref(),
-            Some("fakesink")
-        );
-        let applied = lock_recover(&events).drain();
-        assert!(applied.iter().any(|event| matches!(
+        assert!(lock_recover(&events).drain().iter().any(|event| matches!(
             event,
-            BackendEvent::AudioApplied {
-                output: Some(output),
-                ..
-            } if output == "fakesink"
+            BackendEvent::Error { run, error }
+                if *run == RunId::new(1) && error.kind() == FailureKind::Output
         )));
-        assert!(
-            applied
-                .iter()
-                .all(|event| !matches!(event, BackendEvent::Error { .. }))
-        );
         engine.shutdown();
     }
 

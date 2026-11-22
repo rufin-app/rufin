@@ -48,6 +48,10 @@ internal class AndroidAudioTrack(rate: Int, channels: Int, encoding: Int, buffer
             .setBufferSizeInBytes(maxOf(minimum, bufferBytes))
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
+        synchronized(open) {
+            open += track
+            track.setVolume(gain)
+        }
     }
 
     fun bufferFrames(): Int = track.bufferSizeInFrames
@@ -136,10 +140,22 @@ internal class AndroidAudioTrack(rate: Int, channels: Int, encoding: Int, buffer
     }
 
     fun close() = synchronized(accounting) {
+        synchronized(open) { open -= track }
         epoch++
         track.release()
         writtenFrames = 0
         pendingWrite = null
         pausedHead = null
+    }
+
+    companion object {
+        private val open = mutableSetOf<AudioTrack>()
+        private var gain = 1f
+
+        /** Plays quietly under another app's short sound, such as a navigation prompt. */
+        fun duck(ducked: Boolean) = synchronized(open) {
+            gain = if (ducked) 0.2f else 1f
+            open.forEach { it.setVolume(gain) }
+        }
     }
 }

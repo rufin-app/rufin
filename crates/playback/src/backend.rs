@@ -359,8 +359,9 @@ pub enum BackendEvent {
     AudioApplied {
         volume: f64,
         muted: bool,
-        output: Option<String>,
     },
+    /// The selected audio output is there again; with none selected, a new one is.
+    OutputReturned,
     Visualizer {
         run: RunId,
         levels: Vec<f64>,

@@ -355,6 +355,8 @@ struct NextPlan {
 #[derive(Clone, Debug)]
 struct FailedRun {
     desired_playing: bool,
+    /// It stopped because its audio output left, and plays on when that is back.
+    awaiting_output: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -1414,30 +1416,26 @@ impl Player {
             } => {
                 self.owner().equalizer_meter(output, peak_db, spectrum_db);
             }
-            BackendEvent::AudioApplied {
-                volume,
-                muted,
-                output,
-            } => {
-                let local = self.playback_output.is_local();
-                let audio_output_changed = local && self.settings.audio_output != output;
-                let unchanged = self.output_volume == volume
-                    && self.output_muted == muted
-                    && !audio_output_changed;
-                if unchanged {
+            BackendEvent::AudioApplied { volume, muted } => {
+                if self.output_volume == volume && self.output_muted == muted {
                     return;
                 }
                 self.output_volume = volume;
                 self.output_muted = muted;
-                if local {
+                if self.playback_output.is_local() {
                     self.settings.volume = volume;
                     self.settings.muted = muted;
-                    self.settings.audio_output = output.clone();
-                }
-                if audio_output_changed {
-                    self.owner().persist_output(volume, muted, output);
                 }
                 self.dirty = true;
+            }
+            BackendEvent::OutputReturned => {
+                if self
+                    .failed_run
+                    .as_ref()
+                    .is_some_and(|failed| failed.awaiting_output && failed.desired_playing)
+                {
+                    self.set_playing(true, sample);
+                }
             }
             BackendEvent::Visualizer { run, levels } => {
                 if self
@@ -1469,7 +1467,21 @@ impl Player {
                 }
                 let failed = FailedRun {
                     desired_playing: current.desired_playing,
+                    awaiting_output: error.kind() == FailureKind::Output,
                 };
+                if failed.awaiting_output {
+                    // The track keeps its place, paused, and plays on when its output is
+                    // back. Only a play that never began says why.
+                    let began = current.started_at_unix_seconds.is_some();
+                    self.dirty = true;
+                    self.finish_current(RunEndReason::Stopped, sample);
+                    if !began {
+                        self.report_error(error.message().to_string());
+                    }
+                    self.failed_run = Some(failed);
+                    self.restored_paused = true;
+                    return;
+                }
                 if error.kind() == FailureKind::Connection
                     && let Some(source) = streamed_source(current)
                 {
@@ -2497,6 +2509,10 @@ impl Player {
         }
         if !changed && current.status == TransportStatus::Paused {
             return;
+        }
+        // A crash loses at most ten seconds of the place in the track.
+        if self.sequence.progress_millis() / 10_000 != playhead_millis / 10_000 {
+            self.sequence.persist_state();
         }
         self.sequence.set_progress_millis(playhead_millis);
         self.dirty |= changed || clock_changed;

@@ -7,12 +7,12 @@ use gstreamer_audio::gst_base::{BaseTransform, prelude::BaseTransformExt};
 use gstreamer_controller::{self as controller, prelude::*};
 use playback::TrackLoudness;
 use playback::{
-    AudioOutput, BackendAudioSettings, DEFAULT_PLAYBACK_RATE, LoudnessNormalization,
-    LoudnessNormalizationScope, ProcessingRequest,
+    AudioOutput, BackendAudioSettings, BackendFailure, DEFAULT_PLAYBACK_RATE, FailureKind,
+    LoudnessNormalization, LoudnessNormalizationScope, ProcessingRequest,
 };
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
 
 const AUDIO_OUTPUT_DEVICE_PREFIX: &str = "gst-device:";
@@ -82,7 +82,7 @@ impl AudioGraph {
         playback_rate: f64,
         current_loudness: Option<TrackLoudness>,
         queued_loudness: SharedQueuedLoudness,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, BackendFailure> {
         let bin = gst::Bin::new();
         let convert_in = make_element("audioconvert", "rufin-audio-convert-in")?;
         let convert_out = make_element("audioconvert", "rufin-audio-convert-out")?;
@@ -742,42 +742,149 @@ struct AudioOutputDevice {
     device: gst::Device,
 }
 
-fn available_audio_output_devices() -> Vec<AudioOutputDevice> {
+/// Where the outputs are listed from. It stays started between listings, so the engine
+/// hears of a device that leaves or returns.
+enum OutputSource {
     #[cfg(target_os = "linux")]
-    {
-        let outputs = pulse_audio_output_devices();
-        if !outputs.is_empty() {
-            return outputs;
+    Pulse(gst::DeviceProvider),
+    Monitor(gst::DeviceMonitor),
+}
+
+impl OutputSource {
+    fn start() -> Option<Self> {
+        #[cfg(target_os = "linux")]
+        if let Some(provider) = gst::DeviceProviderFactory::find("pulsedeviceprovider")
+            .and_then(|factory| factory.get())
+        {
+            provider.bus().set_sync_handler(output_message);
+            let source = Self::Pulse(provider);
+            if source.started() && !source.devices().is_empty() {
+                return Some(source);
+            }
+            source.stop();
+        }
+        let monitor = gst::DeviceMonitor::new();
+        let _filter_id = monitor.add_filter(Some("Audio/Sink"), None);
+        monitor.bus().set_sync_handler(output_message);
+        let source = Self::Monitor(monitor);
+        source.started().then_some(source)
+    }
+
+    fn started(&self) -> bool {
+        match self {
+            #[cfg(target_os = "linux")]
+            Self::Pulse(provider) => provider.start().is_ok(),
+            Self::Monitor(monitor) => monitor.start().is_ok(),
         }
     }
 
-    let monitor = gst::DeviceMonitor::new();
-    let _filter_id = monitor.add_filter(Some("Audio/Sink"), None);
-    if monitor.start().is_err() {
-        return Vec::new();
+    fn devices(&self) -> Vec<AudioOutputDevice> {
+        match self {
+            #[cfg(target_os = "linux")]
+            Self::Pulse(provider) => collect_audio_output_devices(
+                provider
+                    .devices()
+                    .into_iter()
+                    .filter(|device| device.device_class() == "Audio/Sink"),
+            ),
+            Self::Monitor(monitor) => collect_audio_output_devices(monitor.devices()),
+        }
     }
-    let outputs = collect_audio_output_devices(monitor.devices());
-    monitor.stop();
-    outputs
+
+    fn stop(self) {
+        match self {
+            #[cfg(target_os = "linux")]
+            Self::Pulse(provider) => {
+                provider.stop();
+                provider.bus().unset_sync_handler();
+            }
+            Self::Monitor(monitor) => monitor.stop(),
+        }
+    }
 }
 
-#[cfg(target_os = "linux")]
-fn pulse_audio_output_devices() -> Vec<AudioOutputDevice> {
-    let Some(provider) =
-        gst::DeviceProviderFactory::find("pulsedeviceprovider").and_then(|factory| factory.get())
-    else {
-        return Vec::new();
-    };
-    if provider.start().is_err() {
-        return Vec::new();
+#[derive(Default)]
+struct Outputs {
+    source: Option<OutputSource>,
+    /// The outputs the engine last saw.
+    seen: HashSet<String>,
+}
+
+impl Outputs {
+    /// Lists the outputs anew: a source without change notices only finds its devices when
+    /// it starts.
+    fn list(&mut self) -> Vec<AudioOutputDevice> {
+        if let Some(source) = self.source.take() {
+            source.stop();
+        }
+        self.source = OutputSource::start();
+        self.listed()
     }
-    let outputs = collect_audio_output_devices(
-        provider
-            .devices()
-            .into_iter()
-            .filter(|device| device.device_class() == "Audio/Sink"),
-    );
-    provider.stop();
+
+    fn listed(&self) -> Vec<AudioOutputDevice> {
+        self.source
+            .as_ref()
+            .map(OutputSource::devices)
+            .unwrap_or_default()
+    }
+}
+
+static OUTPUTS: LazyLock<Mutex<Outputs>> = LazyLock::new(Mutex::default);
+static OUTPUTS_CHANGED: Mutex<Option<Box<dyn Fn() + Send>>> = Mutex::new(None);
+
+fn outputs_changed() {
+    if let Some(changed) = super::lock_recover(&OUTPUTS_CHANGED).as_ref() {
+        changed();
+    }
+}
+
+fn output_message(_: &gst::Bus, message: &gst::Message) -> gst::BusSyncReply {
+    if matches!(
+        message.type_(),
+        gst::MessageType::DeviceAdded | gst::MessageType::DeviceRemoved
+    ) {
+        outputs_changed();
+    }
+    gst::BusSyncReply::Drop
+}
+
+/// Calls `changed` whenever the outputs of this device may have changed.
+pub(super) fn watch_audio_outputs(changed: impl Fn() + Send + 'static) {
+    *super::lock_recover(&OUTPUTS_CHANGED) = Some(Box::new(changed));
+    let mut outputs = super::lock_recover(&OUTPUTS);
+    outputs.seen = outputs.list().into_iter().map(|output| output.id).collect();
+}
+
+pub(super) struct OutputChange {
+    /// The selected device is gone.
+    pub lost: bool,
+    /// The selected device is there again; with no device selected, a new one is.
+    pub returned: bool,
+}
+
+/// What happened to the `selected` output since the engine last asked.
+pub(super) fn audio_output_change(selected: Option<&str>) -> OutputChange {
+    let mut outputs = super::lock_recover(&OUTPUTS);
+    let now = outputs
+        .listed()
+        .into_iter()
+        .map(|output| output.id)
+        .collect::<HashSet<_>>();
+    let device = selected.filter(|selected| audio_output_device_selector(selected).is_some());
+    let change = OutputChange {
+        lost: device.is_some_and(|device| !now.contains(device)),
+        returned: match device {
+            Some(device) => now.contains(device) && !outputs.seen.contains(device),
+            None => now.difference(&outputs.seen).next().is_some(),
+        },
+    };
+    outputs.seen = now;
+    change
+}
+
+fn available_audio_output_devices() -> Vec<AudioOutputDevice> {
+    let outputs = super::lock_recover(&OUTPUTS).list();
+    outputs_changed();
     outputs
 }
 
@@ -838,19 +945,33 @@ fn audio_output_selector_from_element(device: &gst::Device) -> Option<String> {
         .filter(|selector| !selector.trim().is_empty())
 }
 
-pub(super) fn make_audio_output(selected: Option<&str>) -> Result<gst::Element, String> {
+pub(super) fn make_audio_output(selected: Option<&str>) -> Result<gst::Element, BackendFailure> {
     match selected {
-        None => make_element(default_audio_output_factory(), "rufin-audio-output"),
+        None => Ok(make_element(
+            default_audio_output_factory(),
+            "rufin-audio-output",
+        )?),
         Some(selected) => {
             if audio_output_device_selector(selected).is_some() {
                 let output = available_audio_output_devices()
                     .into_iter()
                     .find(|output| output.id == selected)
                     .ok_or_else(|| selected_output_unavailable(selected))?;
-                return output
+                let output = output
                     .device
                     .create_element(Some("rufin-audio-output"))
-                    .map_err(|_| selected_output_unavailable(selected));
+                    .map_err(|_| selected_output_unavailable(selected))?;
+                // PipeWire then ends the stream when its device leaves, instead of moving it
+                // to another one.
+                if output.find_property("stream-properties").is_some() {
+                    output.set_property(
+                        "stream-properties",
+                        gst::Structure::builder("props")
+                            .field("node.dont-fallback", "true")
+                            .build(),
+                    );
+                }
+                return Ok(output);
             }
             if gst::ElementFactory::find(selected).is_none() {
                 return Err(selected_output_unavailable(selected));
@@ -871,8 +992,9 @@ fn default_audio_output_factory() -> &'static str {
     "autoaudiosink"
 }
 
-fn selected_output_unavailable(selected: &str) -> String {
-    format!("Selected audio output is unavailable: {selected}")
+pub(super) fn selected_output_unavailable(selected: &str) -> BackendFailure {
+    tracing::warn!(selected, "Selected audio output is unavailable");
+    BackendFailure::with_kind(FailureKind::Output, "Selected audio output is unavailable")
 }
 
 fn set_output_target(output: &gst::Element, target: Option<&str>) -> bool {
@@ -989,7 +1111,7 @@ mod tests {
         settings: &BackendAudioSettings,
         playback_rate: f64,
         stream: SharedQueuedLoudness,
-    ) -> Result<AudioGraph, String> {
+    ) -> Result<AudioGraph, BackendFailure> {
         let current_loudness = stream
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -1088,7 +1210,7 @@ mod tests {
     fn explicit_unavailable_output_does_not_fall_back_to_default() {
         initialize_gstreamer();
         let result = make_audio_output(Some("rufin-output-that-does-not-exist"));
-        assert!(result.is_err_and(|error| error.contains("unavailable")));
+        assert!(result.is_err_and(|error| error.kind() == FailureKind::Output));
     }
 
     #[test]

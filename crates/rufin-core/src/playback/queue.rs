@@ -330,7 +330,8 @@ impl Sequence {
         });
         self.changed(true);
     }
-    /// Saves the position with the rest: on pause, stop, track change, seek and exit.
+    /// Saves the position with the rest: every ten seconds of play, on pause, stop, track
+    /// change, seek and exit.
     pub(super) fn persist_state(&mut self) {
         self.dirty.get_or_insert_default().state = true;
     }
@@ -409,14 +410,23 @@ impl Sequence {
         self.activate_backend(index);
         Some(index)
     }
+    /// The current entry plays first and every other entry follows it in shuffled order.
+    fn shuffle_others(&mut self, seed: u64) {
+        let Some(selected) = self.selected_index else {
+            library::shuffle_order(&mut self.order, seed);
+            return;
+        };
+        self.order.swap(0, selected);
+        library::shuffle_order(&mut self.order[1..], seed);
+        self.selected_index = Some(0);
+    }
     pub(super) fn shuffle(&mut self, enabled: bool, seed: u64) {
         if self.shuffle_enabled == enabled {
             return;
         }
         self.shuffle_enabled = enabled;
         if enabled {
-            let start = self.selected_index.map_or(0, |i| i + 1);
-            library::shuffle_order(&mut self.order[start..], seed);
+            self.shuffle_others(seed);
             self.place(None, Some(0..self.total()));
         } else {
             // The queue plays in its own order again, from the current entry's place in it.
@@ -484,20 +494,8 @@ impl Sequence {
         if self.selected_index.is_none() && !self.order.is_empty() {
             self.selected_index = Some(if replacing { page.current_index } else { at });
         }
-        if replacing && let Some(shuffle) = page.shuffle {
-            match shuffle {
-                super::commands::QueueShuffle::AfterSelected(seed) => {
-                    let start = self.selected_index.map_or(0, |index| index + 1);
-                    library::shuffle_order(&mut self.order[start..], seed);
-                }
-                super::commands::QueueShuffle::FromSelected(seed) => {
-                    if let Some(selected) = self.selected_index {
-                        self.order.swap(0, selected);
-                        library::shuffle_order(&mut self.order[1..], seed);
-                        self.selected_index = Some(0);
-                    }
-                }
-            }
+        if replacing && let Some(seed) = page.shuffle {
+            self.shuffle_others(seed);
         }
         self.rows
             .extend(page.rows.into_iter().filter_map(|mut row| {
@@ -995,18 +993,19 @@ mod tests {
         s.set_progress_millis(42000);
         let prepared_id = s.id_at(4).unwrap();
         let prepared = s.members[&prepared_id].0.clone();
+        s.remove(&QueueSelection::Positions(vec![0]));
+        assert_eq!(s.selected_index(), Some(2));
         s.shuffle(true, 4);
+        assert_eq!(s.selected_index(), Some(0));
         s.add_page(
             page(2000, 1),
             QueueReorderTarget::AfterOccurrence(current_id.0),
             false,
         );
         assert_eq!(
-            s.entry_at(4).unwrap().track_key,
+            s.entry_at(1).unwrap().track_key,
             library::TrackKey::from_raw(1001)
         );
-        s.remove(&QueueSelection::Positions(vec![0]));
-        assert_eq!(s.selected_index(), Some(2));
         let moving = s
             .order
             .iter()

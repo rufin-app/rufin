@@ -623,7 +623,6 @@ async fn volume_commit_persists_the_requested_value_after_older_backend_feedback
         BackendEvent::AudioApplied {
             volume: 0.6,
             muted: false,
-            output: None,
         },
         &sample,
     );
@@ -2045,7 +2044,6 @@ async fn unplayable_tracks_are_skipped_until_the_failure_cap() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn shared_failures_disabled_skipping_and_repeat_one_stop_playback() {
     for (kind, skip, repeat) in [
-        (FailureKind::Output, true, QueueRepeatMode::Off),
         (FailureKind::DeniedAccess, true, QueueRepeatMode::Off),
         (FailureKind::Decode, false, QueueRepeatMode::Off),
         (FailureKind::Decode, true, QueueRepeatMode::One),
@@ -2062,6 +2060,29 @@ async fn shared_failures_disabled_skipping_and_repeat_one_stop_playback() {
         assert!(session.current_run().is_none(), "{kind:?}");
         assert!(session.last_error.is_some(), "{kind:?}");
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_lost_output_pauses_the_track_until_the_output_returns() {
+    let (mut session, _commands, _guards) = skip_session(PlaybackSettings::default()).await;
+    let start = session.sequence.selected_index();
+    session.sequence.set_progress_millis(42_000);
+    fail_current(&mut session, FailureKind::Output);
+    assert!(session.current_run().is_none());
+    assert!(session.last_error.is_none());
+    assert_eq!(session.status(), TransportStatus::Paused);
+    assert_eq!(session.sequence.progress_millis(), 42_000);
+
+    session.handle_backend(BackendEvent::OutputReturned, &skip_session_sample());
+    assert_eq!(session.sequence.selected_index(), start);
+    assert!(session.current_run.as_ref().unwrap().desired_playing);
+    assert_eq!(session.start_position_millis(), 42_000);
+
+    // A pause while the output is away is kept when it returns.
+    fail_current(&mut session, FailureKind::Output);
+    session.set_playing(false, &skip_session_sample());
+    session.handle_backend(BackendEvent::OutputReturned, &skip_session_sample());
+    assert!(session.current_run().is_none());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

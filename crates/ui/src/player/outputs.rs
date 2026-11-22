@@ -197,13 +197,17 @@ fn refresh_audio_output_dropdown(
     syncing: &Rc<Cell<bool>>,
 ) {
     let selected_id = selected.borrow().clone();
-    let shown = shell
+    let mut shown = shell
         .player_ui
         .controls
         .audio_output_options
         .borrow()
         .clone();
-    let selected_index = audio_output_index(&shown, selected_id.as_deref()).unwrap_or_default();
+    // A selected device that is away stays the selection.
+    let selected_index = audio_output_index(&shown, selected_id.as_deref()).unwrap_or_else(|| {
+        shown.push((selected_id, tr("Unavailable output")));
+        shown.len() - 1
+    });
     let titles = shown
         .iter()
         .map(|(_, title)| title.as_str())

@@ -1,6 +1,7 @@
 package app.rufin.rufin
 
 import app.rufin.rufin.player.AndroidAudioFocus
+import app.rufin.rufin.platform.AndroidAudioTrack
 import app.rufin.rufin.platform.AndroidLibraryObserver
 import app.rufin.rufin.player.AndroidOutputRoutes
 import app.rufin.rufin.platform.AndroidPermissions
@@ -164,6 +165,7 @@ class RufinService : MediaSessionService() {
         addSession(session)
         audioFocus = AndroidAudioFocus(this, ::playingLocally,
             pause = { playbackOwner?.pause() },
+            duck = AndroidAudioTrack::duck,
             resume = {
                 try { play() } catch (error: Exception) { nativePlayer.failed(error) }
             })

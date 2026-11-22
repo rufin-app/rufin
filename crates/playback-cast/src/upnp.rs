@@ -229,13 +229,7 @@ impl UpnpController {
 
     pub(crate) fn initial_events(&self) -> Vec<BackendEvent> {
         self.volume()
-            .map(|(volume, muted)| {
-                vec![BackendEvent::AudioApplied {
-                    volume,
-                    muted,
-                    output: None,
-                }]
-            })
+            .map(|(volume, muted)| vec![BackendEvent::AudioApplied { volume, muted }])
             .unwrap_or_default()
     }
 
@@ -409,11 +403,7 @@ impl UpnpController {
                 } else {
                     self.set_volume(volume, muted)?;
                 }
-                Ok(vec![BackendEvent::AudioApplied {
-                    volume,
-                    muted,
-                    output: None,
-                }])
+                Ok(vec![BackendEvent::AudioApplied { volume, muted }])
             }
             BackendCommand::SetVisualizerEnabled(enabled) => {
                 if self.visualizer_enabled == enabled {

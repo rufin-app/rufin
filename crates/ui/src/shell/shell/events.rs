@@ -844,6 +844,7 @@ fn playback_error_toast(error: &str) -> String {
         "Access denied" => tr("Access denied"),
         "Couldn't connect to the server" => tr("Couldn't connect to the server"),
         "Audio output failed" => tr("Audio output failed"),
+        "Selected audio output is unavailable" => tr("Selected audio output is unavailable"),
         _ => error.to_owned(),
     }
 }
