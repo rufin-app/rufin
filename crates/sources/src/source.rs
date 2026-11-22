@@ -1280,7 +1280,7 @@ impl Source {
 
     pub fn needs_periodic_refresh(&self) -> bool {
         match &self.implementation {
-            Implementation::OpenSubsonic(_) | Implementation::Peer(_) => true,
+            Implementation::OpenSubsonic(_) => true,
             Implementation::Files(files) => !files.has_notifications(),
             // The check walks the folders once they have gone an hour without a walk.
             Implementation::Local(_) => true,
@@ -1345,13 +1345,16 @@ impl Source {
                 false
             };
             if check {
-                // A server without a scan marker lists everything once a day.
+                // The scan marker does not move with a rating or a play made elsewhere, and
+                // some servers give none: a Subsonic server lists everything once a day.
                 let daily = synced_at.is_none_or(|at| unix_now() - at >= 24 * 60 * 60);
                 let full = match (&self.implementation, &freshness) {
                     (Implementation::Plex(_) | Implementation::JellyfinEmby(_), _) => true,
                     (Implementation::Local(local), _) => local.rescan_due(),
+                    (Implementation::OpenSubsonic(_), marker) => {
+                        daily || marker.is_some() && !accepted
+                    }
                     (_, Some(_)) => !accepted,
-                    (Implementation::OpenSubsonic(_), None) => daily,
                     (implementation, None) => matches!(implementation, Implementation::Files(_)),
                 };
                 if !full {
@@ -2631,10 +2634,33 @@ impl Source {
                 *feed.remote_task.lock().unwrap_or_else(|p| p.into_inner()) =
                     Some(task.abort_handle());
             }
-            Implementation::Local(_)
-            | Implementation::Files(_)
-            | Implementation::OpenSubsonic(_)
-            | Implementation::Peer(_) => {}
+            Implementation::Peer(_) => {
+                let producer = Arc::clone(&feed);
+                let task = runtime.spawn(async move {
+                    // A connect after the first, or the first when no listing runs, catches up.
+                    let ready = || {
+                        std::mem::take(&mut initial_scan_pending)
+                            || producer
+                                .submit(SelectedFeedChange::Remote(RemoteItemChange::BoundaryLost))
+                    };
+                    let changed = || {
+                        producer.submit(SelectedFeedChange::Remote(RemoteItemChange::BoundaryLost))
+                    };
+                    if let Implementation::Peer(source) = &producer.source.implementation {
+                        source.listen_changes(ready, changed).await;
+                    }
+                });
+                *feed.remote_task.lock().unwrap_or_else(|p| p.into_inner()) =
+                    Some(task.abort_handle());
+            }
+            // No feed: the first check runs now unless a listing does, the next ones on the
+            // owner's interval.
+            Implementation::OpenSubsonic(_) | Implementation::Files(_) => {
+                if !initial_scan_pending {
+                    feed.submit(SelectedFeedChange::Remote(RemoteItemChange::BoundaryLost));
+                }
+            }
+            Implementation::Local(_) => {}
         }
         feed
     }

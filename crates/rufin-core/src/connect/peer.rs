@@ -9,7 +9,8 @@ use sources::{PeerAudio, SourceError, SourceId, SourceResult};
 use std::{io::Read as _, pin::Pin, sync::Weak};
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-/// A read of the catalog of one of the owner's Local sources.
+/// A read of the catalog of one of the owner's Local sources. `Watch` is answered with a line
+/// whenever the source's marker moved.
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "read", rename_all = "snake_case")]
 pub(super) enum Read {
@@ -17,7 +18,13 @@ pub(super) enum Read {
     Ids,
     ChangedSince { since: i64 },
     Observations { ids: Vec<String> },
+    Watch,
 }
+
+/// A source's changes are told once its writes pause this long, and this often while they
+/// go on, so a scan is not answered commit by commit.
+const WATCH_PAUSE: std::time::Duration = std::time::Duration::from_secs(2);
+const WATCH_LIMIT: std::time::Duration = std::time::Duration::from_secs(30);
 
 /// Asks the device that owns a peer source.
 pub(crate) struct Link(pub(crate) Weak<ConnectOwner>);
@@ -100,6 +107,20 @@ impl sources::PeerLink for Link {
         Box::pin(self.read(device, source, Read::Observations { ids: ids.to_vec() }))
     }
 
+    fn watch<'a>(
+        &'a self,
+        device: &'a str,
+        source: &'a SourceId,
+    ) -> BoxFuture<'a, SourceResult<Pin<Box<dyn AsyncRead + Send + Unpin>>>> {
+        Box::pin(async move {
+            let request = Stream::Catalog {
+                source: source.clone(),
+                read: Read::Watch,
+            };
+            Ok(self.stream(device, request).await?.reader)
+        })
+    }
+
     fn image<'a>(
         &'a self,
         device: &'a str,
@@ -174,6 +195,7 @@ impl ConnectOwner {
             Stream::Catalog { source, read } => {
                 self.local_source(&source)?;
                 let answer = match read {
+                    Read::Watch => return self.watched(source),
                     Read::Marker => serde_json::to_vec(
                         self.catalog
                             .source_marker(&source)
@@ -246,6 +268,46 @@ impl ConnectOwner {
             }
             Stream::Observe => self.observed(),
         }
+    }
+
+    /// A line whenever the marker of this device's source moved, until the reader closes the
+    /// stream or Connect stops.
+    fn watched(&self, source: SourceId) -> Result<PeerByteResponse, String> {
+        use tokio::io::AsyncWriteExt;
+        use tokio::sync::broadcast::error::RecvError;
+        let session = self.active()?;
+        let (mut lines, reader) = tokio::io::duplex(64);
+        let mut changes = self.catalog.changes();
+        let catalog = self.catalog.clone();
+        self.runtime
+            .spawn(session.stop.clone().run_until_cancelled_owned(async move {
+                let marker = async || {
+                    let marker = catalog.source_marker(&source).await.ok()?;
+                    Some(marker.as_bytes().to_vec())
+                };
+                let mut told = marker().await;
+                while !matches!(changes.recv().await, Err(RecvError::Closed)) {
+                    let begun = std::time::Instant::now();
+                    while begun.elapsed() < WATCH_LIMIT {
+                        match tokio::time::timeout(WATCH_PAUSE, changes.recv()).await {
+                            Err(_) => break,
+                            Ok(Err(RecvError::Closed)) => return,
+                            Ok(_) => {}
+                        }
+                    }
+                    // An empty write still learns that the reader left.
+                    let current = marker().await;
+                    let line: &[u8] = if current == told { b"" } else { b"\n" };
+                    if lines.write(line).await.is_err() {
+                        return;
+                    }
+                    told = current;
+                }
+            }));
+        Ok(PeerByteResponse {
+            metadata: serde_json::Value::Null,
+            reader: Box::pin(reader),
+        })
     }
 
     /// Only this device's own Local sources are served.

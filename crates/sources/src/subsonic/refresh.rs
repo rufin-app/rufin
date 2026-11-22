@@ -47,19 +47,28 @@ impl SubsonicSource {
             .ok_or_else(|| {
                 SourceError::Other("Subsonic favorites response is unavailable".into())
             })?;
-        let ids = |field, kind| {
-            json::items(&starred[field])
-                .iter()
-                .filter_map(|item| json::id(&item["id"]))
-                .map(|id| self.id(kind, &id))
-                .collect::<Vec<_>>()
-        };
-
         check_cancelled(cancelled)?;
         for (field, kind) in [("song", "track"), ("album", "album"), ("artist", "artist")] {
-            observation
-                .replace_source_favorites(kind, &ids(field, kind))
-                .await?;
+            // The starred records are whole, so their ratings and plays are read too: a
+            // check then shows them without waiting for the next listing. A record that
+            // leaves the rating out says nothing of it.
+            let (ids, states): (Vec<_>, Vec<_>) = json::items(&starred[field])
+                .iter()
+                .filter_map(|item| {
+                    let id = self.id(kind, &json::id(&item["id"])?);
+                    let state = library::NativeUserState {
+                        rating: user_rating(item).filter(|_| item.get("userRating").is_some()),
+                        ..if kind == "track" {
+                            song_state(item)
+                        } else {
+                            Default::default()
+                        }
+                    };
+                    Some((id.clone(), (id, state)))
+                })
+                .unzip();
+            observation.replace_source_favorites(kind, &ids).await?;
+            observation.write_native_user_data(kind, &states).await?;
         }
 
         Ok(())

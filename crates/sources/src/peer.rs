@@ -15,6 +15,9 @@ use crate::{
 
 /// Observations asked of the owner at a time.
 const PAGE: usize = 500;
+/// How long a lost change feed waits before it asks the owner again, doubling up to the limit.
+const FEED_RETRY: std::time::Duration = std::time::Duration::from_secs(5);
+const FEED_RETRY_LIMIT: std::time::Duration = std::time::Duration::from_secs(300);
 
 pub struct PeerAudio {
     pub reader: Pin<Box<dyn tokio::io::AsyncRead + Send + Unpin>>,
@@ -50,6 +53,12 @@ pub trait PeerLink: Send + Sync {
         source: &'a SourceId,
         ids: &'a [String],
     ) -> BoxFuture<'a, SourceResult<Vec<TrackObservation>>>;
+    /// A line whenever the owner's marker moved, until the reader is dropped.
+    fn watch<'a>(
+        &'a self,
+        device: &'a str,
+        source: &'a SourceId,
+    ) -> BoxFuture<'a, SourceResult<Pin<Box<dyn tokio::io::AsyncRead + Send + Unpin>>>>;
     fn image<'a>(
         &'a self,
         device: &'a str,
@@ -97,6 +106,36 @@ impl PeerSource {
 
     pub(crate) async fn freshness(&self) -> SourceResult<Option<Freshness>> {
         self.link.marker(&self.device, &self.source).await.map(Some)
+    }
+
+    /// The owner's changes: `ready` on every connect, `changed` on each change the owner
+    /// tells, until one of them answers false. An owner that is away is asked again.
+    pub(crate) async fn listen_changes(
+        &self,
+        mut ready: impl FnMut() -> bool + Send,
+        mut changed: impl FnMut() -> bool + Send,
+    ) {
+        use tokio::io::AsyncBufReadExt;
+        let mut delay = FEED_RETRY;
+        loop {
+            match self.link.watch(&self.device, &self.source).await {
+                Ok(reader) => {
+                    if !ready() {
+                        return;
+                    }
+                    delay = FEED_RETRY;
+                    let mut lines = tokio::io::BufReader::new(reader).lines();
+                    while let Ok(Some(_)) = lines.next_line().await {
+                        if !changed() {
+                            return;
+                        }
+                    }
+                }
+                Err(error) => tracing::debug!(%error, "peer change feed unavailable"),
+            }
+            tokio::time::sleep(delay).await;
+            delay = delay.saturating_mul(2).min(FEED_RETRY_LIMIT);
+        }
     }
 
     /// Lists every track the owner indexes; with `since`, only the tracks added or removed

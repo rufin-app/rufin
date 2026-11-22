@@ -201,11 +201,7 @@ pub(super) fn album_from_json(
             ..Default::default()
         },
         user_data: library::NativeUserState {
-            rating: Some(
-                json::field::<u32>(album, "userRating")
-                    .filter(|value| *value > 0)
-                    .map(|value| i64::from(value.min(5).saturating_mul(20))),
-            ),
+            rating: user_rating(album),
             favorite: favorite(&json::field(album, "starred")),
             ..Default::default()
         },
@@ -298,18 +294,7 @@ pub(super) fn track_from_json(
             groupings: groupings(json::strings(&song["groupings"])),
             ..Default::default()
         },
-        user_data: library::NativeUserState {
-            last_played: crate::policy::unix_seconds(json::field(song, "played")),
-            play_count: json::field::<u64>(song, "playCount")
-                .map(|value| i64::from(value.min(u64::from(u32::MAX)) as u32)),
-            rating: Some(
-                json::field::<u32>(song, "userRating")
-                    .filter(|value| *value > 0)
-                    .map(|value| i64::from(value.min(5).saturating_mul(20))),
-            ),
-            favorite: favorite(&json::field(song, "starred")),
-            ..Default::default()
-        },
+        user_data: song_state(song),
         object_id,
         album_object_id: json::id(&song["albumId"]).map(|id| String::from(source.id("album", &id))),
         audio_revision: Some(audio_revision),
@@ -321,6 +306,26 @@ pub(super) fn track_from_json(
         source_path: path,
         ..Default::default()
     }))
+}
+
+/// The user's rating (0..100); a server leaves the field out or sends 0 for no rating.
+pub(super) fn user_rating(item: &Value) -> Option<Option<i64>> {
+    Some(
+        json::field::<u32>(item, "userRating")
+            .filter(|value| *value > 0)
+            .map(|value| i64::from(value.min(5).saturating_mul(20))),
+    )
+}
+
+/// What the user did with a song, as every record of it tells.
+pub(super) fn song_state(song: &Value) -> library::NativeUserState {
+    library::NativeUserState {
+        last_played: crate::policy::unix_seconds(json::field(song, "played")),
+        play_count: json::field::<u64>(song, "playCount")
+            .map(|value| i64::from(value.min(u64::from(u32::MAX)) as u32)),
+        rating: user_rating(song),
+        favorite: favorite(&json::field(song, "starred")),
+    }
 }
 
 fn finite(value: Option<f64>) -> Option<f64> {
@@ -379,11 +384,7 @@ pub(super) fn artist_from_json(
         },
         user_data: library::NativeUserState {
             favorite: favorite(&json::field(artist, "starred")),
-            rating: Some(
-                json::field::<u32>(artist, "userRating")
-                    .filter(|value| *value > 0)
-                    .map(|value| i64::from(value.min(5).saturating_mul(20))),
-            ),
+            rating: user_rating(artist),
             ..Default::default()
         },
         object_id: source.id("artist", &raw_id),

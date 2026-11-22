@@ -596,3 +596,76 @@ async fn an_older_rufin_is_reported_as_incompatible() {
     .await
     .expect("The incompatible device did not answer");
 }
+
+#[tokio::test]
+async fn a_paired_device_on_another_media_version_is_told_to_update() {
+    tokio::time::timeout(Duration::from_secs(30), async {
+        // Two older devices, which speak the previous media version only.
+        let older = async || {
+            let old = iroh::Endpoint::builder(iroh::endpoint::presets::Minimal)
+                .relay_mode(iroh::RelayMode::Disabled)
+                .alpns(vec![b"rufin/connect/media/2".to_vec()])
+                .bind()
+                .await
+                .unwrap();
+            let accepting = old.clone();
+            tokio::spawn(async move {
+                while let Some(incoming) = accepting.accept().await {
+                    let _ = incoming.await;
+                }
+            });
+            old
+        };
+        let (asked, asking) = (older().await, older().await);
+        let (new, mut events) = node("Updated", Credentials::generate()).await;
+        new.set_devices(
+            [
+                new.identity(),
+                asked.id().to_string(),
+                asking.id().to_string(),
+            ]
+            .into_iter()
+            .map(|device| (device, (true, 0)))
+            .collect(),
+        );
+        let mut told = async || loop {
+            if let NetworkEvent::Error(error) = events.recv().await.unwrap() {
+                break assert_eq!(error, INCOMPATIBLE);
+            }
+        };
+
+        // The updated device asks an older one.
+        assert_eq!(new.learn(vec![asked.addr()]).await.len(), 1);
+        let refused = new
+            .stream_request(&asked.id().to_string(), b"{}".to_vec())
+            .await;
+        assert_eq!(refused.err().unwrap().to_string(), INCOMPATIBLE);
+        told().await;
+
+        // An older one asks the updated device, and reads the notice as its error.
+        let address: iroh::EndpointAddr =
+            serde_json::from_str(&new.invitation().await.unwrap()).unwrap();
+        let connection = asking
+            .connect(address, b"rufin/connect/media/2")
+            .await
+            .unwrap();
+        let (mut send, mut recv) = connection.open_bi().await.unwrap();
+        let body = serde_json::to_vec(b"{}".as_slice()).unwrap();
+        send.write_all(&(body.len() as u32).to_be_bytes())
+            .await
+            .unwrap();
+        send.write_all(&body).await.unwrap();
+        send.finish().unwrap();
+        let mut answer = vec![0; recv.read_u32().await.unwrap() as usize];
+        recv.read_exact(&mut answer).await.unwrap();
+        let answer: Result<serde_json::Value, String> = serde_json::from_slice(&answer).unwrap();
+        assert_eq!(answer.unwrap_err(), INCOMPATIBLE);
+        told().await;
+
+        new.shutdown().await.unwrap();
+        asked.close().await;
+        asking.close().await;
+    })
+    .await
+    .expect("The older device was not told");
+}

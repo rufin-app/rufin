@@ -31,11 +31,14 @@ use crate::{
 pub(crate) const RPC_PROTOCOL: &[u8] = b"rufin/connect/rpc/2";
 pub(crate) const PAIR_PROTOCOL: &[u8] = b"rufin/connect/pair/4";
 const INVITE_PROTOCOL: &[u8] = b"rufin/connect/invite/2";
-// An older device does not answer a newer protocol at all. Pairing also offers the previous
-// versions, so one that picks them is reported as incompatible.
+// An older device does not answer a newer protocol at all. Pairing and media also offer the
+// previous versions, so one that picks them is reported as incompatible.
 const PREVIOUS_PAIR_PROTOCOL: &[u8] = b"rufin/connect/pair/3";
 const PREVIOUS_INVITE_PROTOCOL: &[u8] = b"rufin/connect/invite/1";
-const MEDIA_PROTOCOL: &[u8] = b"rufin/connect/media/2";
+const MEDIA_PROTOCOL: &[u8] = b"rufin/connect/media/3";
+// This device answers the previous media version too, to tell a paired device that asks on
+// it that it is incompatible.
+const PREVIOUS_MEDIA_PROTOCOL: &[u8] = b"rufin/connect/media/2";
 pub(crate) const SYNC_PROTOCOL: &[u8] = b"rufin/connect/sync/4";
 pub(crate) const MAX_FRAME: usize = 16 * 1024 * 1024;
 // A device reads a frame of this size only from a member of the profile it admitted, such as
@@ -272,6 +275,8 @@ pub struct ConnectNetwork {
     relay: RelayMode,
     router: Mutex<Option<Router>>,
     pairing_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    // The devices already reported as incompatible.
+    incompatible: std::sync::Mutex<BTreeSet<EndpointId>>,
 }
 
 impl ConnectNetwork {
@@ -321,6 +326,7 @@ impl ConnectNetwork {
             relay,
             router: Mutex::new(None),
             pairing_task: Mutex::new(None),
+            incompatible: Default::default(),
         });
         let weak = Arc::downgrade(&network);
         let router = Router::builder(network.endpoint.clone())
@@ -329,7 +335,23 @@ impl ConnectNetwork {
             .accept(INVITE_PROTOCOL, pairing::PairProtocol(weak.clone(), true))
             .accept(SYNC_PROTOCOL, SyncProtocol(weak.clone()))
             .accept(MEDIA_PROTOCOL, MediaProtocol(weak.clone()))
+            .accept(PREVIOUS_MEDIA_PROTOCOL, PreviousMediaProtocol(weak.clone()))
             .spawn();
+        // A device is given the first protocol on this list that it offers, and the router
+        // sorts them: the previous media version goes after the current one, which a current
+        // device offers too.
+        network.endpoint.set_alpns(
+            [
+                RPC_PROTOCOL,
+                PAIR_PROTOCOL,
+                INVITE_PROTOCOL,
+                SYNC_PROTOCOL,
+                MEDIA_PROTOCOL,
+                PREVIOUS_MEDIA_PROTOCOL,
+            ]
+            .map(<[u8]>::to_vec)
+            .into(),
+        );
         *network.router.lock().await = Some(router);
         if let Some(error) = nearby_error {
             let _ = network.events.send(NetworkEvent::Error(error)).await;
@@ -477,10 +499,31 @@ impl ConnectNetwork {
             self.trusted(peer) == Some(true),
             "Device is not a member of this profile"
         );
-        Ok(self
+        let previous = (protocol == MEDIA_PROTOCOL).then(|| PREVIOUS_MEDIA_PROTOCOL.to_vec());
+        let connection = self
             .endpoint
-            .connect(self.routes.get(peer), protocol)
-            .await?)
+            .connect_with_opts(
+                self.routes.get(peer),
+                protocol,
+                ConnectOptions::new().with_additional_alpns(previous.into_iter().collect()),
+            )
+            .await?
+            .await?;
+        if connection.alpn() != protocol {
+            connection.close(1u32.into(), b"incompatible");
+            bail!(self.incompatible(peer).await);
+        }
+        Ok(connection)
+    }
+
+    /// A paired device speaks another version of a protocol. Both devices are told to update:
+    /// this one once for each such device, the other by the error it is answered.
+    async fn incompatible(&self, peer: EndpointId) -> String {
+        let notice = localization::tr(INCOMPATIBLE);
+        if self.incompatible.lock().unwrap().insert(peer) {
+            let _ = self.events.send(NetworkEvent::Error(notice.clone())).await;
+        }
+        notice
     }
 
     /// Ends an exchange with a trusted device: a refusal because this device was removed is
@@ -834,6 +877,33 @@ impl ProtocolHandler for MediaProtocol {
         .await;
         if result.is_err() {
             connection.close(1u32.into(), b"media ended");
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct PreviousMediaProtocol(Weak<ConnectNetwork>);
+impl ProtocolHandler for PreviousMediaProtocol {
+    async fn accept(&self, connection: Connection) -> Result<(), AcceptError> {
+        let Some(network) = self.0.upgrade() else {
+            return Ok(());
+        };
+        if !network.admit(&connection).await {
+            return Ok(());
+        }
+        let notice = network.incompatible(connection.remote_id()).await;
+        let answered: Result<()> = async {
+            let (mut send, mut recv) = connection.accept_bi().await?;
+            read_frame::<Vec<u8>>(&mut recv, MAX_FRAME).await?;
+            write_frame(&mut send, &Err::<serde_json::Value, _>(notice), MAX_FRAME).await?;
+            send.finish()?;
+            let _ = send.stopped().await;
+            Ok(())
+        }
+        .await;
+        if answered.is_err() {
+            connection.close(1u32.into(), b"incompatible");
         }
         Ok(())
     }
