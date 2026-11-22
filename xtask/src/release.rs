@@ -9,7 +9,6 @@ use crate::process::{
     repo_root, repo_url_from_origin, run_command, write_string,
 };
 
-const FLATHUB_MANIFEST: &str = "packaging/flatpak/app.rufin.rufin.flathub.json";
 const RPM_SPEC: &str = "packaging/rpm/rufin.spec";
 const LATEST_RELEASE_SUFFIX: &str = " (latest release)";
 const DEVELOPMENT_VERSION: &str = "master (development)";
@@ -67,7 +66,7 @@ fn prepare_version(version: &str, notes: &str) -> Result<()> {
 }
 
 fn update_flathub_manifest(mut args: Vec<String>) -> Result<()> {
-    let mut manifest = PathBuf::from(FLATHUB_MANIFEST);
+    let mut manifest = None;
 
     while !args.is_empty() {
         match args.remove(0).as_str() {
@@ -75,11 +74,11 @@ fn update_flathub_manifest(mut args: Vec<String>) -> Result<()> {
                 if args.is_empty() {
                     return Err("--manifest requires a path".into());
                 }
-                manifest = PathBuf::from(args.remove(0));
+                manifest = Some(PathBuf::from(args.remove(0)));
             }
             "-h" | "--help" => {
                 eprintln!(
-                    "Usage: cargo run --locked -p xtask -- release update-flathub-manifest [--manifest PATH] TAG"
+                    "Usage: cargo run --locked -p xtask -- release update-flathub-manifest --manifest PATH TAG"
                 );
                 return Ok(());
             }
@@ -95,6 +94,7 @@ fn update_flathub_manifest(mut args: Vec<String>) -> Result<()> {
     if args.len() != 1 {
         return Err("release update-flathub-manifest requires TAG".into());
     }
+    let manifest = manifest.ok_or("release update-flathub-manifest requires --manifest PATH")?;
 
     update_flathub_manifest_path(&manifest, &args[0])
 }
