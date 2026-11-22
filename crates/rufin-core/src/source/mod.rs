@@ -505,21 +505,38 @@ impl SourceOwner {
                 .map(|configured| configured.local_access.clone())
                 .collect::<Vec<_>>()
         };
+        // Files read from now on group as the settings say; the tracks the Store holds follow
+        // when a setting changes.
+        let grouping = |stored: &crate::settings::StoredSettings| sources::FileGrouping {
+            folder_albums: stored.ui.application.folder_albums,
+            split_featured: stored.ui.application.split_featured_artists,
+        };
+        sources::set_file_grouping(grouping(&self.shared.settings.load()));
         crate::settings::follow(
             &self.shared.runtime,
             &self.shared.settings,
             Arc::downgrade(&self.shared),
             move |shared, previous, current| {
+                let owner = SourceOwner { shared };
                 if mappings(previous) != mappings(current) {
-                    let owner = SourceOwner { shared };
                     owner.publish_local_access();
                     owner.shared.configured();
                 }
-                std::future::ready(())
+                let regroup = grouping(previous) != grouping(current);
+                if regroup {
+                    sources::set_file_grouping(grouping(current));
+                }
+                async move {
+                    if regroup {
+                        owner.regroup_file_sources().await;
+                    }
+                }
             },
         );
         let owner = self.clone();
         self.shared.runtime.spawn(async move {
+            // A setting changed while the app was closed, as an edit of the settings file is.
+            owner.regroup_file_sources().await;
             owner.absorb_extra_local_sources().await;
             let selected = owner
                 .shared
@@ -533,6 +550,38 @@ impl SourceOwner {
             }
         });
         Ok(())
+    }
+
+    /// Groups the tracks of every file source again, from the tags the Store keeps of them,
+    /// when they group another way than the settings say.
+    async fn regroup_file_sources(&self) {
+        let stored = self.shared.settings.load();
+        let application = &stored.ui.application;
+        let wanted = [
+            application.folder_albums,
+            application.split_featured_artists,
+        ];
+        if stored.sources.file_grouping.unwrap_or([false, true]) == wanted {
+            return;
+        }
+        for configured in &stored.sources.configured {
+            let configuration = &configured.configuration;
+            if !(configuration.source_kind()).is_some_and(library::SourceKind::file_library) {
+                continue;
+            }
+            let regrouped =
+                sources::regroup_file_source(&self.shared.catalog, &configuration.source_id).await;
+            if let Err(error) = regrouped {
+                self.shared.warn_nonfatal(&error.to_string());
+            }
+        }
+        let saved = self.shared.settings.update(|stored| {
+            stored.sources.file_grouping = Some(wanted);
+            Ok(())
+        });
+        if let Err(error) = saved {
+            self.shared.warn_nonfatal(&error.to_string());
+        }
     }
 
     /// Local setup once added a Local source each time; the later ones move into the first.

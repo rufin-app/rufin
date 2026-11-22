@@ -331,7 +331,7 @@ pub(crate) fn populate_context_picker<Key: Clone + 'static>(
 
     let search_filter = filter.clone();
     search.connect_search_changed(move |search| {
-        *query.borrow_mut() = search.text().trim().to_lowercase();
+        *query.borrow_mut() = names::folded(search.text().trim());
         search_filter.changed(gtk::FilterChange::Different);
     });
 
@@ -362,7 +362,7 @@ pub(crate) fn populate_context_picker<Key: Clone + 'static>(
             .map(|(key, name)| {
                 glib::BoxedAnyObject::new(PlaylistChoice {
                     key,
-                    normalized_name: name.to_lowercase(),
+                    normalized_name: names::folded(&name),
                     name,
                 })
             })
@@ -450,7 +450,7 @@ fn present_dialog(
     let filter_add = add.clone();
     search.connect_search_changed(move |entry| {
         let text = entry.text();
-        let query = text.trim().to_lowercase();
+        let query = names::folded(text.trim());
         filter_create_label.set_label(&format!("{} {}", tr("Create"), text.trim()));
         filter_create.set_visible(!query.is_empty());
         for row in filter_rows.borrow().iter() {
@@ -610,15 +610,14 @@ fn replace_picker_rows(
         let widget = row.upcast::<gtk::Widget>();
         list.append(&widget);
         rows.borrow_mut().push(PickerRow {
-            haystack: format!(
+            haystack: names::folded(&format!(
                 "{} {} {}",
                 playlist.name,
                 playlist.track_count,
                 rufin_core::settings::presentation::format_duration_units(
                     (playlist.duration_millis.max(0) / 1_000) as u32
                 )
-            )
-            .to_lowercase(),
+            )),
             playlist,
             row: widget,
             check: check.clone(),

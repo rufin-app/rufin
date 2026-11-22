@@ -230,6 +230,13 @@ preference_group!(#[cfg_attr(feature = "bindings", derive(uniffi::Record))] Appl
     prefer_distinct_track_covers: bool = false => set_prefer_distinct_track_covers;
     #[serde(default)]
     use_sort_tags: bool = false => set_use_sort_tags;
+    /// Files without an album artist tag share an album by their folder, not by their first
+    /// artist.
+    #[serde(default)]
+    folder_albums: bool = false => set_folder_albums;
+    /// A file's lone artist value names its featured artists as artists of their own.
+    #[serde(default = "default_true")]
+    split_featured_artists: bool = true => set_split_featured_artists;
     #[serde(default)]
     download_artwork_automatically: bool = false => set_download_artwork_automatically;
     #[serde(default)]

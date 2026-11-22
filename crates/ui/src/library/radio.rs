@@ -803,12 +803,12 @@ impl RadioRoute {
 
     /// Shows the cards whose station's name holds the search text, in both sections.
     fn apply_filter(&self) {
-        let query = self.filter.text().trim().to_lowercase();
+        let query = names::folded(self.filter.text().trim());
         let filter = |cards: &RefCell<Vec<StationCard>>| {
             let mut shown = false;
             for card in cards.borrow().iter() {
                 let matches =
-                    query.is_empty() || card.station.borrow().name.to_lowercase().contains(&query);
+                    query.is_empty() || names::folded(&card.station.borrow().name).contains(&query);
                 card.child.set_visible(matches);
                 shown |= matches;
             }

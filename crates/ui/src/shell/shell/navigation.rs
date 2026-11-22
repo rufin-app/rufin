@@ -139,10 +139,6 @@ impl Shell {
             if let Some(previous) = previous {
                 shell.follow_remote_settings(previous);
             }
-            // Search results sort as their lists do, wherever a sort changed.
-            shell
-                .search_session
-                .resort(&shell.settings.current.borrow());
         });
     }
 

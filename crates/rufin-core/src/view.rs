@@ -133,7 +133,7 @@ enum Body {
         track_len: usize,
     },
     Home(Box<HomePage>),
-    /// What a search found, each kind in its list's sort, and whether a change to what it
+    /// What a search found, each kind best first, and whether a change to what it
     /// matches committed since: a reread matches the query in the Catalog again only then.
     Search(Box<SearchResults>, std::sync::atomic::AtomicBool),
     /// The collection the route names is gone or empty, or the route lists nothing itself.
@@ -812,7 +812,7 @@ impl SourceOwner {
                 (None, Plan::Home(Box::new(home)))
             }
             Route::Search => {
-                let mut results = crate::source::search::search(
+                let results = crate::source::search::search(
                     self,
                     selected,
                     options.search_mode,
@@ -821,8 +821,6 @@ impl SourceOwner {
                     cancel,
                 )
                 .await?;
-                let folder = selected.and_then(|selected| selected.music_folder_key);
-                catalog.sort_search(&mut results, folder, search_sorts(settings));
                 (None, Plan::Search(Box::new(results)))
             }
             // The Radio page reads `stations::page`; it has no rows of the Catalog.
@@ -1451,7 +1449,7 @@ impl View {
         ))
     }
 
-    /// What a search found, each kind in its list's sort.
+    /// What a search found, each kind best first.
     pub fn search_results(&self) -> Option<&SearchResults> {
         match &self.body {
             Body::Search(results, _) => Some(results),
@@ -1723,9 +1721,8 @@ impl View {
                     || self.settings.application.home != current.application.home
                     || self.settings.application.quick_mix != current.application.quick_mix
             }
-            Body::Search(..) => CollectionCategory::ALL
-                .into_iter()
-                .any(|category| order(category.key())),
+            // Search lists its results best first, whatever its lists sort by.
+            Body::Search(..) => false,
             _ if matches!(
                 self.route,
                 Route::ArtistDetail(_) | Route::AlbumArtistDetail(_)
@@ -1742,8 +1739,7 @@ impl View {
     }
 
     /// Whether a favorite or rating change can move or drop rows: the page lists only favorites
-    /// or sorts by favorites or ratings, Search by the sorts of the lists it orders by. Other
-    /// pages patch the shown values into their rows.
+    /// or sorts by favorites or ratings. Other pages patch the shown values into their rows.
     pub fn states_reorder(&self) -> bool {
         let orders = |field: LibraryField| {
             matches!(field, LibraryField::Favorite | LibraryField::UserRating)
@@ -1770,9 +1766,6 @@ impl View {
                 favorites: Some(_), ..
             } => true,
             Body::Releases { read, .. } => read.favorites_only || orders(read.sort),
-            Body::Search(..) => search_sorts(&self.settings)
-                .into_iter()
-                .any(|(field, _)| orders(field)),
             _ => false,
         }
     }
@@ -1838,12 +1831,12 @@ impl View {
                 )
                 .await
             }
-            // A favorite, rating, play or sort change orders the results it found again; a
-            // change to what they match matches the query in the Catalog again. Only a new
-            // query searches the server.
+            // A favorite, rating or play change reads the results it found again, in their
+            // order; a change to what they match matches the query in the Catalog again. Only
+            // a new query searches the server.
             (Body::Search(results, rematch), _) if options == self.options => {
                 let folder = self.music_folder();
-                let mut results = if rematch.load(Ordering::Relaxed) {
+                let results = if rematch.load(Ordering::Relaxed) {
                     crate::source::search::search(
                         &self.owner,
                         Scope::of(&self.route)
@@ -1860,8 +1853,6 @@ impl View {
                         .reread_search(results, folder, cancel)
                         .await?
                 };
-                self.catalog()
-                    .sort_search(&mut results, folder, search_sorts(&settings));
                 let plan = Plan::Search(Box::new(results));
                 read(self.again(options, settings), plan, None, seed, cancel).await
             }
@@ -2400,9 +2391,9 @@ fn changes(
             Refresh::Reread
         });
     }
-    // Plays change what a page shows where its order reads them; an artist page reads its
-    // tracks' order and its releases', Search the orders of the Tracks, Albums and Artists
-    // lists.
+    // Plays change what a page shows where its order or its rows read them; an artist page
+    // reads its tracks' order and its releases', Search the rows of the Tracks, Albums and
+    // Artists lists.
     if changed.listened {
         let settings = owner.shared.settings.committed();
         let sensitive = match route {
@@ -2651,14 +2642,6 @@ fn folder_tracks(
         settings,
         projection.collection(selected.source_key),
     )
-}
-
-/// The sorts of the Tracks, Albums and Artists lists, which order search results.
-fn search_sorts(settings: &Settings) -> [(LibraryField, bool); 3] {
-    CollectionCategory::ALL.map(|category| {
-        let list = settings.library_list(category.key());
-        (list.sort_key, list.descending)
-    })
 }
 
 /// An artist's releases, searched, ordered and with the plays `options` and the release list

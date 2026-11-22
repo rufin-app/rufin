@@ -713,8 +713,8 @@ pub(crate) fn filter_text(filter: &str) -> String {
 }
 
 impl Context<'_> {
-    /// Whether a track's title, artist, album, comment and year, or one of its album artists,
-    /// hold a filter or Search term.
+    /// Whether a track's title, artist, album, comment and year, one of its album artists or
+    /// one of its tags, as its genres are, hold a filter or Search term.
     pub(crate) fn track_holds(&self, record: &TrackRec, text: &str, word: bool) -> bool {
         let snapshot = self.snapshot;
         let parts = [
@@ -724,13 +724,17 @@ impl Context<'_> {
             record.comment,
         ];
         let parts = parts.map(|part| snapshot.text(part));
+        let named = |name| holds(&[snapshot.text(name)], None, text, word);
         holds(&parts, year_of(record.year), text, word)
             || self.album_artists(record).iter().any(|slot| {
                 snapshot
                     .artists
                     .live(*slot)
-                    .is_some_and(|artist| holds(&[snapshot.text(artist.name)], None, text, word))
+                    .is_some_and(|artist| named(artist.name))
             })
+            || snapshot.track_runs(record)[2]
+                .iter()
+                .any(|slot| snapshot.tags.live(*slot).is_some_and(|tag| named(tag.name)))
     }
 
     /// Whether an album's title and artist, its year, or a credited artist or tag holds a
@@ -3045,110 +3049,6 @@ impl Catalog {
         Ok(keys)
     }
 
-    /// Orders search results read in music folder `folder` as the Tracks, Albums and Artists
-    /// lists sort: by `sorts`, a field and whether it descends, in that order of categories,
-    /// and by the totals the rows show.
-    pub fn sort_search(
-        &self,
-        results: &mut crate::SearchResults,
-        folder: Option<crate::FolderKey>,
-        sorts: [(LibraryField, bool); 3],
-    ) {
-        let snapshot = self.snapshot();
-        let context = Context::new(&snapshot);
-        let [
-            (tracks, tracks_descending),
-            (albums, albums_descending),
-            (artists, descending),
-        ] = sorts;
-        // Collection totals only when a sort of returned collection rows orders by them, and
-        // plays only when it orders by plays.
-        let sorts = [
-            (!results.albums.is_empty(), albums.sort()),
-            (!results.artists.is_empty(), artists.sort()),
-        ];
-        let by = |fields: &[LibraryField]| {
-            sorts
-                .iter()
-                .any(|(returned, sort)| *returned && fields.contains(sort))
-        };
-        use LibraryField as S;
-        let plays = by(&[S::PlayCount, S::LastPlayed]);
-        let totaled = plays || by(&[S::AlbumCount, S::SongCount, S::Duration]);
-        // Each row orders by the totals it shows, counted where the one rule counts its kind.
-        let read: [std::cell::OnceCell<(Arc<Derived>, Option<Arc<Activity>>)>; 2] =
-            Default::default();
-        let totals = |kind: crate::CatalogKind, source: u16| {
-            let folder = context.row_folder(folder, kind, Some(source)).flatten();
-            let (derived, activity) = read[usize::from(folder.is_some())].get_or_init(|| {
-                (
-                    self.derived(&context, folder),
-                    plays.then(|| self.activity(&context, folder)),
-                )
-            });
-            Totaled {
-                derived,
-                activity: activity.as_deref(),
-            }
-        };
-        let sort = tracks.sort();
-        let mut rows = results
-            .tracks
-            .iter()
-            .enumerate()
-            .filter_map(|(position, row)| {
-                let slot = snapshot.tracks.slot(row.track_key.raw())?;
-                Some(context.sorted(sort, position, (slot, 0, 0)))
-            })
-            .collect::<Vec<_>>();
-        rows.sort_by(|a, b| {
-            compare_tracks(sort, tracks_descending, a, b).then(a.position.cmp(&b.position))
-        });
-        reorder(&mut results.tracks, rows.iter().map(|row| row.position));
-        let mut rows = results
-            .albums
-            .iter()
-            .enumerate()
-            .filter_map(|(position, row)| {
-                let slot = snapshot.albums.slot(row.album_key.raw())?;
-                let record = &snapshot.albums.records[slot as usize];
-                let totals = if totaled {
-                    totals(crate::CatalogKind::Album, record.source).album(slot)
-                } else {
-                    Totals::default()
-                };
-                Some((position, context.album_row(totals, slot, record)))
-            })
-            .collect::<Vec<_>>();
-        rows.sort_by(|(_, a), (_, b)| compare_albums(albums, albums_descending, a, b));
-        reorder(
-            &mut results.albums,
-            rows.iter().map(|(position, _)| *position),
-        );
-        let mut rows = results
-            .artists
-            .iter()
-            .enumerate()
-            .filter_map(|(position, row)| {
-                let slot = snapshot.artists.slot(row.artist_key.raw())?;
-                let record = &snapshot.artists.records[slot as usize];
-                let mut listed = ListRow::new(i64::from(record.key), snapshot.artist_sort(record));
-                if totaled {
-                    listed.totals = totals(crate::CatalogKind::Artist, record.source)
-                        .artist(usize::from(row.album_artist), slot);
-                }
-                listed.rating = rating(record.rating, record.native_rating);
-                listed.favorite = favorite(record.flags);
-                Some((position, listed))
-            })
-            .collect::<Vec<_>>();
-        rows.sort_by(|(_, a), (_, b)| compare_named(artists, descending, a, b));
-        reorder(
-            &mut results.artists,
-            rows.iter().map(|(position, _)| *position),
-        );
-    }
-
     /// Letter sections of an order, for lists by name.
     pub fn sections(&self, order: &Order) -> Vec<crate::ScrollSection> {
         let snapshot = self.snapshot();
@@ -3465,14 +3365,4 @@ impl Catalog {
         }
         Ok(tracks)
     }
-}
-
-/// `rows` in the order of `positions`, then the rows they leave out.
-fn reorder<T>(rows: &mut Vec<T>, positions: impl Iterator<Item = usize>) {
-    let mut taken = std::mem::take(rows)
-        .into_iter()
-        .map(Some)
-        .collect::<Vec<_>>();
-    rows.extend(positions.filter_map(|position| taken[position].take()));
-    rows.extend(taken.into_iter().flatten());
 }

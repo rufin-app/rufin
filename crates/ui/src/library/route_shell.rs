@@ -354,6 +354,7 @@ impl CatalogUi {
         );
         configure_sort_dropdown_factory(&sort_dropdown);
         sort_dropdown.set_sensitive(sort_fields.len() > 1);
+        sort_dropdown.set_visible(!sort_fields.is_empty());
         sort_dropdown.set_hexpand(!has_search);
         sort_dropdown.set_halign(if has_search {
             gtk::Align::End
@@ -391,6 +392,7 @@ impl CatalogUi {
         }
         let direction = toolbar.imp().direction.get();
         direction.set_icon_name(sort_order_icon(settings.descending));
+        direction.set_visible(!sort_fields.is_empty());
         configure_library_toolbar_icon_button(&direction, "Change sort order");
         {
             let shell = Rc::clone(self);

@@ -55,6 +55,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"Files without an album artist tag form one album per folder instead of one "
+"per artist"
+msgstr ""
+
+msgid ""
 "GNU FM, Maloja and other Last.fm-style servers. On Maloja, the password is "
 "an API key."
 msgstr ""
@@ -1180,6 +1185,9 @@ msgstr ""
 msgid "Create"
 msgstr ""
 
+msgid "Credit the artists a tag names after feat. or ft. as artists of their own"
+msgstr ""
+
 msgid "Crossfade duration"
 msgstr ""
 
@@ -1944,6 +1952,9 @@ msgid "Grid"
 msgstr ""
 
 msgid "Grids"
+msgstr ""
+
+msgid "Group albums by folder"
 msgstr ""
 
 msgid "Grouping"
@@ -3407,6 +3418,10 @@ msgstr ""
 msgid "Release"
 msgstr ""
 
+#, rust-format
+msgid "Released {year}"
+msgstr ""
+
 msgid "Reload from file"
 msgstr ""
 
@@ -4218,6 +4233,9 @@ msgid "Spectrum line"
 msgstr ""
 
 msgid "Spectrum"
+msgstr ""
+
+msgid "Split featured artists"
 msgstr ""
 
 msgid "Start Listening"

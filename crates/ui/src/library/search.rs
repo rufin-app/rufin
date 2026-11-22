@@ -569,11 +569,8 @@ impl SearchRouteProjection {
             category,
             (category == CollectionCategory::Tracks).then(|| self.playing.clone()),
         );
-        let toolbar = shell.library_toolbar_projection_without_detail(
-            category.key(),
-            None,
-            rufin_core::settings::available_sort_fields(category.key()),
-        );
+        // Results list best first: the page has no sort of its own.
+        let toolbar = shell.library_toolbar_projection_without_detail(category.key(), None, &[]);
         let presentation = SearchPresentation {
             category,
             navigation: collection.item_navigation(),

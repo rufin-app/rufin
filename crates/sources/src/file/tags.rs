@@ -19,8 +19,11 @@ pub(crate) fn push(raw: &mut RawTags, key: &str, value: &str) {
     }
 }
 
-/// What parts the names of one credit value: `;`, a spaced ` / ` so that a name keeps its own
-/// slash, as AC/DC does, and the words that introduce a featured artist.
+/// What parts the names of one credit value: `;`, and a spaced ` / ` so that a name keeps its
+/// own slash, as AC/DC does.
+pub(crate) const NAME_SEPARATORS: [&str; 2] = [";", " / "];
+
+/// [`NAME_SEPARATORS`] and the words that introduce a featured artist.
 pub(crate) const ARTIST_SEPARATORS: [&str; 6] = [";", " / ", " feat. ", " feat ", " ft. ", " ft "];
 
 /// The parts of `value` between `separators`, whatever their case, each trimmed.
@@ -244,6 +247,16 @@ impl Tags {
             .iter()
             .map(|(name, values)| ((*name).to_owned(), values.clone()))
             .collect()
+    }
+
+    /// The tags a track keeps, read back.
+    pub(crate) fn kept(stored: &BTreeMap<String, Vec<String>>) -> Self {
+        Self(
+            MAPPINGS
+                .iter()
+                .filter_map(|mapping| Some((mapping.name, stored.get(mapping.name)?.clone())))
+                .collect(),
+        )
     }
 }
 

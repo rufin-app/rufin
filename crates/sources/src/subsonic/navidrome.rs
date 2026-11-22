@@ -532,8 +532,10 @@ fn clean_optional(value: Option<String>) -> Option<String> {
     value.and_then(clean)
 }
 
+/// The date Navidrome shows for an item: its original date, else its date, else its release
+/// date.
 fn item_release_date(item: &Value) -> Option<String> {
-    ["releaseDate", "date", "originalDate"]
+    ["originalDate", "date", "releaseDate"]
         .into_iter()
         .find_map(|key| normalized_date(field(item, key)))
 }
@@ -567,7 +569,8 @@ fn album_from_navidrome(
         .collect();
     }
     let release_date = item_release_date(album);
-    let year = positive_u16(field(album, "maxYear"))
+    let year = positive_u16(field(album, "maxOriginalYear"))
+        .or_else(|| positive_u16(field(album, "maxYear")))
         .or_else(|| {
             release_date
                 .as_deref()
@@ -596,6 +599,9 @@ fn album_from_navidrome(
             version: tag_values(&album["tags"], "albumversion")
                 .into_iter()
                 .next(),
+            reissued: normalized_date(field(album, "releaseDate")).filter(|date| {
+                date.get(..4).and_then(|released| released.parse().ok()) != Some(year)
+            }),
             disc_titles: super::disc_titles(
                 album["discs"]
                     .as_object()
@@ -1127,10 +1133,10 @@ mod tests {
         for (data, expected) in [
             (
                 serde_json::json!({"releaseDate":"2020", "date":"2010-02", "originalDate":"1990"}),
-                Some("2020"),
+                Some("1990"),
             ),
             (
-                serde_json::json!({"releaseDate":"", "date":"2010-02", "originalDate":"1990"}),
+                serde_json::json!({"releaseDate":"2020", "date":"2010-02", "originalDate":""}),
                 Some("2010-02"),
             ),
             (

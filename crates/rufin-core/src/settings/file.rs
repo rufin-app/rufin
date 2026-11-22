@@ -89,6 +89,8 @@ pub(super) const CHOICES: &[(&str, &str)] = &[
     ),
     ("fullscreen.visualizer", "/fullscreen_visualizer_visible"),
     ("library.use_sort_tags", "/use_sort_tags"),
+    ("library.folder_albums", "/folder_albums"),
+    ("library.split_featured_artists", "/split_featured_artists"),
     (
         "library.prefer_distinct_track_covers",
         "/prefer_distinct_track_covers",

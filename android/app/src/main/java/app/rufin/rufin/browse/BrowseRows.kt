@@ -95,9 +95,11 @@ internal val AndroidBrowseRow.favorite: Boolean
 internal val AndroidBrowseRow.year: Long?
     get() = track?.year ?: albumRow?.year
 
-/** The year with an album's version beside it, as GTK's facts show them. */
+/** The year with the year an album's reissue came out and its version beside it, as GTK's facts show them. */
 internal val AndroidBrowseRow.yearText: String?
-    get() = listOfNotNull(year?.toString(), albumRow?.version).joinToString(" · ").ifEmpty { null }
+    get() = listOfNotNull(year?.toString(),
+        albumRow?.reissued?.take(4)?.let { app.rufin.rufin.core.translate("Released {year}").replace("{year}", it) },
+        albumRow?.version).joinToString(" · ").ifEmpty { null }
 
 internal val AndroidBrowseRow.sourceId: String?
     get() = track?.sourceId ?: genre?.sourceId ?: playlist?.sourceId

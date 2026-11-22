@@ -8,11 +8,51 @@ use lofty::config::ParseOptions;
 use lofty::file::TaggedFileExt;
 use lofty::prelude::*;
 
+use std::sync::atomic::{AtomicU8, Ordering};
+
 use crate::policy::{date_year, stable_hash};
 
 use super::discovery;
 use super::lofty::{read_lofty_scan, source_format};
 use super::tags::{self, RawTags, Tags};
+
+/// How file tags group into albums and artists, as the app's settings choose.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FileGrouping {
+    /// Files without an album artist tag share an album by their folder, not by their first
+    /// artist.
+    pub folder_albums: bool,
+    /// A lone artist value also parts at the words that introduce a featured artist.
+    pub split_featured: bool,
+}
+
+impl Default for FileGrouping {
+    fn default() -> Self {
+        Self {
+            folder_albums: false,
+            split_featured: true,
+        }
+    }
+}
+
+static GROUPING: AtomicU8 = AtomicU8::new(2);
+
+/// Sets how files read from now on group. Tracks the Store holds follow once their source
+/// regroups.
+pub fn set_file_grouping(grouping: FileGrouping) {
+    GROUPING.store(
+        u8::from(grouping.folder_albums) | u8::from(grouping.split_featured) << 1,
+        Ordering::Relaxed,
+    );
+}
+
+pub(crate) fn grouping() -> FileGrouping {
+    let bits = GROUPING.load(Ordering::Relaxed);
+    FileGrouping {
+        folder_albums: bits & 1 != 0,
+        split_featured: bits & 2 != 0,
+    }
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct ScannedTrack {
@@ -252,7 +292,7 @@ pub(crate) fn read_media_input(
                 .map(|rating| (rating.rating() as u8) * 2),
         };
         let tags = Tags::clean(&raw.unwrap_or_default());
-        tagged_track(&path, folder, &tags, facts, sidecar)
+        tagged_track(&path, folder, &tags, facts, sidecar, grouping())
     } else {
         let metadata = discovered.clone().unwrap_or_default();
         let facts = Facts {
@@ -268,7 +308,7 @@ pub(crate) fn read_media_input(
             user_rating: None,
         };
         let tags = Tags::clean(&discovered_tags(&metadata));
-        tagged_track(&path, folder, &tags, facts, sidecar)
+        tagged_track(&path, folder, &tags, facts, sidecar, grouping())
     };
     super::lyrics::set_lyrics(
         &mut track,
@@ -318,14 +358,17 @@ struct Facts {
 }
 
 /// The names of a credit, each once: those in the values of its plural tag, else in those of
-/// its singular one.
-fn artist_names(tags: &Tags, single: &str, plural: &str) -> Vec<String> {
-    let values = match tags.all(plural) {
-        [] => tags.all(single),
-        values => values,
+/// its singular one. Only a singular tag's lone value names a featured artist in words.
+fn artist_names(tags: &Tags, single: &str, plural: &str, grouping: FileGrouping) -> Vec<String> {
+    let (values, separators) = match (tags.all(plural), tags.all(single)) {
+        ([], [lone]) => (std::slice::from_ref(lone), lone_separators(grouping)),
+        ([], values) | (values, _) => (values, &tags::NAME_SEPARATORS[..]),
     };
     let mut names = Vec::<String>::new();
-    for name in values.iter().flat_map(|value| split_names(value)) {
+    for name in values
+        .iter()
+        .flat_map(|value| tags::split(value, separators))
+    {
         if !names.iter().any(|known| known.eq_ignore_ascii_case(&name)) {
             names.push(name);
         }
@@ -399,13 +442,77 @@ fn replay_gain_peak(value: Option<&str>) -> Option<f64> {
     (value.is_finite() && value >= 0.0).then_some(value)
 }
 
-/// A file's track from its cleaned tags. A file without an album artist takes its own artists.
+/// Who a file's track and album credit, and what names the album beside its title.
+struct Grouped {
+    artists: Vec<library::ArtistCredit>,
+    album_artists: Vec<library::ArtistCredit>,
+    album_artist: String,
+    owner: Owner,
+}
+
+/// The credits of a file whose artist shows as `artist`. Without an album artist tag the
+/// album is its first track artist's, or Various Artists' when it is a compilation, as in
+/// Navidrome. It is its folder's instead when the file names no album, since its folder
+/// names it, or when the grouping keeps folders together.
+fn grouped(tags: &Tags, artist: &str, compilation: bool, grouping: FileGrouping) -> Grouped {
+    let mut names = artist_names(tags, "artist", "artists", grouping);
+    if names.is_empty() {
+        names.push(artist.to_owned());
+    }
+    let artists = credits(
+        &names,
+        tags.all("musicbrainz_artistid").to_vec(),
+        artist_names(tags, "artistsort", "artistssort", grouping),
+        &[],
+    );
+    let by_folder = grouping.folder_albums || tags.first("album").is_none();
+    let (album_artist, album_names, owner) =
+        match display_names(tags, "albumartist", "albumartists") {
+            Some(shown) => (
+                shown,
+                artist_names(tags, "albumartist", "albumartists", grouping),
+                Owner::AlbumArtists,
+            ),
+            None if by_folder => (artist.to_owned(), names, Owner::Folder),
+            None if compilation => (
+                VARIOUS_ARTISTS.to_owned(),
+                vec![VARIOUS_ARTISTS.to_owned()],
+                Owner::FirstArtist,
+            ),
+            None => (
+                names.first().cloned().unwrap_or_default(),
+                names,
+                Owner::FirstArtist,
+            ),
+        };
+    let album_artists = credits(
+        &album_names,
+        tags.all("musicbrainz_albumartistid").to_vec(),
+        artist_names(tags, "albumartistsort", "albumartistssort", grouping),
+        &artists,
+    );
+    Grouped {
+        artists,
+        album_artists,
+        album_artist,
+        owner,
+    }
+}
+
+/// The release date an album's identity takes: Navidrome's release date tag, which a bare
+/// year also fills and a plain date does not.
+fn released(tags: &Tags) -> Option<&str> {
+    tags.first("releasedate").or_else(|| tags.first("year"))
+}
+
+/// A file's track from its cleaned tags.
 fn tagged_track(
     path: &Path,
     folder: String,
     tags: &Tags,
     facts: Facts,
     local_artwork: Option<LocalImageRef>,
+    grouping: FileGrouping,
 ) -> ScannedTrack {
     let title = tags
         .first("title")
@@ -413,40 +520,31 @@ fn tagged_track(
     let album = tags.first("album").map_or(folder, str::to_owned);
     let artist =
         display_names(tags, "artist", "artists").unwrap_or_else(|| "Unknown Artist".to_string());
-    let mut names = artist_names(tags, "artist", "artists");
-    if names.is_empty() {
-        names.push(artist.clone());
-    }
-    let artists = credits(
-        &names,
-        tags.all("musicbrainz_artistid").to_vec(),
-        artist_names(tags, "artistsort", "artistssort"),
-        &[],
-    );
-    let tagged_album_artist = display_names(tags, "albumartist", "albumartists");
-    let album_artist_tagged = tagged_album_artist.is_some();
-    let album_names = if album_artist_tagged {
-        artist_names(tags, "albumartist", "albumartists")
-    } else {
-        names
-    };
-    let album_artists = credits(
-        &album_names,
-        tags.all("musicbrainz_albumartistid").to_vec(),
-        artist_names(tags, "albumartistsort", "albumartistssort"),
-        &artists,
-    );
-    let album_artist = tagged_album_artist.unwrap_or_else(|| artist.clone());
     let release_types = library::normalize_release_types(
         tags.all("releasetype")
             .iter()
             .flat_map(|value| value.split(';')),
     );
     let is_compilation = album_compilation(tags.first("compilation"), &release_types);
-    let release_date = ["releasedate", "recordingdate", "originaldate", "year"]
-        .into_iter()
-        .find_map(|name| tags.first(name))
+    let Grouped {
+        artists,
+        album_artists,
+        album_artist,
+        owner,
+    } = grouped(tags, &artist, is_compilation == Some(true), grouping);
+    // Navidrome's dates. An album shows its original date, else its date, else its release
+    // date; a date not before the original one, in a file that names no release date, is the
+    // release's.
+    let original = tags.first("originaldate");
+    let recorded = tags.first("recordingdate");
+    let release_date = original
+        .or(recorded)
+        .or_else(|| released(tags))
         .map(str::to_owned);
+    let reissued = match (original, recorded, released(tags)) {
+        (Some(original), Some(recorded), None) if recorded >= original => Some(recorded),
+        (_, _, released) => released,
+    };
     let mbid = |name: &str| tags.first(name).map(str::to_owned);
     let metadata = library::TrackMetadata {
         album_tags: Some(library::AlbumTags {
@@ -455,6 +553,9 @@ fn tagged_track(
             release_types,
             version: tags.first("albumversion").map(str::to_owned),
             disc_subtitle: tags.first("discsubtitle").map(str::to_owned),
+            reissued: reissued
+                .filter(|date| date_year(date) != release_date.as_deref().and_then(date_year))
+                .map(str::to_owned),
         }),
         groupings: tags.all("grouping").to_vec(),
         sort_text: tags.first("titlesort").unwrap_or(&title).to_lowercase(),
@@ -493,15 +594,93 @@ fn tagged_track(
         ),
         ..Default::default()
     };
-    let mut track = scanned_track(
-        path,
-        metadata,
-        album_artist_tagged,
-        facts.user_rating,
-        local_artwork,
-    );
+    let album_id = album_id(&metadata, owner, released(tags), path, None);
+    let mut track = scanned_track(path, metadata, album_id, facts.user_rating, local_artwork);
     track.track.tags = tags.stored();
     track
+}
+
+/// The path a scan knew a file by: the one the Store keeps when that is a native path, else
+/// its path under its root, as a file a URL names is read.
+fn scanned_path(stored: &str, relative: Option<&String>) -> PathBuf {
+    match relative {
+        Some(relative) if !Path::new(stored).is_absolute() => relative.into(),
+        _ => stored.into(),
+    }
+}
+
+/// Groups a track the Store holds as `grouping` says, from the tags it keeps or its sheet's
+/// names. `relative` are the paths of its file and of its sheet under their roots. False when
+/// it groups as it did.
+pub(crate) fn regroup(
+    track: &mut library::TrackObservation,
+    relative: &[Option<String>; 2],
+    grouping: FileGrouping,
+) -> bool {
+    let metadata = &track.metadata;
+    let compilation = metadata
+        .album_tags
+        .as_ref()
+        .is_some_and(|tags| tags.is_compilation == Some(true));
+    let (grouped, album) = if let Some(sheet) = track.cue_path.as_deref() {
+        // A sheet names each credit in one value.
+        let credits = |value: &str| {
+            tags::split(value, lone_separators(grouping))
+                .into_iter()
+                .map(|name| artist_credit(name, None))
+                .collect::<Vec<_>>()
+        };
+        let album_artist = metadata.album_display_artist.clone().unwrap_or_default();
+        // A track read before sheets kept their album artist shows its file's instead, which
+        // need not name the artists it credits: those stay until the sheet is read again.
+        let names = |value: &str| tags::split(value, &tags::ARTIST_SEPARATORS);
+        let credited = (metadata.album_artists.iter())
+            .flat_map(|credit| names(&credit.name))
+            .collect::<Vec<_>>();
+        let grouped = Grouped {
+            artists: credits(&metadata.artist),
+            album_artists: if names(&album_artist) == credited {
+                credits(&album_artist)
+            } else {
+                metadata.album_artists.clone()
+            },
+            album_artist,
+            owner: Owner::AlbumArtists,
+        };
+        (
+            grouped,
+            (None, scanned_path(sheet, relative[1].as_ref()), true),
+        )
+    } else {
+        let Some(path) = track.source_path.as_deref() else {
+            return false;
+        };
+        let tags = Tags::kept(&track.tags);
+        let grouped = grouped(&tags, &metadata.artist, compilation, grouping);
+        let released = released(&tags).map(str::to_owned);
+        (
+            grouped,
+            (released, scanned_path(path, relative[0].as_ref()), false),
+        )
+    };
+    let mut metadata = metadata.clone();
+    metadata.artists = grouped.artists;
+    metadata.album_artists = grouped.album_artists;
+    metadata.album_display_artist = Some(grouped.album_artist);
+    let (released, path, sheet) = album;
+    let album = Some(album_id(
+        &metadata,
+        grouped.owner,
+        released.as_deref(),
+        &path,
+        sheet.then_some(path.as_path()),
+    ));
+    if metadata == track.metadata && album == track.album_object_id {
+        return false;
+    }
+    track.metadata = metadata;
+    track.album_object_id = album;
+    true
 }
 
 /// The tags discovery read, under keys the table names them by.
@@ -569,14 +748,48 @@ fn discovered_tags(metadata: &discovery::Metadata) -> RawTags {
     raw
 }
 
+/// Groups the tracks the Store holds of a file source again as [`set_file_grouping`] says
+/// now, from the tags it keeps of them: no file is read and the source is not connected to.
+/// Returns whether a list changed.
+pub async fn regroup_file_source(
+    catalog: &library::Catalog,
+    source: &crate::SourceId,
+) -> crate::SourceResult<bool> {
+    let grouping = grouping();
+    let mut observation = catalog.observe(source.as_str()).await?;
+    let observation = &mut observation;
+    let mut after = 0;
+    loop {
+        let page = observation
+            .catalog
+            .file_track_page(observation.source, after)
+            .await?;
+        let Some((last, ..)) = page.last() else {
+            return Ok(observation.changed());
+        };
+        after = *last;
+        let tracks = page
+            .into_iter()
+            .filter_map(|(_, mut track, relative)| {
+                regroup(&mut track, &relative, grouping).then_some(track)
+            })
+            .collect();
+        observation
+            .write_files(library::FileBatch {
+                tracks,
+                ..Default::default()
+            })
+            .await?;
+    }
+}
+
 fn scanned_track(
     path: &Path,
     metadata: library::TrackMetadata,
-    album_artist_tagged: bool,
+    album_id: String,
     user_rating: Option<u8>,
     local_artwork: Option<LocalImageRef>,
 ) -> ScannedTrack {
-    let album_id = album_id(&metadata, album_artist_tagged, path, None);
     ScannedTrack {
         track: library::TrackObservation {
             metadata,
@@ -600,20 +813,37 @@ fn scanned_track(
     }
 }
 
-/// An album is its MusicBrainz release, or else its tagged album artists with its title and
-/// version, wherever its files are. Without an album artist tag its folder stands in for one:
-/// the tracks of a compilation stay one album, and same-titled albums in other folders stay
-/// apart. A cue sheet's album is its sheet's.
+const VARIOUS_ARTISTS: &str = "Various Artists";
+
+/// What names an album beside its title and version.
+#[derive(Clone, Copy)]
+pub(crate) enum Owner {
+    /// Its tagged album artists.
+    AlbumArtists,
+    /// The first of the artists that stand in for a missing album artist tag.
+    FirstArtist,
+    /// Its folder: the tracks of a compilation stay one album, and same-titled albums in
+    /// other folders stay apart.
+    Folder,
+}
+
+/// An album is its MusicBrainz release, or else its owner with its title, version and
+/// release date, wherever its files are. A cue sheet's album is its sheet's.
 pub(crate) fn album_id(
     metadata: &library::TrackMetadata,
-    album_artist_tagged: bool,
+    owner: Owner,
+    released: Option<&str>,
     path: &Path,
     cue_path: Option<&Path>,
 ) -> String {
     let credits = metadata
         .album_artists
         .iter()
-        .filter(|_| album_artist_tagged)
+        .take(match owner {
+            Owner::AlbumArtists => usize::MAX,
+            Owner::FirstArtist => 1,
+            Owner::Folder => 0,
+        })
         .map(|credit| credit.object_id.as_str())
         .collect::<Vec<_>>()
         .join("\u{1f}");
@@ -634,10 +864,12 @@ pub(crate) fn album_id(
         )
     } else if let Some(release) = release {
         format!("musicbrainz:{release}")
-    } else if album_artist_tagged {
-        format!("{credits}:{name}")
-    } else {
+    } else if matches!(owner, Owner::Folder) {
         format!(":{name}:{}", album_folder(path).to_string_lossy())
+    } else if let Some(released) = released {
+        format!("{credits}:{name}:{released}")
+    } else {
+        format!("{credits}:{name}")
     };
     local_id("album", &identity)
 }
@@ -703,13 +935,22 @@ fn album_folder(path: &Path) -> PathBuf {
     folder.to_owned()
 }
 
+/// What parts the names of a credit's lone value.
+fn lone_separators(grouping: FileGrouping) -> &'static [&'static str] {
+    if grouping.split_featured {
+        &tags::ARTIST_SEPARATORS
+    } else {
+        &tags::NAME_SEPARATORS
+    }
+}
+
 /// The names in one credit value, empty parts included.
 pub(crate) fn name_parts(value: &str) -> impl Iterator<Item = &str> {
-    tags::parts(value, &tags::ARTIST_SEPARATORS).into_iter()
+    tags::parts(value, lone_separators(grouping())).into_iter()
 }
 
 pub(crate) fn split_names(value: &str) -> Vec<String> {
-    tags::split(value, &tags::ARTIST_SEPARATORS)
+    tags::split(value, lone_separators(grouping()))
 }
 
 /// The STREAMINFO MD5 of a FLAC stream, after an ID3v2 tag if one leads; None when the encoder
@@ -959,9 +1200,16 @@ mod tests {
                 Some("Retained comment"),
                 "{name}"
             );
-            assert_eq!(track.track.metadata.year, Some(2004), "{name}");
+            // The original date shows; the release date tells the reissue.
+            assert_eq!(track.track.metadata.year, Some(1995), "{name}");
             assert_eq!(
                 track.track.metadata.release_date.as_deref(),
+                Some("1995"),
+                "{name}"
+            );
+            assert_eq!(
+                (track.track.metadata.album_tags.as_ref())
+                    .and_then(|tags| tags.reissued.as_deref()),
                 Some("2004-05"),
                 "{name}"
             );
@@ -971,7 +1219,7 @@ mod tests {
                     .metadata
                     .release_date
                     .as_deref(),
-                Some("2004-05"),
+                Some("1995"),
                 "{name}"
             );
             if name == "bad-art.mp3" {
@@ -1044,6 +1292,234 @@ mod tests {
                 "Retained comment",
                 "{name}"
             );
+        }
+    }
+
+    #[test]
+    fn a_save_keeps_the_frames_the_editor_does_not_show() {
+        fn frame(id: &[u8; 4], payload: &[u8]) -> Vec<u8> {
+            let size = payload.len() as u32;
+            let mut frame = id.to_vec();
+            frame.extend([21, 14, 7, 0].map(|shift| (size >> shift & 0x7f) as u8));
+            frame.extend([0, 0]);
+            frame.extend(payload);
+            frame
+        }
+        // Synchronized lyrics, a private frame and a chapter.
+        let synchronized = b"\0eng\x02\x01\0first line\0\0\0\x03\xe8second line\0\0\0\x07\xd0";
+        let private = b"rufin.test/owner\0private payload";
+        let chapter = b"chapter-one\0\0\0\0\0\0\0\x27\x10\xff\xff\xff\xff\xff\xff\xff\xff";
+        let frames = [
+            frame(b"TIT2", b"\x03Original"),
+            frame(b"SYLT", synchronized),
+            frame(b"PRIV", private),
+            frame(b"CHAP", chapter),
+        ]
+        .concat();
+        let size = frames.len() as u32;
+        let mut file = b"ID3\x04\0\0".to_vec();
+        file.extend([21, 14, 7, 0].map(|shift| (size >> shift & 0x7f) as u8));
+        file.extend(frames);
+        let mut audio = vec![0; 417];
+        audio[..4].copy_from_slice(&[0xff, 0xfb, 0x90, 0x00]);
+        file.extend(audio.repeat(40));
+        let directory = tempfile::tempdir().expect("audio directory");
+        let path = directory.path().join("track.mp3");
+        fs::write(&path, file).expect("tagged MPEG silence");
+
+        crate::file::metadata::edit_copy(
+            &path,
+            Some("mp3"),
+            &crate::file::metadata::TagUpdate::Metadata(vec![(
+                crate::MetadataEdit {
+                    kind: crate::SourceEntityKind::Track,
+                    changes: [("title".into(), "Updated".into())].into(),
+                    artwork: None,
+                },
+                String::new(),
+            )]),
+            &mut None,
+        )
+        .expect("write audio metadata");
+
+        let saved = fs::read(&path).expect("saved file");
+        let holds = |bytes: &[u8]| saved.windows(bytes.len()).any(|window| window == bytes);
+        assert!(holds(b"Updated"));
+        assert!(!holds(b"Original"));
+        for (name, payload) in [
+            ("SYLT", &synchronized[..]),
+            ("PRIV", &private[..]),
+            ("CHAP", &chapter[..]),
+        ] {
+            assert!(holds(name.as_bytes()), "{name} frame");
+            assert!(holds(payload), "{name} payload");
+        }
+    }
+
+    /// A file's track as its tags group it.
+    fn grouped_track(path: &str, pairs: &[(&str, &str)], grouping: FileGrouping) -> ScannedTrack {
+        let mut raw = RawTags::new();
+        for (key, value) in pairs {
+            tags::push(&mut raw, key, value);
+        }
+        let facts = Facts {
+            duration_seconds: 1,
+            source_format: None,
+            audio_properties: Default::default(),
+            user_rating: None,
+        };
+        let path = Path::new(path);
+        let folder = folder_album(path, None);
+        tagged_track(path, folder, &Tags::clean(&raw), facts, None, grouping)
+    }
+
+    #[test]
+    fn albums_group_by_tags_as_the_grouping_says() {
+        let tags = FileGrouping::default();
+        let folders = FileGrouping {
+            folder_albums: true,
+            ..tags
+        };
+        let album = |path: &str, pairs: &[(&str, &str)], grouping| {
+            grouped_track(path, pairs, grouping).track.album_object_id
+        };
+        let names = |credits: &[library::ArtistCredit]| {
+            credits
+                .iter()
+                .map(|credit| credit.name.clone())
+                .collect::<Vec<_>>()
+        };
+
+        // Singles of one title by two artists, in one folder, without an album artist.
+        let one = [("artist", "One"), ("album", "Single")];
+        let two = [("artist", "Two"), ("album", "Single")];
+        assert_ne!(
+            album("/m/a.flac", &one, tags),
+            album("/m/b.flac", &two, tags)
+        );
+        assert_eq!(
+            album("/m/a.flac", &one, tags),
+            album("/n/a.flac", &one, tags)
+        );
+        assert_eq!(
+            album("/m/a.flac", &one, folders),
+            album("/m/b.flac", &two, folders)
+        );
+        assert_ne!(
+            album("/m/a.flac", &one, folders),
+            album("/n/a.flac", &one, folders)
+        );
+
+        // A compilation without an album artist is Various Artists'.
+        let flagged = |artist| [("artist", artist), ("album", "Hits"), ("compilation", "1")];
+        let first = grouped_track("/m/a.flac", &flagged("One"), tags);
+        assert_eq!(
+            first.track.album_object_id,
+            album("/n/b.flac", &flagged("Two"), tags)
+        );
+        assert_eq!(
+            first.track.metadata.album_display_artist.as_deref(),
+            Some("Various Artists")
+        );
+        assert_eq!(names(&first.track.metadata.artists), ["One"]);
+
+        // A lone value names its featured artist; the album is its first artist's.
+        let featured = grouped_track(
+            "/m/a.flac",
+            &[("artist", "One feat. Two"), ("album", "Single")],
+            tags,
+        );
+        assert_eq!(names(&featured.track.metadata.artists), ["One", "Two"]);
+        assert_eq!(
+            names(&featured.track.metadata.album_artists),
+            ["One", "Two"]
+        );
+        assert_eq!(
+            featured.track.metadata.album_display_artist.as_deref(),
+            Some("One")
+        );
+        assert_eq!(
+            featured.track.album_object_id,
+            album("/m/a.flac", &one, tags)
+        );
+        let several = [("artist", "One feat. Two"), ("artist", "Three; Four")];
+        assert_eq!(
+            names(
+                &grouped_track("/m/a.flac", &several, tags)
+                    .track
+                    .metadata
+                    .artists
+            ),
+            ["One feat. Two", "Three", "Four"]
+        );
+        let plural = [("artist", "One feat. Two"), ("artists", "One feat. Two")];
+        assert_eq!(
+            names(
+                &grouped_track("/m/a.flac", &plural, tags)
+                    .track
+                    .metadata
+                    .artists
+            ),
+            ["One feat. Two"]
+        );
+        let whole = FileGrouping {
+            split_featured: false,
+            ..tags
+        };
+        assert_eq!(
+            names(
+                &grouped_track("/m/a.flac", &[("artist", "One feat. Two; Three")], whole)
+                    .track
+                    .metadata
+                    .artists
+            ),
+            ["One feat. Two", "Three"]
+        );
+
+        // A release date names an album; a plain date does not.
+        let dated = |key, value| {
+            [
+                ("albumartist", "One"),
+                ("album", "Album"),
+                (key, value),
+                ("artist", "One"),
+            ]
+        };
+        assert_ne!(
+            album("/m/a.flac", &dated("year", "2001"), tags),
+            album("/m/b.flac", &dated("year", "2011"), tags)
+        );
+        assert_eq!(
+            album("/m/a.flac", &dated("date", "2001"), tags),
+            album("/m/b.flac", &dated("date", "2011"), tags)
+        );
+
+        // A file that names no album is its folder's, whose name it takes.
+        let untitled = [("artist", "One")];
+        assert_eq!(
+            album("/m/cd1/a.flac", &untitled, tags),
+            album("/m/cd1/b.flac", &[("artist", "Two")], tags)
+        );
+        assert_ne!(
+            album("/m/x/a.flac", &untitled, tags),
+            album("/n/x/a.flac", &untitled, tags)
+        );
+
+        // A stored track regroups to what a read under the other grouping gives.
+        for pairs in [&one[..], &flagged("One")[..], &several[..]] {
+            let mut stored = grouped_track("/m/a.flac", pairs, tags).track;
+            stored.source_path = Some("/m/a.flac".into());
+            let read = grouped_track("/m/a.flac", pairs, folders).track;
+            assert!(!regroup(&mut stored, &[None, None], tags));
+            let changed = regroup(&mut stored, &[None, None], folders);
+            assert_eq!(
+                changed,
+                stored.album_object_id != album("/m/a.flac", pairs, tags)
+            );
+            assert_eq!(stored.album_object_id, read.album_object_id);
+            assert_eq!(stored.metadata, read.metadata);
+            regroup(&mut stored, &[None, None], tags);
+            assert_eq!(stored.album_object_id, album("/m/a.flac", pairs, tags));
         }
     }
 

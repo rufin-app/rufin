@@ -19,6 +19,7 @@ desktop-integration.workspace = true
 gtk = { workspace = true, features = ["v4_20"] }
 library.workspace = true
 localization.workspace = true
+names.workspace = true
 playback.workspace = true
 process-memory.workspace = true
 pulldown-cmark.workspace = true

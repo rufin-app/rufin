@@ -14,6 +14,8 @@ const SETTINGS: &[&str] = &[
     "/allow_permanent_delete",
     "/prefer_distinct_track_covers",
     "/use_sort_tags",
+    "/folder_albums",
+    "/split_featured_artists",
     "/external_metadata_enabled",
     "/cover_providers",
     "/artist_image_providers",

@@ -884,6 +884,8 @@ fn general_page(
         page: adw::PreferencesPage,
         prefer_distinct_track_covers_row: adw::SwitchRow,
         use_sort_tags_row: adw::SwitchRow,
+        folder_albums_row: adw::SwitchRow,
+        split_featured_artists_row: adw::SwitchRow,
         language_row: adw::ComboRow,
         starting_page_row: adw::ComboRow,
         window_group: adw::PreferencesGroup,
@@ -919,6 +921,18 @@ fn general_page(
         &use_sort_tags_row,
         "sort tag setting",
         |settings| &mut settings.application.use_sort_tags,
+        |_| {},
+    );
+    shell.settings.bind_switch(
+        &folder_albums_row,
+        "folder album setting",
+        |settings| &mut settings.application.folder_albums,
+        |_| {},
+    );
+    shell.settings.bind_switch(
+        &split_featured_artists_row,
+        "featured artist setting",
+        |settings| &mut settings.application.split_featured_artists,
         |_| {},
     );
     shell.settings.bind_switch(

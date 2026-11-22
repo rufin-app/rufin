@@ -124,6 +124,9 @@ pub struct AlbumTags {
     pub version: Option<String>,
     /// The title of the track's disc, as its disc subtitle tag names it.
     pub disc_subtitle: Option<String>,
+    /// When this release came out, where that is another year than the album's own date: a
+    /// reissue's.
+    pub reissued: Option<String>,
 }
 
 /// A disc's title, shown beside its number on the album page.
@@ -153,6 +156,9 @@ pub struct AlbumMetadata {
     pub release_types: Vec<String>,
     /// Which mix, edition or remaster the album is; readers show it beside its year.
     pub version: Option<String>,
+    /// When this release came out, where that is another year than the album's own: readers
+    /// show it beside its year.
+    pub reissued: Option<String>,
     pub disc_titles: Vec<DiscTitle>,
 }
 

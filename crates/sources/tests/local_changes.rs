@@ -358,7 +358,7 @@ async fn restart_catch_up_detects_an_in_place_file_edit() {
             .into_iter()
             .find(|file| file.kind == library::LocalFileKind::Media)
             .unwrap();
-        assert_eq!(observation.parse_version, Some(24));
+        assert_eq!(observation.parse_version, Some(25));
         assert_eq!(observation.state, library::LocalFileState::Accepted);
         catalog.close().await.unwrap();
     }
@@ -1080,6 +1080,96 @@ async fn local_artist_cover_keeps_album_order_across_point_updates() {
 }
 
 #[tokio::test]
+async fn stored_tracks_regroup_from_their_tags_when_the_grouping_changes() {
+    let root = tempfile::tempdir().unwrap();
+    let directory = root.path().join("Singles");
+    fs::create_dir(&directory).unwrap();
+    // Singles of one title by two artists, without an album artist.
+    for (file, artist) in [("one.wav", "One"), ("two.wav", "Two")] {
+        let path = directory.join(file);
+        write_silent_wav(&path, 1).unwrap();
+        let mut tagged = Probe::open(&path).unwrap().read().unwrap();
+        let mut tag = Tag::new(TagType::Id3v2);
+        tag.set_title(artist.to_string());
+        tag.set_artist(artist.to_string());
+        tag.set_album("Single".to_string());
+        tagged.insert_tag(tag);
+        tagged.save_to_path(&path, WriteOptions::default()).unwrap();
+    }
+    let store = tempfile::tempdir().unwrap();
+    let catalog = Catalog::open(store.path().join("library.sqlite"))
+        .await
+        .unwrap();
+    let connected = Source::connect(
+        SourceId::new("local-regroup"),
+        SourceSetup::Local {
+            roots: vec![root.path().to_path_buf()],
+        },
+        "",
+    )
+    .await
+    .unwrap();
+    let (configuration, source, _) = connected.into_parts();
+    let source_key = catalog
+        .reconcile_source(
+            &configuration.source_id,
+            &configuration.kind,
+            &configuration.name,
+        )
+        .await
+        .unwrap()
+        .source;
+    source
+        .acquire_catalog(
+            &catalog,
+            &|_| {},
+            Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            sources::Refresh::Changed,
+        )
+        .await
+        .unwrap();
+    let albums = async || {
+        let mut albums = sources::listed_albums(
+            &catalog,
+            library::ListRead::new(
+                library::ListKind::Albums,
+                Some(source_key),
+                library::LibraryField::Title,
+            ),
+        )
+        .await
+        .into_iter()
+        .map(|album| (album.artist, album.summary.track_count))
+        .collect::<Vec<_>>();
+        albums.sort();
+        albums
+    };
+    let by_artist = [("One".to_string(), 1), ("Two".to_string(), 1)];
+    assert_eq!(albums().await, by_artist);
+
+    let tags = sources::FileGrouping::default();
+    sources::set_file_grouping(sources::FileGrouping {
+        folder_albums: true,
+        ..tags
+    });
+    assert!(sources::regroup_file_source(&catalog, &configuration.source_id)
+        .await
+        .unwrap());
+    let by_folder = albums().await;
+    assert_eq!(by_folder.len(), 1, "{by_folder:?}");
+    assert_eq!(by_folder[0].1, 2);
+    assert!(!sources::regroup_file_source(&catalog, &configuration.source_id)
+        .await
+        .unwrap());
+
+    sources::set_file_grouping(tags);
+    assert!(sources::regroup_file_source(&catalog, &configuration.source_id)
+        .await
+        .unwrap());
+    assert_eq!(albums().await, by_artist);
+}
+
+#[tokio::test]
 async fn local_refresh_after_a_deleted_album_track_removes_it() {
     let root = tempfile::tempdir().unwrap();
     let directory = root.path().join("Album");
@@ -1604,25 +1694,28 @@ async fn local_metadata_save_publishes_album_identity_changes() {
     for (date, release, original, expected, year) in [
         ("2001", "", "", Some("2001"), Some(2001)),
         ("2001-02", "", "", Some("2001-02"), Some(2001)),
+        // An album shows its original date before its date, and its date before its release
+        // date, as Navidrome's does.
         (
             "2001-02-03",
             "",
             "1995-07-08",
-            Some("2001-02-03"),
-            Some(2001),
+            Some("1995-07-08"),
+            Some(1995),
         ),
         (
             "2001-02-03",
             "2004-05-06",
             "1995-07-08",
-            Some("2004-05-06"),
-            Some(2004),
+            Some("1995-07-08"),
+            Some(1995),
         ),
+        ("2001-02-03", "2004-05-06", "", Some("2001-02-03"), Some(2001)),
         ("", "2004-05-06", "", Some("2004-05-06"), Some(2004)),
         ("", "", "1995-07-08", Some("1995-07-08"), Some(1995)),
         ("", "", "", None, None),
     ] {
-        let album = album_view(&catalog, current.links.album_key.unwrap(), "Album").await;
+        let album = album_view(&catalog, album_of(&catalog, &uri).await, "Album").await;
         let (editor, _metadata) = sources::FileEditSession::open(
             Some(Arc::clone(&source)),
             &catalog,
@@ -1665,7 +1758,7 @@ async fn local_metadata_save_publishes_album_identity_changes() {
                 .await
                 .unwrap();
         }
-        let album = album_view(&catalog, current.links.album_key.unwrap(), "Album").await;
+        let album = album_view(&catalog, album_of(&catalog, &uri).await, "Album").await;
         for path in [&path, &second_path] {
             let uri = url::Url::from_file_path(path).unwrap().to_string();
             let (_editor, metadata) = sources::FileEditSession::open(
@@ -2146,6 +2239,19 @@ async fn track_count(
 }
 
 /// An album as its page reads it, by URI.
+/// The album a track is in now: an edit of what names an album moves its tracks to another.
+async fn album_of(catalog: &Catalog, uri: &str) -> library::AlbumKey {
+    catalog
+        .tracks_by_uris(&[uri.to_string()], &ReadCancellation::new())
+        .await
+        .unwrap()
+        .pop()
+        .unwrap()
+        .links
+        .album_key
+        .unwrap()
+}
+
 async fn album_view(catalog: &Catalog, album: library::AlbumKey, read: &str) -> library::AlbumView {
     catalog.loaded().await;
     let uri = catalog.uri(library::Item::Album(album)).expect(read);

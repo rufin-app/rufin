@@ -341,16 +341,6 @@ impl SearchSession {
         self.show(task, reading, generation);
     }
 
-    /// Sorts the shown results again when `settings` change how their lists sort.
-    pub fn resort(self: &Rc<Self>, settings: &rufin_core::settings::app::Settings) {
-        let Some(view) = self.view.borrow().clone() else {
-            return;
-        };
-        if view.settings_reread(settings).is_some() {
-            self.reread(view);
-        }
-    }
-
     /// Handles a committed change as the Search page that found the results says: shows it
     /// in them, searches again keeping them shown, or searches again in the library selected
     /// now. A search still running hears of the change from its own read.

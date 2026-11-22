@@ -111,6 +111,18 @@
             <property name="subtitle" translatable="yes">Sort artists and albums by their sort tags instead of their names</property>
           </object>
         </child>
+        <child>
+          <object class="AdwSwitchRow" id="folder_albums_row">
+            <property name="title" translatable="yes">Group albums by folder</property>
+            <property name="subtitle" translatable="yes">Files without an album artist tag form one album per folder instead of one per artist</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwSwitchRow" id="split_featured_artists_row">
+            <property name="title" translatable="yes">Split featured artists</property>
+            <property name="subtitle" translatable="yes">Credit the artists a tag names after feat. or ft. as artists of their own</property>
+          </object>
+        </child>
       </object>
     </child>
     <child>

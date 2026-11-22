@@ -104,7 +104,7 @@ internal fun settingsSearchItems(model: RufinConnection, preferences: Preference
         rows(null, "Language")
         rows("App settings", "Starting page", "App icon", "Update check interval", "Allow permanently deleting tracks", "Listening overview")
         rows("Notifications", "Control notifications", "Release notifications")
-        rows("Metadata", "Prefer distinct track covers", "Use sort tags")
+        rows("Metadata", "Prefer distinct track covers", "Use sort tags", "Group albums by folder", "Split featured artists")
     }
     page(MoreDestination.OverviewSettings) {
         rows("Monthly", "Open automatically", "Days before month ends", "Days after month ends")

@@ -177,6 +177,8 @@ internal fun AppSettingsPage(destination: MoreDestination, model: RufinConnectio
                 SettingsGroup(translate("Metadata")) {
                     SettingsSwitch(translate("Prefer distinct track covers"), state.preferDistinctTrackCovers) { preferences.changePreference { setPreferDistinctTrackCovers(it) } }
                     SettingsSwitch(translate("Use sort tags"), state.useSortTags) { preferences.changePreference { setUseSortTags(it) } }
+                    SettingsSwitch(translate("Group albums by folder"), state.folderAlbums, translate("Files without an album artist tag form one album per folder instead of one per artist")) { preferences.changePreference { setFolderAlbums(it) } }
+                    SettingsSwitch(translate("Split featured artists"), state.splitFeaturedArtists, translate("Credit the artists a tag names after feat. or ft. as artists of their own")) { preferences.changePreference { setSplitFeaturedArtists(it) } }
                 }
             }
             MoreDestination.Privacy -> {

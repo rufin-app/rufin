@@ -122,6 +122,14 @@ pub(super) fn token(
     };
     // The web shows lists as cards: every token it opens passes here.
     token.options.layout = Some(LibraryLayout::Grid);
+    // An artist page's rows are the artist's albums: it reads in their list's order and shows
+    // that list's fields.
+    if matches!(
+        token.route,
+        Route::ArtistDetail(_) | Route::AlbumArtistDetail(_)
+    ) {
+        token.options.category = rufin_core::route::CollectionCategory::Albums;
+    }
     if let Some(source) = parameters.get("source") {
         token.source = (!source.is_empty()).then(|| sources::SourceId::new(source));
     }
@@ -218,6 +226,8 @@ pub(super) struct Opened {
     pub header: Option<Header>,
     pub offset: usize,
     pub rows: Vec<Row>,
+    /// An artist page's favorite tracks, from the first of them.
+    pub favorites: Vec<Row>,
     /// What committed while it read, as an update frame shows it on this page; the client
     /// shows it once it shows the rows.
     pub missed: Option<Value>,
@@ -263,6 +273,7 @@ pub(super) async fn open(
         header: opened.header,
         offset: opened.first,
         rows: opened.rows,
+        favorites: opened.favorites.unwrap_or_default(),
         missed: missed.filter(|value| value.as_object().is_some_and(|value| !value.is_empty())),
     })
 }
@@ -276,23 +287,80 @@ pub(super) fn read_error(error: library::LibraryError) -> Error {
 
 /// Whether a route lists collections, which show as cards with their pictures.
 pub(super) fn cards(route: &Route) -> bool {
+    releases(route)
+        || matches!(
+            route,
+            Route::Albums
+                | Route::Artists
+                | Route::AlbumArtists
+                | Route::Genres
+                | Route::Moods
+                | Route::Playlists
+                | Route::SmartPlaylists
+                | Route::PlaylistFolder { .. }
+        )
+}
+
+/// Whether a route lists an artist's albums by release group: the artist's page and its
+/// Discography.
+fn releases(route: &Route) -> bool {
     matches!(
         route,
-        Route::Albums
-            | Route::Artists
-            | Route::AlbumArtists
-            | Route::Genres
-            | Route::Moods
-            | Route::Playlists
-            | Route::SmartPlaylists
-            | Route::PlaylistFolder { .. }
+        Route::ArtistDetail(_)
+            | Route::AlbumArtistDetail(_)
+            | Route::ArtistDiscography(_)
+            | Route::AlbumArtistDiscography(_)
     )
+}
+
+/// The release groups an artist's albums list in, in core's order, without the empty ones:
+/// where each starts among the rows, its title and how many albums it lists.
+pub(super) fn release_sections(view: &View) -> Vec<(usize, String, usize)> {
+    let (counts, _) = view.release_counts().unwrap_or_default();
+    let mut start = 0;
+    rufin_core::settings::presentation::ARTIST_RELEASE_TITLES
+        .iter()
+        .zip(counts)
+        .filter_map(|(title, total)| {
+            let section = (start, localization::tr(title), total);
+            start += total;
+            (total > 0).then_some(section)
+        })
+        .collect()
+}
+
+/// The page that lists an artist page's favorite tracks, in the artist page's search: they
+/// are its rows, which it plays and selects.
+pub(super) fn favorites_page(token: &PageToken) -> Option<PageToken> {
+    let route = match &token.route {
+        Route::ArtistDetail(uri) => Route::ArtistFavoriteTracks(uri.clone()),
+        Route::AlbumArtistDetail(uri) => Route::AlbumArtistFavoriteTracks(uri.clone()),
+        _ => return None,
+    };
+    let mut page = token.at(route);
+    page.options.filter.clone_from(&token.options.filter);
+    page.options.read = token.options.read;
+    Some(page)
+}
+
+/// The name of the sub-page of an artist a route opens, which its band shows under the
+/// artist's.
+pub(super) fn artist_section(route: &Route) -> Option<&'static str> {
+    match route {
+        Route::ArtistDiscography(_) | Route::AlbumArtistDiscography(_) => Some("Discography"),
+        Route::ArtistTracks(_) | Route::AlbumArtistTracks(_) => Some("Tracks"),
+        Route::ArtistFavoriteTracks(_) | Route::AlbumArtistFavoriteTracks(_) => {
+            Some("Favorite tracks")
+        }
+        _ => None,
+    }
 }
 
 /// The name a page's rows go under in its JSON.
 fn rows_name(route: &Route) -> &'static str {
     match route {
         Route::Albums => "albums",
+        route if releases(route) => "albums",
         Route::Artists | Route::AlbumArtists => "artists",
         Route::Playlists | Route::PlaylistFolder { smart: false, .. } => "playlists",
         Route::SmartPlaylists | Route::PlaylistFolder { smart: true, .. } => "smart_playlists",
@@ -389,7 +457,7 @@ pub(super) fn row_json(
 /// the destinations core's Go to lists that a browser opens.
 pub(super) fn links(products: &ProductHandles, scope: &PageToken, row: &Row, value: &mut Value) {
     use rufin_core::{menu::GoTo, route::detail_links};
-    let page = |route| scope.at(browser::web_page(route));
+    let page = |route| scope.at(route);
     let fields = match row {
         Row::Track(track) | Row::AlbumTrack { track, .. } => [
             ("artist", LibraryField::Artist),
@@ -445,21 +513,32 @@ pub(super) fn field_texts(row: &Row, fields: &[LibraryField]) -> Value {
         .collect()
 }
 
-/// A page's title: a collection's name, a playlist folder's, or its list's.
+/// The name of the collection a header shows.
+pub(super) fn name(header: &Header) -> String {
+    match header {
+        Header::Album(album) => album.row.title.clone(),
+        Header::Artist(artist) => artist.row.name.clone(),
+        Header::Tag(tag) => tag.name.clone(),
+        Header::Playlist(playlist) => playlist.name.clone(),
+        Header::Smart(smart) => {
+            rufin_core::playlists::smart_playlist_display_name(&smart.object_id, &smart.name)
+        }
+        Header::QuickMix(mix) => mix.name.clone(),
+    }
+}
+
+/// A page's title: its collection's name, with the sub-page's on an artist's sub-page, a
+/// playlist folder's, or its list's.
 pub(super) fn title(
     products: &ProductHandles,
     token: &PageToken,
     header: Option<&Header>,
 ) -> String {
     match (&token.route, header) {
-        (_, Some(Header::Album(album))) => album.row.title.clone(),
-        (_, Some(Header::Artist(artist))) => artist.row.name.clone(),
-        (_, Some(Header::Tag(tag))) => tag.name.clone(),
-        (_, Some(Header::Playlist(playlist))) => playlist.name.clone(),
-        (_, Some(Header::Smart(smart))) => {
-            rufin_core::playlists::smart_playlist_display_name(&smart.object_id, &smart.name)
-        }
-        (_, Some(Header::QuickMix(mix))) => mix.name.clone(),
+        (route, Some(header)) => match artist_section(route) {
+            Some(section) => format!("{} – {}", name(header), localization::tr(section)),
+            None => name(header),
+        },
         (Route::PlaylistFolder { key, .. }, None) => products
             .library
             .playlist_folder_choices("", &[])
@@ -479,8 +558,14 @@ pub(super) fn title(
 pub(super) fn parent(token: &PageToken) -> Option<PageToken> {
     Some(token.at(match &token.route {
         Route::AlbumDetail(_) => Route::Albums,
-        Route::ArtistTracks(_) => Route::Artists,
-        Route::AlbumArtistTracks(_) => Route::AlbumArtists,
+        Route::ArtistDetail(_) => Route::Artists,
+        Route::AlbumArtistDetail(_) => Route::AlbumArtists,
+        Route::ArtistDiscography(uri)
+        | Route::ArtistTracks(uri)
+        | Route::ArtistFavoriteTracks(uri) => Route::ArtistDetail(uri.clone()),
+        Route::AlbumArtistDiscography(uri)
+        | Route::AlbumArtistTracks(uri)
+        | Route::AlbumArtistFavoriteTracks(uri) => Route::AlbumArtistDetail(uri.clone()),
         Route::GenreDetail(_) | Route::QuickMix(_) => Route::Home,
         Route::PlaylistDetail(_) | Route::PlaylistFolder { smart: false, .. } => Route::Playlists,
         Route::SmartPlaylistDetail(_) | Route::PlaylistFolder { smart: true, .. } => {
@@ -498,8 +583,14 @@ pub(super) fn section(route: &Route) -> &'static str {
         Route::Albums | Route::AlbumDetail(_) => "Albums",
         Route::Artists
         | Route::AlbumArtists
+        | Route::ArtistDetail(_)
+        | Route::AlbumArtistDetail(_)
+        | Route::ArtistDiscography(_)
+        | Route::AlbumArtistDiscography(_)
         | Route::ArtistTracks(_)
-        | Route::AlbumArtistTracks(_) => "Artists",
+        | Route::AlbumArtistTracks(_)
+        | Route::ArtistFavoriteTracks(_)
+        | Route::AlbumArtistFavoriteTracks(_) => "Artists",
         Route::Playlists
         | Route::PlaylistDetail(_)
         | Route::PlaylistFolder { smart: false, .. } => "Playlists",
@@ -512,20 +603,21 @@ pub(super) fn section(route: &Route) -> &'static str {
 }
 
 /// A page's JSON: its rows under its list's name, the order it read in, and with `total` its
-/// length. Track pages carry their columns; album pages their disc sections; playlist pages
-/// their name.
+/// length. Track pages carry their columns; album pages their disc sections; an artist's
+/// albums their release sections, and the artist's page its favorite tracks with the page
+/// that lists them; playlist pages their name.
 pub(super) fn json(products: &ProductHandles, opened: &Opened, limit: usize, total: bool) -> Value {
     let (sort, descending) = opened.view.order();
-    let fields = fields(products, &opened.token);
-    let rows = opened
-        .rows
-        .iter()
-        .map(|row| {
+    let listed = |rows: &[Row], fields: &[LibraryField]| {
+        let rows = rows.iter().map(|row| {
             let mut value = row_json(products, row, true, &opened.token);
-            value["fields"] = field_texts(row, &fields);
+            value["fields"] = field_texts(row, fields);
             value
-        })
-        .collect::<Vec<_>>();
+        });
+        rows.collect::<Vec<_>>()
+    };
+    let fields = fields(products, &opened.token);
+    let rows = listed(&opened.rows, &fields);
     let mut value = json!({
         "sort":sort_name(opened.token.list(), sort),"descending":descending,
         "total":total.then_some(opened.view.len()),"offset":opened.offset,"limit":limit,"page":opened.token,
@@ -547,6 +639,17 @@ pub(super) fn json(products: &ProductHandles, opened: &Opened, limit: usize, tot
                 Some(Header::Playlist(playlist)) => Some(&playlist.name),
                 _ => None,
             });
+        }
+        route if releases(route) => {
+            value["release_sections"] = release_sections(&opened.view)
+                .into_iter()
+                .map(|(index, title, total)| json!({"index":index,"title":title,"total":total}))
+                .collect();
+            if let Some(page) = favorites_page(&opened.token) {
+                let rows = listed(&opened.favorites, &self::fields(products, &page));
+                value["favorite_tracks"] = rows.into();
+                value["favorites_page"] = json!(page);
+            }
         }
         _ => {}
     }

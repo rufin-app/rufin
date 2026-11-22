@@ -75,6 +75,37 @@ pub struct SearchResults {
     pub lyrics: BTreeMap<crate::TrackKey, LyricsSnippet>,
 }
 
+/// How well a row named `name` answers `query`, best first: its name is the query, starts with
+/// it, has a word that starts with it, or holds it; then a name that holds more of the query's
+/// `terms`, each a text and whether it must be a whole word. A row whose name holds none of
+/// the query matched by another field.
+fn rank(name: &str, query: &str, terms: &[(&str, bool)]) -> (u8, usize) {
+    let name = names::folded(name);
+    let starts_word = || {
+        name.match_indices(query).any(|(at, _)| {
+            name.get(..at)
+                .and_then(|before| before.chars().next_back())
+                .is_none_or(|before| !before.is_alphanumeric())
+        })
+    };
+    let class = if name == query {
+        0
+    } else if name.starts_with(query) {
+        1
+    } else if starts_word() {
+        2
+    } else if name.contains(query) {
+        3
+    } else {
+        4
+    };
+    let missing = terms
+        .iter()
+        .filter(|(term, word)| !holds(&[&name], None, term, *word))
+        .count();
+    (class, missing)
+}
+
 impl Catalog {
     /// The rows of a server's search results by object id in music folder `folder`, kept to it
     /// as the lists of that folder hold them unless the server `kept` its results to it already
@@ -251,41 +282,90 @@ impl Catalog {
             )
         };
         let artists = self.order(&Read::List(artists), cancellation).await?;
-        let keys = {
-            let snapshot = self.snapshot();
-            let context = Context::new(&snapshot);
-            let all = |holds: &dyn Fn(&str, bool) -> bool| {
-                terms.iter().all(|(term, word)| holds(term, *word))
-            };
-            let found = |order: &crate::Order, kept: &dyn Fn(u32) -> bool| match &order.0.members {
-                Members::Tracks(keys) | Members::Keys(keys) => keys
-                    .iter()
-                    .filter(|key| kept(**key))
-                    .map(|key| i64::from(*key))
-                    .take(request.limit)
-                    .collect(),
-                _ => Vec::new(),
-            };
-            [
-                found(&tracks, &|key| {
-                    snapshot.tracks.get(key.into()).is_some_and(|record| {
+        let keys =
+            {
+                let snapshot = self.snapshot();
+                let context = Context::new(&snapshot);
+                let all = |holds: &dyn Fn(&str, bool) -> bool| {
+                    terms.iter().all(|(term, word)| holds(term, *word))
+                };
+                // The best answers, each by the rank `ranked` gives a row that holds every term:
+                // rows of one rank keep the order of their list by title.
+                let named = |name: &str| rank(name, &request.query, &terms);
+                let found = |order: &crate::Order, ranked: &dyn Fn(u32) -> Option<(u8, usize)>| {
+                    match &order.0.members {
+                        Members::Tracks(keys) | Members::Keys(keys) => {
+                            let mut found = keys
+                                .iter()
+                                .filter_map(|key| Some((ranked(*key)?, *key)))
+                                .collect::<Vec<_>>();
+                            found.sort_by_key(|(rank, _)| *rank);
+                            found
+                                .into_iter()
+                                .map(|(_, key)| i64::from(key))
+                                .take(request.limit)
+                                .collect()
+                        }
+                        _ => Vec::new(),
+                    }
+                };
+                [
+                    found(&tracks, &|key| {
+                        let record = snapshot.tracks.get(key.into())?;
                         all(&|term, word| context.track_holds(record, term, word))
-                    })
-                }),
-                found(&albums, &|key| {
-                    snapshot.albums.get(key.into()).is_some_and(|record| {
+                            .then(|| named(snapshot.text(record.title)))
+                    }),
+                    found(&albums, &|key| {
+                        let record = snapshot.albums.get(key.into())?;
                         all(&|term, word| context.album_holds(record, term, word))
-                    })
-                }),
-                found(&artists, &|key| {
-                    snapshot.artists.get(key.into()).is_some_and(|record| {
-                        all(&|term, word| holds(&[snapshot.text(record.name)], None, term, word))
-                    })
-                }),
-            ]
-        };
+                            .then(|| named(snapshot.text(record.title)))
+                    }),
+                    found(&artists, &|key| {
+                        let record = snapshot.artists.get(key.into())?;
+                        let name = snapshot.text(record.name);
+                        all(&|term, word| holds(&[name], None, term, word)).then(|| named(name))
+                    }),
+                ]
+            };
         let mut connection = self.acquire_loaded(cancellation).await?;
         self.search_rows(&mut connection, &keys, album_artists, folder)
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn a_name_ranks_by_how_it_holds_the_query() {
+        let rank = |name, query: &str| {
+            let terms = query
+                .split_whitespace()
+                .map(|term| (term, term.chars().count() == 1))
+                .collect::<Vec<_>>();
+            super::rank(name, query, &terms)
+        };
+        let mut names = [
+            "Zombie",
+            "Glove",
+            "All You Need Is Love",
+            "Lovely Day",
+            "Love",
+            "Amour",
+        ];
+        names.sort_by_key(|name| rank(name, "love"));
+        assert_eq!(
+            names,
+            [
+                "Love",
+                "Lovely Day",
+                "All You Need Is Love",
+                "Glove",
+                "Zombie",
+                "Amour"
+            ]
+        );
+        // A name that holds more of the query's terms comes first among the rest.
+        assert!(rank("The Wall", "pink wall") < rank("Animals", "pink wall"));
+        assert_eq!(rank("Beyoncé", "beyonce").0, 0);
     }
 }

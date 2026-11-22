@@ -56,9 +56,11 @@ const COMPARED: [(&str, bool); 9] = [
 ];
 /// Kinds whose rows hold their value. This device's own queue is encoded when it is sent.
 const BODIES: [&str; 3] = ["device", "session", "queue"];
-const PREFERENCES: [&str; 5] = [
+const PREFERENCES: [&str; 7] = [
     "prefer_distinct_track_covers",
     "use_sort_tags",
+    "folder_albums",
+    "split_featured_artists",
     "external_metadata_enabled",
     "sidebar.pins",
     "lyrics.suppressed_auto_lyrics",
@@ -2357,6 +2359,8 @@ fn preference(ui: &crate::settings::Settings, name: &str) -> Result<Value, Strin
     Ok(match name {
         "prefer_distinct_track_covers" => json!(ui.application.prefer_distinct_track_covers),
         "use_sort_tags" => json!(ui.application.use_sort_tags),
+        "folder_albums" => json!(ui.application.folder_albums),
+        "split_featured_artists" => json!(ui.application.split_featured_artists),
         "external_metadata_enabled" => json!(ui.application.external_metadata_enabled),
         "sidebar.pins" => serde_json::to_value(&ui.sidebar.pins).map_err(string_error)?,
         "lyrics.suppressed_auto_lyrics" => json!(ui.lyrics.suppressed_auto_lyrics_track_ids),
@@ -2377,6 +2381,8 @@ fn set_preference(
             ui.application.prefer_distinct_track_covers = read(value)?
         }
         "use_sort_tags" => ui.application.use_sort_tags = read(value)?,
+        "folder_albums" => ui.application.folder_albums = read(value)?,
+        "split_featured_artists" => ui.application.split_featured_artists = read(value)?,
         "external_metadata_enabled" => ui.application.external_metadata_enabled = read(value)?,
         "sidebar.pins" => ui.sidebar.pins = read(value)?,
         "lyrics.suppressed_auto_lyrics" => {

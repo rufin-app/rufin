@@ -281,6 +281,7 @@ pub use file::documents::{
 pub use file::local::media::{
     local_access_locator, local_media_identity_path, read_local_track_reference,
 };
+pub use file::media::{FileGrouping, regroup_file_source, set_file_grouping};
 pub use file::metadata::read_embedded_lyrics;
 pub use file::playlist::{
     import_local_playlist_file, playlist_file_is_non_audio, playlist_file_revision,

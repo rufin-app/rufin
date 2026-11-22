@@ -646,14 +646,21 @@ pub fn disc_heading(disc: i64, titles: &[library::DiscTitle]) -> String {
     }
 }
 
-/// An album's year with its version beside it, so mixes and editions of one album tell apart.
+/// An album's year, with the year a reissue came out and its version beside it, so mixes and
+/// editions of one album tell apart.
 pub fn album_year(album: &library::AlbumRow) -> String {
-    let year = optional_year(album.year);
-    match album.version.as_deref() {
-        Some(version) if year.is_empty() => version.to_owned(),
-        Some(version) => format!("{year} · {version}"),
-        None => year,
-    }
+    let reissued = (album.reissued.as_deref())
+        .and_then(|date| date.get(..4))
+        .map(|year| localization::tr("Released {year}").replace("{year}", year));
+    [
+        Some(optional_year(album.year)).filter(|year| !year.is_empty()),
+        reissued,
+        album.version.clone(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>()
+    .join(" · ")
 }
 
 pub fn optional_year(year: Option<i64>) -> String {

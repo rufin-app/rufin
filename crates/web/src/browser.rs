@@ -101,6 +101,9 @@ struct Shown<'a> {
     previews: Vec<String>,
     /// Its position in its list.
     index: usize,
+    /// The heading above it: a disc's on an album page, a release group's among an artist's
+    /// albums.
+    heading: Option<String>,
     menu_id: String,
     form: &'a Form,
     /// A track's, album's or artist's rating, 0 to 10; other rows take none.
@@ -130,7 +133,7 @@ pub(super) fn row_data(
         None => (Route::of_row(row), PlayTarget::of_row(row)),
     };
     if let Some(route) = route {
-        value["page"] = json!(scope.at(web_page(route)));
+        value["page"] = json!(scope.at(route));
     }
     if let Some(PlayTarget::Route(route)) = target {
         // The collection the card plays, which shows it playing while the page's playback
@@ -139,16 +142,6 @@ pub(super) fn row_data(
         value["play"] = json!(scope.at(route));
     }
     value
-}
-
-/// The page the web draws for `route`: an artist's tracks for the artist page.
-pub(super) fn web_page(route: rufin_core::route::Route) -> rufin_core::route::Route {
-    use rufin_core::route::Route;
-    match route {
-        Route::ArtistDetail(uri) => Route::ArtistTracks(uri),
-        Route::AlbumArtistDetail(uri) => Route::AlbumArtistTracks(uri),
-        route => route,
-    }
 }
 
 impl<'a> Shown<'a> {
@@ -239,6 +232,7 @@ impl<'a> Shown<'a> {
             play,
             previews,
             index,
+            heading: None,
             menu_id,
             form,
             row,
@@ -387,7 +381,8 @@ impl<'a> Shown<'a> {
 /// edge, the title, the facts, the genres and the buttons.
 struct Head<'a> {
     /// The row it shows, with its favorite, edit and menu; a Quick mix page shows an entry,
-    /// which is no row, and offers its actions as buttons.
+    /// which is no row, and offers its actions as buttons, and an artist's sub-page shows
+    /// none.
     row: Option<Shown<'a>>,
     title: String,
     /// Its kind, as the script reads it.
@@ -406,10 +401,16 @@ struct Head<'a> {
     home: bool,
     /// An album's artist, under its title.
     artist: Option<String>,
+    /// The sub-page an artist's band heads, under the artist's name: the band alone, with no
+    /// cover and no buttons.
+    section: Option<String>,
     facts: Vec<(&'static str, String)>,
+    /// An artist's counts, which open its albums and its tracks: each one's icon, text and
+    /// page.
+    counts: Vec<(&'static str, String, String)>,
     /// Each genre's name and the page it opens.
     genres: Vec<(String, String)>,
-    /// The links in the band's corner; Home's header has none.
+    /// The links in the band's corner; Home's header and an artist's sub-page have none.
     links: Vec<HeadLink>,
     /// The band's gradient stops, from the cover's preview.
     band: String,
@@ -521,7 +522,7 @@ impl<'a> Head<'a> {
             let page = scope.at(rufin_core::route::Route::GenreDetail(key));
             (name.to_owned(), page.json())
         };
-        let (facts, genres): (Vec<_>, Vec<_>) = match &row.row {
+        let (facts, counts, genres): (Vec<_>, Vec<_>, Vec<_>) = match &row.row {
             Row::Album(album) | Row::AlbumHeading(album) => (
                 [
                     (row.year() > 0)
@@ -535,6 +536,7 @@ impl<'a> Head<'a> {
                 .into_iter()
                 .flatten()
                 .collect(),
+                Vec::new(),
                 album
                     .links
                     .genres
@@ -542,21 +544,43 @@ impl<'a> Head<'a> {
                     .map(|link| genre((&link.name, link.genre_key)))
                     .collect(),
             ),
-            Row::Artist(artist) => (
-                vec![
+            Row::Artist(artist) => {
+                use rufin_core::route::Route;
+                let uri = artist.media_uri.clone();
+                let (albums, tracks) = if artist.album_artist {
                     (
-                        "rufin-albums-symbolic",
-                        localization::album_count_text(artist.summary.album_count.max(0) as u64),
-                    ),
-                    ("rufin-tracks-symbolic", row.track_count()),
-                ],
-                Vec::new(),
-            ),
+                        Route::AlbumArtistDiscography(uri.clone()),
+                        Route::AlbumArtistTracks(uri),
+                    )
+                } else {
+                    (
+                        Route::ArtistDiscography(uri.clone()),
+                        Route::ArtistTracks(uri),
+                    )
+                };
+                (
+                    Vec::new(),
+                    vec![
+                        (
+                            "rufin-albums-symbolic",
+                            localization::album_count_text(artist.summary.album_count.max(0) as u64),
+                            scope.at(albums).json(),
+                        ),
+                        (
+                            "rufin-tracks-symbolic",
+                            row.track_count(),
+                            scope.at(tracks).json(),
+                        ),
+                    ],
+                    Vec::new(),
+                )
+            }
             other => (
                 row.summary().map_or_else(
                     || collection_facts(0, 0),
                     |shown| collection_facts(shown.track_count, shown.duration_millis),
                 ),
+                Vec::new(),
                 match other {
                     Row::Playlist(PlaylistListRow::Playlist(playlist)) => playlist
                         .genres
@@ -585,9 +609,11 @@ impl<'a> Head<'a> {
             form,
             artist: matches!(row.row, Row::Album(_) | Row::AlbumHeading(_))
                 .then(|| row.artist().to_owned()),
+            section: None,
             row: Some(row),
             home,
             facts,
+            counts,
             genres,
             links,
             band,
@@ -636,7 +662,9 @@ impl<'a> Head<'a> {
             form,
             home: false,
             artist: None,
+            section: None,
             facts: collection_facts(mix.track_count, mix.duration_millis),
+            counts: Vec::new(),
             genres: Vec::new(),
             links: Vec::new(),
             band: band(products, settings, mix.artwork_binding.as_deref()),
@@ -648,6 +676,14 @@ impl<'a> Head<'a> {
     fn radio_from(&mut self, first: Option<&Row>) {
         self.menu.radio = first.and_then(rufin_core::menu::radio_seed);
         self.data["menu"] = json!(self.menu);
+    }
+
+    /// Makes it the band of the artist's sub-page `section`, as GTK's: the artist's name over
+    /// the sub-page's, with no cover, counts or buttons.
+    fn sub_page(&mut self, section: &str) {
+        self.section = Some(localization::tr(section));
+        self.row = None;
+        self.counts.clear();
     }
 }
 
@@ -696,18 +732,25 @@ fn page_head<'a>(
         }
         Header::Smart(smart) => Row::Playlist(PlaylistListRow::SmartPlaylist((**smart).clone())),
     };
+    let section = page::artist_section(&token.route);
     let mut head = Head::new(
         products,
         settings,
         token,
         row,
-        Some(page::title(products, token, Some(header))),
+        Some(page::name(header)),
         false,
-        head_links(products, settings, header),
+        match section {
+            Some(_) => Vec::new(),
+            None => head_links(products, settings, header),
+        },
         form,
     );
     if let Header::Smart(_) = header {
         head.radio_from(opened.rows.first());
+    }
+    if let Some(section) = section {
+        head.sub_page(section);
     }
     Some(head)
 }
@@ -744,18 +787,26 @@ pub(super) fn showcase(
     .map_err(internal)
 }
 
+/// An artist page's favorite tracks, rows of the page that lists them.
+struct Favorites<'a> {
+    rows: Vec<Shown<'a>>,
+    columns: Vec<Column>,
+    /// Their page as the script reads it, and a link that opens it.
+    page: String,
+    href: String,
+}
+
 #[derive(Template)]
 #[template(path = "library.html")]
 struct Library<'a> {
     /// The page's header, with its first rows.
     head: Option<Head<'a>>,
+    /// An artist page's favorite tracks, when it has any, with its first rows.
+    favorites: Option<Favorites<'a>>,
     rows: Vec<Shown<'a>>,
-    /// A track list's columns: its list's row fields. Track rows carry no artwork, so an
-    /// Image field shows no column.
     columns: Vec<Column>,
     cards: bool,
     album_tracks: bool,
-    disc_headers: HashMap<usize, String>,
     /// The page as the script reads it.
     page: String,
     title: String,
@@ -773,10 +824,14 @@ struct Library<'a> {
     missed: String,
 }
 
-impl Library<'_> {
-    fn disc_heading(&self, index: &usize) -> Option<&str> {
-        self.disc_headers.get(index).map(String::as_str)
-    }
+/// A track list's columns: its list's row fields. Track rows carry no artwork, so an Image
+/// field shows no column.
+fn columns(fields: &[LibraryField]) -> Vec<Column> {
+    fields
+        .iter()
+        .filter(|field| **field != LibraryField::Image)
+        .map(|field| Column::new(*field))
+        .collect()
 }
 
 /// An open list page as HTML.
@@ -790,57 +845,67 @@ pub(super) fn library(
     let token = &opened.token;
     let fields = page::fields(products, token);
     let cards = page::cards(&token.route);
-    let rows = opened
-        .rows
-        .iter()
-        .enumerate()
-        .map(|(position, row)| {
-            let index = opened.offset + position;
-            Shown::new(
-                products,
-                &settings,
-                token,
-                Some(&opened.view),
-                row.clone(),
-                true,
-                None,
-                &fields,
-                index,
-                format!("media-menu-library-{index}"),
-                form,
-            )
+    let header = opened.header.as_ref();
+    let shown =
+        |list: &page::PageToken, rows: &[Row], fields: &[LibraryField], offset, menu: &str| {
+            let rows = rows.iter().enumerate().map(|(position, row)| {
+                let index = offset + position;
+                Shown::new(
+                    products,
+                    &settings,
+                    list,
+                    Some(&opened.view),
+                    row.clone(),
+                    true,
+                    None,
+                    fields,
+                    index,
+                    format!("media-menu-{menu}-{index}"),
+                    form,
+                )
+            });
+            rows.collect::<Vec<_>>()
+        };
+    let mut rows = shown(token, &opened.rows, &fields, opened.offset, "library");
+    // An album's discs and an artist's release groups head the rows they start at.
+    let disc_titles = match header {
+        Some(library::Header::Album(album)) => album.metadata.disc_titles.as_slice(),
+        _ => &[],
+    };
+    let mut headings: HashMap<usize, String> = (opened.view.disc_sections().iter())
+        .map(|(start, disc)| {
+            let heading = rufin_core::settings::presentation::disc_heading(*disc, disc_titles);
+            (*start as usize, heading)
         })
+        .chain(
+            page::release_sections(&opened.view)
+                .into_iter()
+                .map(|(start, title, _)| (start, title)),
+        )
         .collect();
+    for row in &mut rows {
+        row.heading = headings.remove(&row.index);
+    }
+    let favorites = page::favorites_page(token)
+        .filter(|_| opened.offset == 0 && !opened.favorites.is_empty())
+        .map(|page| {
+            let fields = page::fields(products, &page);
+            Favorites {
+                rows: shown(&page, &opened.favorites, &fields, 0, "favorite"),
+                columns: columns(&fields),
+                href: link(&HashMap::from([("page".to_owned(), page.anew().json())])),
+                page: page.json(),
+            }
+        });
     let (sort, descending) = opened.view.order();
     let list = token.list();
-    let header = opened.header.as_ref();
     Library {
         head: page_head(products, &settings, opened, form),
+        favorites,
         rows,
-        columns: fields
-            .iter()
-            .filter(|field| !cards && **field != LibraryField::Image)
-            .map(|field| Column::new(*field))
-            .collect(),
+        columns: if cards { Vec::new() } else { columns(&fields) },
         cards,
         album_tracks: matches!(token.route, rufin_core::route::Route::AlbumDetail(_)),
-        disc_headers: {
-            let titles = match header {
-                Some(library::Header::Album(album)) => album.metadata.disc_titles.as_slice(),
-                _ => &[],
-            };
-            opened
-                .view
-                .disc_sections()
-                .iter()
-                .map(|(start, disc)| {
-                    (
-                        *start as usize,
-                        rufin_core::settings::presentation::disc_heading(*disc, titles),
-                    )
-                })
-                .collect()
-        },
         page: token.json(),
         title: page::title(products, token, header),
         back: page::parent(token).map_or_else(String::new, |parent| parent.json()),
@@ -855,8 +920,9 @@ pub(super) fn library(
             Some(library::Header::Playlist(playlist)) => playlist.name.clone(),
             _ => String::new(),
         },
-        // A page with a header plays from its header.
-        play: opened.view.members().is_some() && header.is_none(),
+        // A page whose header has buttons plays from its header.
+        play: opened.view.members().is_some()
+            && (header.is_none() || page::artist_section(&token.route).is_some()),
         writable: matches!(header, Some(library::Header::Playlist(playlist)) if playlist.writable),
         playlists: token.route == rufin_core::route::Route::Playlists,
         missed: missed_text(opened),

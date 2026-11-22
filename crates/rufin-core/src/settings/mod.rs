@@ -131,6 +131,10 @@ pub(crate) struct SourceSettings {
     pub(crate) integrations: Vec<ConfiguredSource>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) selected_source_id: Option<SourceId>,
+    /// How the tracks the Store holds of file sources group: whether by folder, and whether
+    /// featured artists stand apart. None is the grouping of settings that never chose.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) file_grouping: Option<[bool; 2]>,
 }
 
 impl SourceSettings {

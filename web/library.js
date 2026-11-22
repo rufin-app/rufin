@@ -86,7 +86,7 @@ async function loadLibrary(token, extra, signal, initialPage, at) {
   content.append(after);
   let total = null, pageHeight = 1, lastHeight = null, pending = null;
   libraryTotal = total;
-  let header = null, showcase = null, timer, resize;
+  let header = null, showcase = null, favorites = null, timer, resize;
   signal.addEventListener("abort", () => {
     clearTimeout(timer);
     resize?.disconnect();
@@ -106,7 +106,7 @@ async function loadLibrary(token, extra, signal, initialPage, at) {
   const logicalPosition = () => scrollPosition() * ratio();
   const targetPage = () => Math.min(Math.max(0, pageCount() - 1), Math.floor(logicalPosition() / pageHeight));
   const layout = () => {
-    content.style.minHeight = `${extent() + (header?.getBoundingClientRect().height || 0) + (showcase?.getBoundingClientRect().height || 0)}px`;
+    content.style.minHeight = `${extent() + [header, showcase, favorites].reduce((sum, node) => sum + (node?.getBoundingClientRect().height || 0), 0)}px`;
     const ordered = [...pages.values()].sort((a, b) => a.start - b.start);
     let previous = before;
     for (const page of ordered) {
@@ -155,6 +155,9 @@ async function loadLibrary(token, extra, signal, initialPage, at) {
         libraryTotal = total;
       }
       const count = Number(data.dataset.count);
+      // An artist's favorite tracks are no rows of the page's list.
+      const favorite = node.querySelector(".favorite-tracks");
+      favorite?.remove();
       const table = node.querySelector(".track-list");
       if (table && !header) {
         content.setAttribute("role", "grid");
@@ -166,13 +169,20 @@ async function loadLibrary(token, extra, signal, initialPage, at) {
         content.prepend(header);
       }
       if (header) content.setAttribute("aria-rowcount", total + 1);
-      // The page's header comes with its first rows and stays above the list.
+      // The page's header comes with its first rows and stays above the list, and under it
+      // an artist's favorite tracks.
       const lifted = node.querySelector(".detail-showcase");
       if (lifted) {
         showcase?.remove();
+        favorites?.remove();
         showcase = lifted;
+        favorites = favorite;
         content.prepend(showcase);
         bindCard(showcase);
+        if (favorites) {
+          showcase.after(favorites);
+          bindFavorites(favorites, signal);
+        }
         loadCardCovers(content, signal);
       }
       node.hidden = false;
@@ -241,7 +251,7 @@ async function loadLibrary(token, extra, signal, initialPage, at) {
     await loadPage(start);
   }
   // What the page showed before stays until these rows replace it.
-  const kept = new Set([before, after, header, showcase, pages.get(start).node]);
+  const kept = new Set([before, after, header, showcase, favorites, pages.get(start).node]);
   for (const node of [...content.children]) if (!kept.has(node)) node.remove();
   measure();
   layout();
@@ -576,20 +586,20 @@ function selectTrack(index, event = {}) {
   }
 }
 
-// Plays the page from track `row` at `index`, or the rows selected with it.
-function playSelection(index, row) {
+// Plays `page` from its track `row` at `index`, or the rows selected with it.
+function playSelection(page, index, row) {
   return selectedMany()
-    ? api("/queue", "POST", { page: opened, ranges: selection, mode: "replace" })
-    : api("/queue", "POST", { page: opened, index, anchor_uri: row.uri, anchor_entry: row.id, mode: "replace" });
+    ? api("/queue", "POST", { page, ranges: selection, mode: "replace" })
+    : api("/queue", "POST", { page, index, anchor_uri: row.uri, anchor_entry: row.id, mode: "replace" });
 }
 
-async function showTrackMenu(index, row, anchor, event) {
+async function showTrackMenu(page, index, row, anchor, event) {
   if (!selected(index)) selectTrack(index);
-  const media = { page: opened, ranges: selection }, menu = row.menu, many = selectedMany();
+  const media = { page, ranges: selection }, menu = row.menu, many = selectedMany();
   const actions = [];
   if (menu.play)
     actions.push(
-      [tr("Play"), () => playSelection(index, row)],
+      [tr("Play"), () => playSelection(page, index, row)],
       [tr("Play Next"), () => queueMedia(media, "next")],
       [tr("Play Later"), () => queueMedia(media, "append")],
     );
@@ -597,7 +607,7 @@ async function showTrackMenu(index, row, anchor, event) {
   actions.push(null);
   if (menu.add_to_playlist) actions.push(playlistMenu(media));
   if (menu.favorite) {
-    const query = new URLSearchParams({ page: JSON.stringify(opened), ranges: JSON.stringify(selection) });
+    const query = new URLSearchParams({ page: JSON.stringify(page), ranges: JSON.stringify(selection) });
     const favorite = many ? (await api(`/favorite?${query}`)).favorite : row.favorite;
     actions.push([
       favorite ? tr("Remove from Favorites") : tr("Add to Favorites"),
@@ -607,7 +617,7 @@ async function showTrackMenu(index, row, anchor, event) {
   if (shown.writable === "true")
     actions.push([
       tr("Remove from Playlist"),
-      () => api("/playlists/entries", "DELETE", { id: opened.route.PlaylistDetail, ...media }),
+      () => api("/playlists/entries", "DELETE", { id: page.route.PlaylistDetail, ...media }),
     ]);
   if (menu.edit_metadata)
     actions.push([tr("Edit metadata"), () => openMetadata(many ? media : { kind: "track", uri: row.uri }), "rufin-document-edit-symbolic"]);
@@ -618,14 +628,17 @@ async function showTrackMenu(index, row, anchor, event) {
   showMenu(actions, anchor, event);
 }
 
-function bindTracks(host, signal) {
+// Binds the track rows of `host`: rows of the page shown, or of `own`, the page that lists an
+// artist page's favorite tracks, of which `host` holds every row it reaches.
+function bindTracks(host, signal, own) {
   const nodes = [...host.querySelectorAll("tbody tr[data-row]")];
+  const page = () => own || opened, total = () => own ? nodes.length : libraryTotal;
   for (const tr of nodes) {
     const index = Number(tr.dataset.index),
       row = mediaRow(tr);
     tr.setAttribute("aria-rowindex", index + 2);
     bindDrag(tr, () => selected(index)
-      ? { kind: "track", row, page: opened, ranges: selection }
+      ? { kind: "track", row, page: page(), ranges: selection }
       : mediaSelection("track", row));
     tr.classList.toggle("selected", selected(index));
     tr.setAttribute("aria-selected", String(selected(index)));
@@ -637,10 +650,10 @@ function bindTracks(host, signal) {
           event.preventDefault();
           run(() => {
             const action = button.dataset.action;
-            if (action === "replace") return playSelection(index, row);
+            if (action === "replace") return playSelection(page(), index, row);
             if (action === "next" || action === "append") return playUris([row.uri], action);
             if (action === "favorite") return setFavorite(row);
-            if (action === "menu") return showTrackMenu(index, row, button);
+            if (action === "menu") return showTrackMenu(page(), index, row, button);
             return openLinks(row, button.dataset.field, button);
           });
         } else if (event.detail < 2) selectTrack(index, event);
@@ -650,7 +663,7 @@ function bindTracks(host, signal) {
     tr.addEventListener(
       "dblclick",
       (event) => {
-        if (!event.target.closest("button")) run(() => playSelection(index, row));
+        if (!event.target.closest("button")) run(() => playSelection(page(), index, row));
       },
       { signal },
     );
@@ -658,7 +671,7 @@ function bindTracks(host, signal) {
       "contextmenu",
       (event) => {
         event.preventDefault();
-        run(() => showTrackMenu(index, row, tr, event));
+        run(() => showTrackMenu(page(), index, row, tr, event));
       },
       { signal },
     );
@@ -668,16 +681,16 @@ function bindTracks(host, signal) {
         if (event.target !== tr) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          if (event.key === "Enter") run(() => playSelection(index, row));
+          if (event.key === "Enter") run(() => playSelection(page(), index, row));
           else selectTrack(index, event);
         } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
           event.preventDefault();
           run(async () => {
-            const destination = event.key === "Home" ? 0 : event.key === "End" ? libraryTotal - 1 : index + (event.key === "ArrowDown" ? 1 : -1);
+            const destination = event.key === "Home" ? 0 : event.key === "End" ? total() - 1 : index + (event.key === "ArrowDown" ? 1 : -1);
             let next = $("content").querySelector(
               `tr[data-index="${destination}"]`,
             );
-            if (!next) {
+            if (!next && !own) {
               next = await revealEntry(destination);
             }
             if (next) {
@@ -688,16 +701,29 @@ function bindTracks(host, signal) {
         } else if ((event.ctrlKey || event.metaKey) && event.key === "a") {
           event.preventDefault();
           selectionAnchor = 0;
-          selectTrack(libraryTotal - 1, { shiftKey: true });
+          selectTrack(total() - 1, { shiftKey: true });
         } else if (event.key === "F10" && event.shiftKey) {
           event.preventDefault();
-          run(() => showTrackMenu(index, row, tr));
+          run(() => showTrackMenu(page(), index, row, tr));
         }
       },
       { signal },
     );
   }
   markCurrent();
+}
+
+// An artist page's favorite tracks: rows of the page their section names, which their heading
+// opens. Four of them show and the rest scroll, as on GTK.
+function bindFavorites(section, signal) {
+  const page = JSON.parse(section.dataset.page);
+  section.querySelector("h2 a").addEventListener("click", (event) => {
+    event.preventDefault();
+    navigate(page);
+  });
+  const fifth = section.querySelectorAll("tbody tr[data-row]")[4];
+  if (fifth) section.lastElementChild.style.maxHeight = `${fifth.offsetTop}px`;
+  bindTracks(section, signal, page);
 }
 
 function playUris(uris, mode = "replace") {
@@ -1025,7 +1051,7 @@ function cardCover(kind, row) {
 }
 
 function loadCardCovers(host, signal) {
-  const cards = [...host.querySelectorAll(".album-card:not([hidden]), .detail-showcase")].filter(
+  const cards = [...host.querySelectorAll(".album-card:not([hidden]), .detail-showcase:not(.detail-plain)")].filter(
     (card) => !requestedCovers.has(card),
   );
   cards.forEach((card) => requestedCovers.add(card));

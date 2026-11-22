@@ -105,6 +105,7 @@ impl Part {
                     "album.release_date".into(),
                     "coalesce(date(album.date_added),album.date_added,date(album.first_seen_at,'unixepoch'))".into(),
                     "json_extract(album.metadata,'$.version')".into(),
+                    "json_extract(album.metadata,'$.reissued')".into(),
                 ],
                 "JOIN albums album ON album.album_key=requested.value".into(),
             ),
@@ -229,8 +230,8 @@ pub(crate) struct Got {
     pub(crate) tracks: HashMap<i64, TrackText>,
     /// A full view's details and its CUE window; the rest of the access its row fills.
     pub(crate) views: HashMap<i64, (TrackMetadata, TrackAccess)>,
-    /// An album's release date, date added and version.
-    pub(crate) album_texts: HashMap<i64, (Option<String>, Option<String>, Option<String>)>,
+    /// An album's release date, date added, version and reissue date.
+    pub(crate) album_texts: HashMap<i64, [Option<String>; 4]>,
     pub(crate) album_views: HashMap<i64, AlbumMetadata>,
     pub(crate) artist_views: HashMap<i64, Option<String>>,
     /// Stored pictures by art part and key.
@@ -452,7 +453,7 @@ pub(crate) async fn run(
             }
             Part::AlbumText => {
                 got.album_texts
-                    .insert(key, (text(&rows, 2), text(&rows, 3), text(&rows, 4)));
+                    .insert(key, [2, 3, 4, 5].map(|column| text(&rows, column)));
             }
             Part::AlbumView => {
                 got.album_views.insert(key, json(&rows, 2)?);

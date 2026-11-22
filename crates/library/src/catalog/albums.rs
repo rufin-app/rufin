@@ -409,6 +409,7 @@ async fn resolve_album(
             },
             release_types: Vec::new(),
             version: filled(|member| member.album_tags.as_ref()?.version.as_deref()),
+            reissued: filled(|member| member.album_tags.as_ref()?.reissued.as_deref()),
             disc_titles: disc_titles(&indexed),
         })?,
     };

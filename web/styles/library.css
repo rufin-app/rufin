@@ -120,6 +120,29 @@
   padding: 8px;
 }
 
+/* An artist page's sections: its favorite tracks, which scroll in their own list, and its
+   release groups, each headed on the grid row above its albums. */
+.favorite-tracks {
+  margin-bottom: 22px;
+}
+
+.favorite-tracks > div {
+  overflow-y: auto;
+}
+
+.favorite-tracks > h2,
+.album-grid > h2 {
+  font-size: 18px;
+}
+
+.favorite-tracks > h2 {
+  padding: 8px;
+}
+
+.album-grid > h2 {
+  grid-column: 1 / -1;
+}
+
 .drag-preview {
   position: fixed;
   z-index: 10000;
@@ -969,6 +992,14 @@ html.grid-favorite-badges .cover-corner[aria-pressed="true"] {
   --inset: 48px;
 }
 
+/* An artist's sub-page: the band alone, as GTK's, at every width. */
+.detail-showcase.detail-plain > form {
+  --band: 120px;
+  --cover: 0px;
+  --cover-top: 0px;
+  --gap: 0px;
+}
+
 /* The names, the facts and the buttons are rows beside the cover. The band lies behind the
    first two and grows with them: genres opened onto further lines make it taller. */
 .detail-body {
@@ -1146,6 +1177,7 @@ html.grid-favorite-badges .cover-corner[aria-pressed="true"] {
   flex: none;
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   height: 26px;
   padding: 0 11px;
   border-radius: 999px;

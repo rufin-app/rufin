@@ -332,13 +332,15 @@ pub(crate) fn cue_track(
         .into_iter()
         .map(|name| media::artist_credit(name, None))
         .collect();
+    track.metadata.album_display_artist = Some(album_artist);
     track.metadata.artists = media::split_names(&track.metadata.artist)
         .into_iter()
         .map(|name| media::artist_credit(name, None))
         .collect();
     track.album_object_id = Some(media::album_id(
         &track.metadata,
-        true,
+        media::Owner::AlbumArtists,
+        None,
         cue_path,
         Some(cue_path),
     ));
