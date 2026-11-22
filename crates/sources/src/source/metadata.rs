@@ -1485,7 +1485,6 @@ impl NativeFile {
                     &mut crate::file::media::Worker::default(),
                     path,
                     None,
-                    None,
                 )
             })
             .await

@@ -1033,10 +1033,9 @@ impl walk::FileSource for LocalFiles<'_> {
             return Ok(read);
         }
         let path = PathBuf::from(&file.path);
-        let root = PathBuf::from(&file.root);
         tokio::task::spawn_blocking(move || {
             let mut worker = worker.lock().unwrap_or_else(|error| error.into_inner());
-            media::read_media(&mut worker, path, Some(&root), None)
+            media::read_media(&mut worker, path, None)
         })
         .await
         .map_err(|error| SourceError::Other(error.to_string()))
@@ -1050,10 +1049,9 @@ impl walk::FileSource for LocalFiles<'_> {
         _siblings: Option<&std::collections::BTreeSet<String>>,
     ) -> SourceResult<walk::CueRead> {
         let path = PathBuf::from(&file.path);
-        let root = PathBuf::from(&file.root);
         tokio::task::spawn_blocking(move || {
             let mut worker = worker.lock().unwrap_or_else(|error| error.into_inner());
-            scan::read_local_cue(&mut worker, &path, &root)
+            scan::read_local_cue(&mut worker, &path)
         })
         .await
         .map_err(|error| SourceError::Other(error.to_string()))

@@ -145,7 +145,6 @@ pub(crate) fn track_reference(scanned: ScannedTrack, media_uri: String) -> libra
 pub(crate) async fn read_saved_media(
     path: &Path,
     display_path: PathBuf,
-    root: Option<PathBuf>,
 ) -> crate::SourceResult<ScannedTrack> {
     let path = path.to_owned();
     tokio::task::spawn_blocking(move || {
@@ -153,14 +152,9 @@ pub(crate) async fn read_saved_media(
             .map_err(|error| crate::SourceError::Other(error.to_string()))?;
         let uri = url::Url::from_file_path(&path).map_err(|_| crate::SourceError::NotFound)?;
         let mut worker = Worker::default();
-        let MediaRead::Accepted(track) = read_media_input(
-            &mut worker,
-            display_path,
-            root.as_deref(),
-            &mut file,
-            uri.as_str(),
-            None,
-        ) else {
+        let MediaRead::Accepted(track) =
+            read_media_input(&mut worker, display_path, &mut file, uri.as_str(), None)
+        else {
             return Err(crate::SourceError::Other(
                 "Saved media could not be read".into(),
             ));
@@ -190,11 +184,9 @@ pub(crate) fn excluded_from_audio_scan(path: &Path) -> bool {
             .is_some_and(|name| name.split('.').next() == Some("qt_temp"))
 }
 
-/// `root` is the source folder the file was found in, when the caller knows it.
 pub(crate) fn read_media_input(
     worker: &mut Worker,
     path: PathBuf,
-    root: Option<&Path>,
     file: &mut (impl Read + Seek),
     uri: &str,
     sidecar: Option<LocalImageRef>,
@@ -272,7 +264,6 @@ pub(crate) fn read_media_input(
             .filter(|(file, _)| lofty_supplies_required_audio(file));
     }
     let (tagged_file, raw) = read.unzip();
-    let folder = folder_album(&path, root);
     let mut track = if let Some(tagged_file) = tagged_file.as_ref() {
         let properties = tagged_file.properties();
         let facts = Facts {
@@ -292,7 +283,7 @@ pub(crate) fn read_media_input(
                 .map(|rating| (rating.rating() as u8) * 2),
         };
         let tags = Tags::clean(&raw.unwrap_or_default());
-        tagged_track(&path, folder, &tags, facts, sidecar, grouping())
+        tagged_track(&path, &tags, facts, sidecar, grouping())
     } else {
         let metadata = discovered.clone().unwrap_or_default();
         let facts = Facts {
@@ -308,7 +299,7 @@ pub(crate) fn read_media_input(
             user_rating: None,
         };
         let tags = Tags::clean(&discovered_tags(&metadata));
-        tagged_track(&path, folder, &tags, facts, sidecar, grouping())
+        tagged_track(&path, &tags, facts, sidecar, grouping())
     };
     super::lyrics::set_lyrics(
         &mut track,
@@ -452,8 +443,7 @@ struct Grouped {
 
 /// The credits of a file whose artist shows as `artist`. Without an album artist tag the
 /// album is its first track artist's, or Various Artists' when it is a compilation, as in
-/// Navidrome. It is its folder's instead when the file names no album, since its folder
-/// names it, or when the grouping keeps folders together.
+/// Navidrome. It is its folder's instead when the grouping keeps folders together.
 fn grouped(tags: &Tags, artist: &str, compilation: bool, grouping: FileGrouping) -> Grouped {
     let mut names = artist_names(tags, "artist", "artists", grouping);
     if names.is_empty() {
@@ -465,7 +455,6 @@ fn grouped(tags: &Tags, artist: &str, compilation: bool, grouping: FileGrouping)
         artist_names(tags, "artistsort", "artistssort", grouping),
         &[],
     );
-    let by_folder = grouping.folder_albums || tags.first("album").is_none();
     let (album_artist, album_names, owner) =
         match display_names(tags, "albumartist", "albumartists") {
             Some(shown) => (
@@ -473,7 +462,7 @@ fn grouped(tags: &Tags, artist: &str, compilation: bool, grouping: FileGrouping)
                 artist_names(tags, "albumartist", "albumartists", grouping),
                 Owner::AlbumArtists,
             ),
-            None if by_folder => (artist.to_owned(), names, Owner::Folder),
+            None if grouping.folder_albums => (artist.to_owned(), names, Owner::Folder),
             None if compilation => (
                 VARIOUS_ARTISTS.to_owned(),
                 vec![VARIOUS_ARTISTS.to_owned()],
@@ -508,7 +497,6 @@ fn released(tags: &Tags) -> Option<&str> {
 /// A file's track from its cleaned tags.
 fn tagged_track(
     path: &Path,
-    folder: String,
     tags: &Tags,
     facts: Facts,
     local_artwork: Option<LocalImageRef>,
@@ -517,7 +505,7 @@ fn tagged_track(
     let title = tags
         .first("title")
         .map_or_else(|| file_title(path), str::to_owned);
-    let album = tags.first("album").map_or(folder, str::to_owned);
+    let album = tags.first("album").unwrap_or("Unknown Album").to_owned();
     let artist =
         display_names(tags, "artist", "artists").unwrap_or_else(|| "Unknown Artist".to_string());
     let release_types = library::normalize_release_types(
@@ -985,16 +973,6 @@ fn file_title(path: &Path) -> String {
         .to_string()
 }
 
-/// The album of a file whose tags name none: its folder, unless that is the source's own folder.
-fn folder_album(path: &Path, root: Option<&Path>) -> String {
-    path.parent()
-        .filter(|folder| Some(*folder) != root)
-        .and_then(Path::file_name)
-        .and_then(|name| name.to_str())
-        .unwrap_or("Unknown Album")
-        .to_string()
-}
-
 /// Credits for `names`, with MusicBrainz ids and sort names that count only when there is one
 /// per name. A name without a sort name sorts as the same name in `fallback`.
 fn credits(
@@ -1105,7 +1083,7 @@ mod tests {
     #[test]
     fn executable_contents_are_not_local_audio() {
         let path = std::env::current_exe().expect("test executable");
-        let result = read_media(&mut Worker::default(), path, None, None);
+        let result = read_media(&mut Worker::default(), path, None);
         assert!(matches!(result, MediaRead::Rejected), "{result:?}");
     }
 
@@ -1171,8 +1149,7 @@ mod tests {
                 bytes.extend(fs::read(&path).expect("tagged audio"));
                 fs::write(&path, bytes).expect("leading junk");
             }
-            let MediaRead::Accepted(track) =
-                read_media(&mut Worker::default(), path.clone(), None, None)
+            let MediaRead::Accepted(track) = read_media(&mut Worker::default(), path.clone(), None)
             else {
                 panic!("audio content was rejected: {name}");
             };
@@ -1368,9 +1345,7 @@ mod tests {
             audio_properties: Default::default(),
             user_rating: None,
         };
-        let path = Path::new(path);
-        let folder = folder_album(path, None);
-        tagged_track(path, folder, &Tags::clean(&raw), facts, None, grouping)
+        tagged_track(Path::new(path), &Tags::clean(&raw), facts, None, grouping)
     }
 
     #[test]
@@ -1494,15 +1469,17 @@ mod tests {
             album("/m/b.flac", &dated("date", "2011"), tags)
         );
 
-        // A file that names no album is its folder's, whose name it takes.
+        // A file that names no album is in its artist's Unknown Album, wherever it is.
         let untitled = [("artist", "One")];
+        let unknown = grouped_track("/m/x/a.flac", &untitled, tags).track;
+        assert_eq!(unknown.metadata.album, "Unknown Album");
         assert_eq!(
-            album("/m/cd1/a.flac", &untitled, tags),
-            album("/m/cd1/b.flac", &[("artist", "Two")], tags)
+            unknown.album_object_id,
+            album("/n/y/b.flac", &untitled, tags)
         );
         assert_ne!(
-            album("/m/x/a.flac", &untitled, tags),
-            album("/n/x/a.flac", &untitled, tags)
+            unknown.album_object_id,
+            album("/m/x/b.flac", &[("artist", "Two")], tags)
         );
 
         // A stored track regroups to what a read under the other grouping gives.
