@@ -1268,21 +1268,21 @@ impl Source {
                 .and_then(|source| catalog.synced_at(source));
             // A check of a source with dated changes lists what changed since the last sync.
             let since = synced_at.filter(|_| check);
+            let accepted = if let Some(marker) = &freshness {
+                catalog
+                    .accept_freshness(source_id, marker, &library::ReadCancellation::new())
+                    .await?
+            } else {
+                false
+            };
             if check {
-                let accepted = if let Some(marker) = &freshness {
-                    catalog
-                        .accept_freshness(source_id, marker, &library::ReadCancellation::new())
-                        .await?
-                } else {
-                    false
-                };
                 // A server without a scan marker lists everything once a day.
                 let daily = synced_at.is_none_or(|at| unix_now() - at >= 24 * 60 * 60);
                 let full = match (&self.implementation, &freshness) {
                     (Implementation::Plex(_) | Implementation::JellyfinEmby(_), _) => true,
+                    (Implementation::Local(local), _) => local.rescan_due(),
                     (_, Some(_)) => !accepted,
                     (Implementation::OpenSubsonic(_), None) => daily,
-                    (Implementation::Local(local), None) => local.rescan_due(),
                     (implementation, None) => matches!(implementation, Implementation::Files(_)),
                 };
                 if !full {
@@ -1319,7 +1319,10 @@ impl Source {
                     source
                         .walk(
                             changes,
-                            crate::file::walk::WalkScope::All { resync },
+                            crate::file::walk::WalkScope::All {
+                                resync,
+                                reidentify: false,
+                            },
                             &report,
                             &cancelled_fn,
                         )
@@ -1330,7 +1333,11 @@ impl Source {
                     source
                         .walk(
                             changes,
-                            crate::file::walk::WalkScope::All { resync },
+                            crate::file::walk::WalkScope::All {
+                                resync,
+                                // The media collection numbered its files anew.
+                                reidentify: freshness.is_some() && !accepted,
+                            },
                             &report,
                             &cancelled_fn,
                         )
@@ -1378,8 +1385,8 @@ impl Source {
 
     async fn freshness(&self) -> SourceResult<Option<Freshness>> {
         match &self.implementation {
-            Implementation::Plex(_) => Ok(None),
-            Implementation::Local(_) | Implementation::JellyfinEmby(_) => Ok(None),
+            Implementation::Plex(_) | Implementation::JellyfinEmby(_) => Ok(None),
+            Implementation::Local(source) => source.freshness().await,
             Implementation::Files(source) => source.freshness().await,
             Implementation::OpenSubsonic(source) => source.freshness().await,
             Implementation::Peer(source) => source.freshness().await,

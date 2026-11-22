@@ -123,6 +123,17 @@ pub(crate) fn document_identities(root: &str, uris: &[String]) -> SourceResult<V
         .map(|identities| identities.native_ids)
 }
 
+/// The version of the device's media collection, which changes when it numbers its files
+/// anew; a host without one has none.
+pub(crate) fn media_version() -> SourceResult<Option<String>> {
+    #[derive(Deserialize)]
+    struct Version {
+        version: Option<String>,
+    }
+    request::<Version>(serde_json::json!({"op":"media_version", "uri":""}))
+        .map(|version| version.version)
+}
+
 pub fn read_document_prefix(uri: &str, length: u32) -> SourceResult<Vec<u8>> {
     use base64::Engine;
     #[derive(Deserialize)]

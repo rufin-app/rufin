@@ -599,7 +599,7 @@ impl walk::FileSource for FileSource {
     async fn identify(
         &self,
         files: &mut [(Entry, Option<library::StoredFile>)],
-        resync: bool,
+        again: bool,
     ) -> SourceResult<()> {
         let Some(access) = self.document_access() else {
             return Ok(());
@@ -617,7 +617,7 @@ impl walk::FileSource for FileSource {
                 .as_ref()
                 .map(|stored| &stored.file)
                 .filter(|stored| {
-                    !resync
+                    !again
                         && stored.revision == entry.revision
                         && stored.size_bytes == entry.size
                         // A row with the provider's name was not in the media collection yet.

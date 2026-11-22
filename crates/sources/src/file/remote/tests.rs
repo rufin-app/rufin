@@ -467,7 +467,10 @@ async fn dav_inventory_reuses_tags_and_follows_native_file_identity() {
             let interrupted = source
                 .walk(
                     &mut observation,
-                    walk::WalkScope::All { resync: false },
+                    walk::WalkScope::All {
+                        resync: false,
+                        reidentify: false,
+                    },
                     &|progress| {
                         if progress.stage == crate::SourceProgressStage::Tracks {
                             cancelled.store(true, Ordering::Relaxed);
@@ -496,7 +499,10 @@ async fn dav_inventory_reuses_tags_and_follows_native_file_identity() {
         source
             .walk(
                 &mut observation,
-                walk::WalkScope::All { resync: false },
+                walk::WalkScope::All {
+                    resync: false,
+                    reidentify: false,
+                },
                 &|_| {},
                 &|| false,
             )
@@ -698,7 +704,10 @@ async fn dav_cue_inventory_preserves_segments_and_refreshes_backing_audio() {
         source
             .walk(
                 &mut observation,
-                walk::WalkScope::All { resync: false },
+                walk::WalkScope::All {
+                    resync: false,
+                    reidentify: false,
+                },
                 &|_| {},
                 &|| false,
             )

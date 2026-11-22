@@ -285,6 +285,20 @@ impl LocalSource {
         })
     }
 
+    /// What the identities of the document folders' files were looked up under: the version
+    /// of the device's media collection.
+    pub(crate) async fn freshness(&self) -> SourceResult<Option<library::Freshness>> {
+        if self.documents.is_empty() {
+            return Ok(None);
+        }
+        tokio::task::spawn_blocking(crate::file::documents::media_version)
+            .await
+            .map_err(|error| SourceError::Other(error.to_string()))??
+            .map(|version| library::Freshness::new(version.into_bytes()))
+            .transpose()
+            .map_err(SourceError::from)
+    }
+
     /// Whether the folders have gone an hour without a whole walk.
     pub(crate) fn rescan_due(&self) -> bool {
         self.walked

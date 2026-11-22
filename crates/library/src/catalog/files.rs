@@ -337,6 +337,18 @@ impl Catalog {
             UNION ALL SELECT requested.value,track.object_id FROM json_each(?2) requested CROSS JOIN track_details details ON details.source_path=requested.value AND details.cue_path IS NULL CROSS JOIN tracks track USING(track_key) WHERE track.source_key=?1 AND track.object_id IS NOT NULL")
             .bind(source).bind(serde_json::to_string(paths)?).fetch_all(&mut *connection).await?)
     }
+
+    /// The object ids of the tracks that files of an identity yield, by the path asked for: a
+    /// file another root holds too is the same track there.
+    pub async fn identity_track_objects(
+        &self,
+        source: SourceKey,
+        identities: &[(&str, &str)],
+    ) -> LibraryResult<Vec<(String, String)>> {
+        let mut connection = self.acquire_reader().await?;
+        Ok(sqlx::query_as("SELECT requested.value->>0,track.object_id FROM json_each(?2) requested CROSS JOIN files file ON file.source_key=?1 AND file.native_id=requested.value->>1 CROSS JOIN track_details details ON details.source_path=file.path AND details.cue_path IS NULL CROSS JOIN tracks track USING(track_key) WHERE track.source_key=?1 AND track.object_id IS NOT NULL")
+            .bind(source).bind(serde_json::to_string(identities)?).fetch_all(&mut *connection).await?)
+    }
 }
 
 /// Admits or withdraws file tracks.

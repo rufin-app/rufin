@@ -75,11 +75,11 @@ pub(crate) trait FileSource: Sync {
     ) -> impl Future<Output = SourceResult<Vec<Entry>>> + Send;
     fn stat(&self, root: &str, native: &str) -> impl Future<Output = SourceResult<Entry>> + Send;
     /// Identifies the listed files of one directory whose listing left that to a lookup. Each
-    /// comes with the row the Store holds in its place; a `resync` looks every one up again.
+    /// comes with the row the Store holds in its place, which `again` leaves aside.
     fn identify(
         &self,
         _files: &mut [(Entry, Option<StoredFile>)],
-        _resync: bool,
+        _again: bool,
     ) -> impl Future<Output = SourceResult<()>> + Send {
         async { Ok(()) }
     }
@@ -109,8 +109,9 @@ pub(crate) trait FileSource: Sync {
 
 #[derive(Clone, Copy)]
 pub(crate) enum WalkScope<'a> {
-    /// Every root. `resync` also reads rejected files again (manual Resync Library).
-    All { resync: bool },
+    /// Every root. `resync` also reads rejected files again (manual Resync Library), and
+    /// looks every file's identity up again, as `reidentify` alone does.
+    All { resync: bool, reidentify: bool },
     /// Live changes and imports: these paths, a directory with its subtree.
     Paths {
         paths: &'a [String],
@@ -142,7 +143,15 @@ pub(crate) async fn walk<F: FileSource>(
         observation,
         walked: roots.iter().map(|root| root.root.clone()).collect(),
         configured,
-        resync: matches!(scope, WalkScope::All { resync: true }),
+        resync: matches!(scope, WalkScope::All { resync: true, .. }),
+        reidentify: matches!(
+            scope,
+            WalkScope::All { resync: true, .. }
+                | WalkScope::All {
+                    reidentify: true,
+                    ..
+                }
+        ),
         stored: VecDeque::new(),
         cursor: None,
         inclusive: false,
@@ -225,6 +234,7 @@ struct Walker<'w, 'o, F: FileSource> {
     walked: Vec<String>,
     configured: &'w [String],
     resync: bool,
+    reidentify: bool,
     stored: VecDeque<StoredFile>,
     /// Where the next page of stored rows starts.
     cursor: Option<(String, String)>,
@@ -787,7 +797,7 @@ impl<F: FileSource> Walker<'_, '_, F> {
                 files.push((entry, self.take(root, &child_key).await?));
             }
             lyrics |= self.vanish_subtree(root, &key).await?;
-            match self.files.identify(&mut files, self.resync).await {
+            match self.files.identify(&mut files, self.reidentify).await {
                 Ok(()) => {}
                 Err(SourceError::Cancelled) => return Err(SourceError::Cancelled),
                 Err(error) => {
@@ -1012,6 +1022,27 @@ impl<F: FileSource> Walker<'_, '_, F> {
         for (new, old) in &renamed {
             if let Some(id) = objects.get(old).cloned() {
                 objects.entry(new.clone()).or_insert(id);
+            }
+        }
+        // A file another root holds too is one track with it: the track its identity, as it
+        // was or as it is now, names there.
+        let shared = accepted
+            .iter()
+            .filter(|(staged, _)| !objects.contains_key(&staged.row.path))
+            .flat_map(|(staged, _)| {
+                let stored = staged
+                    .stored
+                    .as_ref()
+                    .and_then(|file| file.native_id.as_deref());
+                [stored, staged.row.native_id.as_deref()]
+                    .into_iter()
+                    .flatten()
+                    .map(|identity| (staged.row.path.as_str(), identity))
+            })
+            .collect::<Vec<_>>();
+        if !shared.is_empty() {
+            for (path, id) in catalog.identity_track_objects(source, &shared).await? {
+                objects.entry(path).or_insert(id);
             }
         }
         for (path, inputs, mut tracks) in sheets {

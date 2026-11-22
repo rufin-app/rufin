@@ -23,11 +23,15 @@ import org.json.JSONObject
 import java.io.Closeable
 import java.io.File
 import java.io.FileNotFoundException
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.OutputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.util.UUID
 import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -35,6 +39,8 @@ import java.util.concurrent.atomic.AtomicLong
 
 private const val DOCUMENT_PAGE_SIZE = 128
 private const val ROOT_SEED_FILE = "document-root-seed"
+private const val WRITES_DIRECTORY = "document-writes"
+private const val WRITE_RETENTION_MILLIS = 30L * 24 * 60 * 60 * 1000
 
 /** ContentResolver keeps provider identifiers and asset descriptor ownership here. */
 class AndroidDocuments(
@@ -67,6 +73,13 @@ class AndroidDocuments(
             }
             bytes
         }
+    }
+
+    /** The original of each document being overwritten, with the journal that names it. */
+    private val writes = File(context.noBackupFilesDir, WRITES_DIRECTORY)
+
+    init {
+        Thread({ runCatching(::restoreWrites) }, "document-writes").start()
     }
 
     private class OpenDocument(
@@ -105,6 +118,8 @@ class AndroidDocuments(
                 }
                 "list" -> list(uri, request.optLong("offset"))
                 "child" -> JSONObject().put("entry", child(uri, request.getString("name")) ?: JSONObject.NULL)
+                "media_version" -> JSONObject().put("version",
+                    if (Build.VERSION.SDK_INT >= 29) MediaStore.getVersion(context) else JSONObject.NULL)
                 "identities" -> {
                     val listed = request.getJSONArray("documents")
                     val documents = (0 until listed.length()).map { Uri.parse(listed.getString(it)) }
@@ -144,7 +159,7 @@ class AndroidDocuments(
                     if (!request.isNull("revision") && stat(uri).optString("revision") != request.getString("revision")) {
                         return JSONObject().put("status", 412).put("error", "The document changed before saving").toString()
                     }
-                    write(uri, File(request.getString("source")))
+                    overwrite(uri, File(request.getString("source")))
                     JSONObject()
                 }
                 "create", "mkdir" -> {
@@ -160,7 +175,7 @@ class AndroidDocuments(
                     created ?: throw FileNotFoundException("The provider could not create the document")
                     if (request.has("source")) {
                         try {
-                            write(created, File(request.getString("source")))
+                            fill(openTruncated(documentUri(created)), File(request.getString("source")))
                         } catch (failure: Exception) {
                             try {
                                 if (isMedia(created)) resolver.delete(created, null, null)
@@ -489,10 +504,83 @@ class AndroidDocuments(
     fun close(handle: Long) { handles.remove(handle)?.close() }
     override fun close() { handles.keys.toList().forEach(::close) }
 
-    private fun write(uri: Uri, source: File) {
-        resolver.openOutputStream(documentUri(uri), "wt")?.use { output ->
-            source.inputStream().use { it.copyTo(output) }
-        } ?: throw FileNotFoundException("The document could not be opened for writing")
+    private fun openTruncated(document: Uri) = resolver.openOutputStream(document, "wt")
+        ?: throw FileNotFoundException("The document could not be opened for writing")
+
+    private fun fill(output: OutputStream, content: File) = output.use {
+        content.inputStream().use { input -> input.copyTo(it) }
+        it.flush()
+        // A provider that hands out a pipe has nothing to sync.
+        try { (it as? FileOutputStream)?.fd?.sync() } catch (_: IOException) { }
+    }
+
+    /**
+     * Replaces a document's content. Providers offer no replace by rename, so the original is
+     * copied here first and its journal written; `restoreWrites` puts it back if the write does
+     * not finish.
+     */
+    private fun overwrite(uri: Uri, source: File) = synchronized(writes) {
+        restoreWrites()
+        val document = documentUri(uri)
+        writes.mkdirs()
+        val token = UUID.randomUUID().toString()
+        val backup = File(writes, "$token.data")
+        val journal = File(writes, "$token.uri")
+        val output = try {
+            (resolver.openInputStream(document) ?: throw FileNotFoundException("The document could not be opened")).use { input ->
+                FileOutputStream(backup).use { copy ->
+                    input.copyTo(copy)
+                    copy.fd.sync()
+                }
+            }
+            val whole = AtomicFile(journal)
+            val text = whole.startWrite()
+            try {
+                text.write(document.toString().toByteArray(Charsets.UTF_8))
+                whole.finishWrite(text)
+            } catch (error: Exception) {
+                whole.failWrite(text)
+                throw error
+            }
+            openTruncated(document)
+        } catch (error: Exception) {
+            // Nothing was written yet, as when the document asks for consent first.
+            journal.delete()
+            backup.delete()
+            throw error
+        }
+        try {
+            fill(output, source)
+        } catch (failure: Exception) {
+            // The original goes back now, or on a later start if its provider cannot take it yet.
+            runCatching(::restoreWrites)
+            throw failure
+        }
+        // The new content replaces every earlier original of this document.
+        for (earlier in writes.listFiles().orEmpty().filter { it.extension == "uri" && it.readText() == document.toString() }) {
+            File(writes, "${earlier.nameWithoutExtension}.data").delete()
+            earlier.delete()
+        }
+    }
+
+    /**
+     * Puts back the original of every overwrite that did not finish. One that cannot go back
+     * waits for its card or provider to return, for a month: a document that is gone never does.
+     */
+    private fun restoreWrites() = synchronized(writes) {
+        val files = writes.listFiles().orEmpty()
+        for (journal in files.filter { it.extension == "uri" }) {
+            val backup = File(writes, "${journal.nameWithoutExtension}.data")
+            try {
+                fill(openTruncated(Uri.parse(journal.readText())), backup)
+            } catch (_: Exception) {
+                if (System.currentTimeMillis() - journal.lastModified() < WRITE_RETENTION_MILLIS) continue
+            }
+            backup.delete()
+            journal.delete()
+        }
+        // A copy without a journal was never whole.
+        files.filter { it.extension != "uri" && !File(writes, "${it.nameWithoutExtension}.uri").exists() }.forEach(File::delete)
     }
 
     private fun findPath(uri: Uri, roots: List<Uri>): List<Uri> {
