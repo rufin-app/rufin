@@ -542,7 +542,7 @@ fn update_flathub_manifest_source_text(input: &str, tag: &str, commit: &str) -> 
         .chars()
         .take_while(|ch| ch.is_whitespace())
         .collect::<String>();
-    let property_indent = format!("{indent}  ");
+    let property_indent = format!("{indent}    ");
     let replacement = format!(
         "{{\n{property_indent}\"type\": \"git\",\n{property_indent}\"url\": \"https://github.com/rufin-app/rufin.git\",\n{property_indent}\"tag\": \"{tag}\",\n{property_indent}\"commit\": \"{commit}\"\n{indent}}}"
     );
