@@ -8,8 +8,7 @@ use ::lofty::config::WriteOptions;
 use ::lofty::file::TaggedFileExt;
 use ::lofty::picture::{MimeType, Picture, PictureType};
 use ::lofty::prelude::TagExt;
-use ::lofty::tag::items::popularimeter::{Popularimeter, StarRating};
-use ::lofty::tag::{ItemKey, Tag};
+use ::lofty::tag::{ItemKey, Tag, TagType};
 
 use super::lofty::{MetadataWriter, read_lofty_for_edit};
 use crate::{MetadataDraft, MetadataEdit, MetadataField, SourceEntityKind, SourceMetadataError};
@@ -47,12 +46,33 @@ pub(crate) type MetadataImageCache = Option<(
 #[derive(Clone)]
 pub(crate) enum TagUpdate {
     Metadata(Vec<(crate::MetadataEdit, String)>),
+    /// The rating in half stars; none clears it.
     Rating(Option<u8>),
     Lyrics(String),
     R128 {
         track: Option<f64>,
         album: Option<f64>,
     },
+}
+
+/// The rating a track's edit sets, in half stars: none when it leaves the rating alone, and
+/// an inner none when it clears it.
+pub(crate) fn edited_rating(
+    edit: &crate::MetadataEdit,
+) -> Result<Option<Option<u8>>, SourceMetadataError> {
+    let Some(value) = edit.changes.get(crate::RATING_FIELD) else {
+        return Ok(None);
+    };
+    if value.trim().is_empty() {
+        return Ok(Some(None));
+    }
+    value
+        .trim()
+        .parse::<u8>()
+        .ok()
+        .filter(|rating| (1..=10).contains(rating))
+        .map(|rating| Some(Some(rating)))
+        .ok_or_else(|| SourceMetadataError::Write(format!("Invalid Rating: {value}")))
 }
 
 pub(crate) fn edit_copy(
@@ -79,28 +99,15 @@ pub(crate) fn edit_copy(
         None
     };
     edit_tag(path, writer, tag_type, |tag, writer| {
+        let mut rating = None;
         match update {
             TagUpdate::Metadata(edits) => {
                 for (edit, artist) in edits {
+                    rating = edited_rating(edit)?.or(rating);
                     apply_metadata(tag, writer, edit, artist, mp4_image)?;
                 }
             }
-            TagUpdate::Rating(rating) => {
-                tag.remove_key(ItemKey::Popularimeter);
-                if let Some(rating) = rating.filter(|rating| *rating > 0) {
-                    let stars = match rating.div_ceil(2).clamp(1, 5) {
-                        1 => StarRating::One,
-                        2 => StarRating::Two,
-                        3 => StarRating::Three,
-                        4 => StarRating::Four,
-                        _ => StarRating::Five,
-                    };
-                    tag.insert_text(
-                        ItemKey::Popularimeter,
-                        Popularimeter::musicbee(stars, 0).to_string(),
-                    );
-                }
-            }
+            TagUpdate::Rating(value) => rating = Some(value.filter(|rating| *rating > 0)),
             TagUpdate::Lyrics(lyrics) => {
                 let (_, key) = writer
                     .lyrics_target()
@@ -121,7 +128,7 @@ pub(crate) fn edit_copy(
                 }
             }
         }
-        Ok(())
+        Ok(rating)
     })
 }
 
@@ -497,12 +504,23 @@ pub(crate) fn folder_artwork_filename(
     }
 }
 
+/// Edits the file's tag. `mutate` answers the rating to write beside its edit, if it sets one.
 fn edit_tag(
     path: &Path,
     writer: MetadataWriter,
-    tag_type: Option<::lofty::tag::TagType>,
-    mutate: impl FnOnce(&mut Tag, MetadataWriter) -> Result<(), SourceMetadataError>,
+    tag_type: Option<TagType>,
+    mutate: impl FnOnce(&mut Tag, MetadataWriter) -> Result<Option<Option<u8>>, SourceMetadataError>,
 ) -> Result<(), SourceMetadataError> {
+    // The file's own values, read before the edit's read sets Lofty to keep every item.
+    let file = super::lofty::read_lofty_scan(
+        fs::File::open(path).map_err(write_error)?,
+        ::lofty::config::ParseOptions::new()
+            .read_cover_art(false)
+            .read_properties(false),
+    )
+    .map_err(write_error)?
+    .map(|(_, raw)| raw)
+    .unwrap_or_default();
     let tagged = read_lofty_for_edit(path, writer.file_type())
         .map_err(write_error)?
         .ok_or(SourceMetadataError::Unavailable)?;
@@ -516,8 +534,8 @@ fn edit_tag(
                 .unwrap_or_else(|| Tag::new(tag_type))
         })
         .unwrap_or_else(|| writable_tag(&tagged));
-    mutate(&mut tag, writer)?;
-    if tag.tag_type() == ::lofty::tag::TagType::Id3v2
+    let rating = mutate(&mut tag, writer)?;
+    if tag.tag_type() == TagType::Id3v2
         && matches!(
             writer.file_type(),
             ::lofty::file::FileType::Wav | ::lofty::file::FileType::Aiff
@@ -535,7 +553,7 @@ fn edit_tag(
             .remove_from(&mut file, WriteOptions::new())
             .map_err(write_error)?;
     }
-    save_tag(tag, path)
+    save_tag(tag, path, rating, &file)
 }
 
 fn writable_tag(tagged: &::lofty::file::TaggedFile) -> Tag {
@@ -550,44 +568,112 @@ fn writable_tag(tagged: &::lofty::file::TaggedFile) -> Tag {
     })
 }
 
-fn save_tag(mut tag: Tag, path: &Path) -> Result<(), SourceMetadataError> {
-    if tag.tag_type() == ::lofty::tag::TagType::Id3v2 {
-        // Lofty 0.25.1 writes WORK as a frame ID and omits the MVIN total.
-        let work = tag
-            .get_strings(ItemKey::Work)
-            .collect::<Vec<_>>()
-            .join("\0");
-        let movement = match (
-            tag.get_string(ItemKey::MovementNumber),
-            tag.get_string(ItemKey::MovementTotal),
-        ) {
-            (Some(number), Some(total)) => Some(format!("{number}/{total}")),
-            (None, Some(total)) => Some(format!("0/{total}")),
-            (Some(number), None) => Some(number.to_string()),
-            (None, None) => None,
-        };
-        tag.remove_key(ItemKey::Work);
-        tag.remove_key(ItemKey::MovementNumber);
-        tag.remove_key(ItemKey::MovementTotal);
-        let mut id3 = ::lofty::id3::v2::Id3v2Tag::from(tag);
-        if !work.is_empty() {
-            id3.insert_user_text("WORK".into(), work);
+/// Whether Lofty reads `value` as a rating with a name: `name|stars|plays`.
+fn named_rating(value: &str) -> bool {
+    let mut parts = value.splitn(3, '|').skip(1);
+    parts
+        .next()
+        .and_then(|stars| stars.parse::<u8>().ok())
+        .is_some_and(|stars| (1..=5).contains(&stars))
+        && parts
+            .next()
+            .is_some_and(|plays| plays.parse::<u64>().is_ok())
+}
+
+/// Saves the tag as its format's own, which keeps the items of the file that Lofty's shared
+/// tag has no key for and holds every value of an item together. The shared tag's writer
+/// drops the former from Vorbis comments and APE tags, and keeps one value of an APE item.
+fn save_tag(
+    mut tag: Tag,
+    path: &Path,
+    rating: Option<Option<u8>>,
+    file: &super::tags::RawTags,
+) -> Result<(), SourceMetadataError> {
+    let options = WriteOptions::new().remove_others(false);
+    match tag.tag_type() {
+        TagType::Id3v2 => {
+            // Lofty 0.25.1 writes WORK as a frame ID and omits the MVIN total.
+            let work = tag
+                .get_strings(ItemKey::Work)
+                .collect::<Vec<_>>()
+                .join("\0");
+            let movement = match (
+                tag.get_string(ItemKey::MovementNumber),
+                tag.get_string(ItemKey::MovementTotal),
+            ) {
+                (Some(number), Some(total)) => Some(format!("{number}/{total}")),
+                (None, Some(total)) => Some(format!("0/{total}")),
+                (Some(number), None) => Some(number.to_string()),
+                (None, None) => None,
+            };
+            tag.remove_key(ItemKey::Work);
+            tag.remove_key(ItemKey::MovementNumber);
+            tag.remove_key(ItemKey::MovementTotal);
+            let mut id3 = ::lofty::id3::v2::Id3v2Tag::from(tag);
+            if !work.is_empty() {
+                id3.insert_user_text("WORK".into(), work);
+            }
+            if let Some(movement) = movement {
+                id3.insert(::lofty::id3::v2::Frame::Text(
+                    ::lofty::id3::v2::TextInformationFrame::new(
+                        ::lofty::id3::v2::FrameId::Valid(std::borrow::Cow::Borrowed("MVIN")),
+                        ::lofty::TextEncoding::UTF8,
+                        movement,
+                    ),
+                ));
+            }
+            match rating {
+                Some(rating) => super::rating::write_id3v2(&mut id3, rating),
+                None => super::rating::keep_id3v2(&mut id3, file),
+            }
+            id3.save_to_path(path, options)
         }
-        if let Some(movement) = movement {
-            id3.insert(::lofty::id3::v2::Frame::Text(
-                ::lofty::id3::v2::TextInformationFrame::new(
-                    ::lofty::id3::v2::FrameId::Valid(std::borrow::Cow::Borrowed("MVIN")),
-                    ::lofty::TextEncoding::UTF8,
-                    movement,
-                ),
-            ));
+        TagType::VorbisComments => {
+            // Lofty's conversion drops a RATING it cannot read as a rating with a name.
+            let plain = tag
+                .get_strings(ItemKey::Popularimeter)
+                .filter(|value| !named_rating(value))
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            // Lofty's conversion takes the vendor out by swapping it with the first item,
+            // which moves that item behind the other values of its key.
+            let vendor = tag.get_string(ItemKey::EncoderSoftware).map(str::to_owned);
+            tag.retain(|item| item.key() != ItemKey::EncoderSoftware);
+            let mut comments = ::lofty::ogg::tag::VorbisComments::from(tag);
+            if let Some(vendor) = vendor {
+                comments.set_vendor(vendor);
+            }
+            for value in plain {
+                comments.push("RATING".into(), value);
+            }
+            match rating {
+                Some(rating) => super::rating::write_vorbis(&mut comments, rating),
+                None => super::rating::keep_vorbis(&mut comments, file),
+            }
+            comments.save_to_path(path, options)
         }
-        return id3
-            .save_to_path(path, WriteOptions::new().remove_others(false))
-            .map_err(write_error);
+        TagType::Ape => {
+            let mut ape = ::lofty::ape::ApeTag::from(tag);
+            if let Some(rating) = rating {
+                super::rating::write_ape(&mut ape, rating);
+            }
+            ape.save_to_path(path, options)
+        }
+        TagType::Mp4Ilst => {
+            // Lofty's conversion writes an atom per value; other readers take the first atom.
+            let mut ilst = ::lofty::mp4::Ilst::default();
+            for atom in ::lofty::mp4::Ilst::from(tag) {
+                ilst.insert(atom);
+            }
+            match rating {
+                Some(rating) => super::rating::write_ilst(&mut ilst, rating),
+                None => super::rating::keep_ilst(&mut ilst, file),
+            }
+            ilst.save_to_path(path, options)
+        }
+        _ => tag.save_to_path(path, options),
     }
-    tag.save_to_path(path, WriteOptions::new().remove_others(false))
-        .map_err(write_error)
+    .map_err(write_error)
 }
 
 fn set_text(tag: &mut Tag, key: ItemKey, value: Option<&str>) {

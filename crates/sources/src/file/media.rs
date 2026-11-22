@@ -276,11 +276,7 @@ pub(crate) fn read_media_input(
                 channels: properties.channels().map(u32::from),
                 size_bytes: None,
             },
-            user_rating: tagged_file
-                .primary_tag()
-                .or_else(|| tagged_file.first_tag())
-                .and_then(|tag| tag.ratings().next())
-                .map(|rating| (rating.rating() as u8) * 2),
+            user_rating: raw.as_ref().and_then(super::rating::read),
         };
         let tags = Tags::clean(&raw.unwrap_or_default());
         tagged_track(&path, &tags, facts, sidecar, grouping())

@@ -1,7 +1,7 @@
 import { api, browserHeaders, state } from "./connection.js";
 import { qualityControls } from "./audio-quality.js";
 import { closeIntegration, init as initIntegrations, integrationOpen, showIntegrations } from "./integrations.js";
-import { openSource, sourceIcon, updateSources } from "./sources.js";
+import { openSource, sourceIcon, sources, updateSources } from "./sources.js";
 import { $, applyGrids, el, icon, notice, openPopup, run, tr, setLayoutSettings } from "./ui.js";
 
 let values = {};
@@ -480,8 +480,39 @@ async function importActivity(file) {
   notice(result.message);
 }
 
+// The source whose page is open.
+let shownSource = null;
+
+// A file source writes its ratings into its files when its switch is on. Core words the
+// switch, with the ratings still to write, and the question asked before it turns on.
+function showRatingWrites() {
+  const setting = sources.find((item) => item.id === shownSource)?.rating_writes;
+  $("pref-source-settings").hidden = !setting;
+  if (!setting) return;
+  $("pref-rating-writes").checked = setting.enabled;
+  $("pref-rating-writes-title").textContent = setting.texts.title;
+  $("pref-rating-writes-subtitle").textContent = setting.texts.subtitle;
+  $("rating-writes-heading").textContent = setting.texts.heading;
+  $("rating-writes-body").textContent = setting.texts.body;
+  $("rating-writes-confirm").textContent = setting.texts.confirm;
+}
+
+function setRatingWrites(enabled) {
+  $("pref-rating-writes").checked = enabled;
+  return run(async () => {
+    try {
+      await api("/sources/rating-writes", "POST", { source: shownSource, enabled });
+    } catch (error) {
+      showRatingWrites();
+      throw error;
+    }
+  });
+}
+
 function showSource(item) {
   showPage("source", item.name);
+  shownSource = item.id;
+  showRatingWrites();
   const action = (title, run, className = "") => {
     const row = el("button", `pref-row pref-action ${className}`, title);
     row.type = "button";
@@ -596,6 +627,16 @@ function init() {
     event.target.value = "";
     if (file) run(() => importActivity(file));
   });
+  // Off is set at once. On asks first, and the switch stays off until the answer.
+  $("pref-rating-writes").addEventListener("change", (event) => {
+    if (!event.target.checked) return setRatingWrites(false);
+    event.target.checked = false;
+    $("rating-writes-dialog").returnValue = "cancel";
+    $("rating-writes-dialog").showModal();
+  });
+  $("rating-writes-dialog").addEventListener("close", (event) => {
+    if (event.target.returnValue === "confirm") setRatingWrites(true);
+  });
   // The source dialog saved a source: Library shows it.
   document.addEventListener("rufin-sources", () => {
     if (dialog.open && !$("pref-library").hidden) run(renderLibrary);
@@ -628,4 +669,4 @@ function init() {
 // Shows the stored settings on every control that names one, outside Preferences too.
 const showSettings = async () => show(await api("/preferences"));
 
-export { init, listRows, openPreferences, save, set, showSettings };
+export { init, listRows, openPreferences, save, set, showRatingWrites, showSettings };

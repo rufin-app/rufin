@@ -38,12 +38,54 @@ pub struct SourceSummary {
     pub file_library: bool,
     /// Whether half stars are a setting of this source.
     pub offers_half_star_setting: bool,
+    /// A file source writes each rating into its file's tags.
+    pub writes_ratings: bool,
+    /// How many ratings still wait to be written to this source's files.
+    pub ratings_waiting: u64,
     /// Whether lyrics can be kept beside the music files: a Local source, or a Navidrome or
     /// Subsonic server with a folder mapping.
     pub stores_lyrics_locally: bool,
     /// Whether its server last failed to connect and has not answered since. Tracks with a
     /// copy on this device still play.
     pub unreachable: bool,
+}
+
+/// The words of a file source's setting that writes ratings into its files, and of the
+/// question a client asks before it turns the setting on.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "bindings", derive(uniffi::Record))]
+pub struct RatingWritesTexts {
+    pub title: String,
+    /// Names how many ratings still wait to be written, while any do.
+    pub subtitle: String,
+    pub heading: String,
+    pub body: String,
+    pub confirm: String,
+}
+
+/// The setting's words for a source with `waiting` ratings still to write. Every client
+/// shows the setting on a source that is a `file_library`, and asks before turning it on.
+#[cfg_attr(feature = "bindings", uniffi::export)]
+pub fn rating_writes_texts(waiting: u64) -> RatingWritesTexts {
+    use localization::{tr, trn_with};
+    RatingWritesTexts {
+        title: tr("Write ratings to files"),
+        subtitle: if waiting > 0 {
+            trn_with(
+                "{count} rating is waiting to be written",
+                "{count} ratings are waiting to be written",
+                waiting,
+                &[("count", &waiting.to_string())],
+            )
+        } else {
+            tr("Each rating you change is also written to its file's tags")
+        },
+        heading: tr("Write Ratings to Files?"),
+        body: tr(
+            "This will write the stored ratings to your files, and also modify them every time you change a rating.",
+        ),
+        confirm: tr("Write to Files"),
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

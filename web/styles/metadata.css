@@ -90,6 +90,20 @@
   height: 22px;
   border-radius: 50%;
 }
+/* A rating's stars, starting where the other rows' fields start; rated ones take the accent. */
+.metadata-rating {
+  display: flex;
+  flex: 0 1 55%;
+  gap: 2px;
+  min-width: 0;
+}
+.metadata-rating button {
+  padding: 4px;
+  background: transparent;
+}
+.metadata-rating .rated {
+  color: var(--accent);
+}
 /* The browser's date picker opens from the calendar button; its own field stays out of sight.
    The date starts where the other rows' fields start: the button takes its end. */
 .metadata-field:has(.metadata-calendar) > input {

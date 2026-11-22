@@ -172,13 +172,38 @@ impl Catalog {
         let column = kind.as_str();
         let mut write = self.write().await?;
         let connection = write.connection().await?;
+        // A cleared rating stops showing the source's. A server's goes when the delivery is
+        // queued, as the server will clear it; a file's tag stays until it is written, so
+        // Rufin holds the item as unrated.
+        let cleared = kind == DeliveryKind::Rating && value.is_none();
+        let server = deliver
+            && !sqlx::query_scalar::<_, bool>(sqlx::AssertSqlSafe(format!(
+                "SELECT EXISTS(SELECT 1 FROM tracks track JOIN sources source USING(source_key)
+                 WHERE track.media_uri=?1 AND {})",
+                file_source()
+            )))
+            .bind(uri)
+            .fetch_one(&mut *connection)
+            .await?;
+        let stored = if cleared && !server {
+            let rated: bool = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+                "SELECT EXISTS(SELECT 1 FROM {}s WHERE media_uri=?1 AND native_rating>0)",
+                target.kind()
+            )))
+            .bind(uri)
+            .fetch_one(&mut *connection)
+            .await?;
+            rated.then_some(0)
+        } else {
+            value
+        };
         let changed: Vec<StateRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
             "INSERT INTO user_state(media_uri,{column},changed_at) VALUES(?1,?2,unixepoch())
              ON CONFLICT(media_uri) DO UPDATE SET {column}=excluded.{column},changed_at=excluded.changed_at
              WHERE {column} IS NOT excluded.{column}{STATE_RETURNING}"
         )))
         .bind(uri)
-        .bind(value)
+        .bind(stored)
         .fetch_all(&mut *connection)
         .await?;
         if deliver {
@@ -196,8 +221,7 @@ impl Catalog {
         if deliver || !changed.is_empty() {
             write.held(vec![uri.to_owned()]);
         }
-        // A cleared rating on its way to the server no longer shows the server's.
-        if deliver && kind == DeliveryKind::Rating && value.is_none() {
+        if cleared && server {
             put_native(&mut write, uri, kind, None).await?;
         }
         write.set_states(changed);
@@ -283,11 +307,119 @@ impl Catalog {
             .map(|kind| crate::keys::source_entity_prefix(source, kind))
             .collect::<Vec<_>>();
         let mut write = self.write().await?;
-        sqlx::query("UPDATE outbox SET next_attempt_at=?2 WHERE next_attempt_at<?2 AND EXISTS(SELECT 1 FROM json_each(?1) prefix WHERE substr(media_uri,1,length(prefix.value))=prefix.value)")
+        // A server item's URI names its source; a file source's track is found by its row.
+        sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE outbox SET next_attempt_at=?2 WHERE next_attempt_at<?2 AND (EXISTS(SELECT 1 FROM json_each(?1) prefix WHERE substr(media_uri,1,length(prefix.value))=prefix.value) OR media_uri IN({}))", source_tracks("?3"))))
             .bind(serde_json::to_string(&prefixes)?)
             .bind(next_attempt_at)
+            .bind(source.as_str())
             .execute(write.connection().await?)
             .await?;
+        write.commit().await?;
+        Ok(())
+    }
+
+    /// The source of a file source's track and the rating its file has (1..100).
+    pub async fn file_track_rating(
+        &self,
+        media_uri: &str,
+    ) -> LibraryResult<Option<(SourceId, Option<i64>)>> {
+        let mut connection = self.acquire_reader().await?;
+        let row: Option<(String, Option<i64>)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+            "SELECT source.object_id,nullif(track.native_rating,0) FROM tracks track
+             JOIN sources source USING(source_key) WHERE track.media_uri=?1 AND {}",
+            file_source()
+        )))
+        .bind(media_uri)
+        .fetch_optional(&mut *connection)
+        .await?;
+        Ok(row.map(|(source, rating)| (SourceId::new(source), rating)))
+    }
+
+    /// Queues every rating Rufin holds for a track of file source `source` to be written to
+    /// its file. A rating the file already has becomes the file's alone.
+    pub async fn queue_file_ratings(&self, source: &SourceId) -> LibraryResult<()> {
+        let mut write = self.write().await?;
+        let held: Vec<(String, bool)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+            "SELECT state.media_uri,nullif(state.rating,0) IS nullif(track.native_rating,0)
+             FROM user_state state JOIN tracks track USING(media_uri)
+             WHERE state.rating IS NOT NULL AND state.media_uri IN({})",
+            source_tracks("?1")
+        )))
+        .bind(source.as_str())
+        .fetch_all(write.connection().await?)
+        .await?;
+        let mut queued = Vec::new();
+        for (uri, written) in held {
+            if written {
+                drop_copy(&mut write, &uri, DeliveryKind::Rating).await?;
+            } else {
+                queued.push(uri);
+            }
+        }
+        sqlx::query(
+            "INSERT INTO outbox(media_uri,kind,value,next_attempt_at)
+             SELECT state.media_uri,'rating',nullif(state.rating,0),unixepoch()
+             FROM user_state state JOIN json_each(?1) queued ON queued.value=state.media_uri
+             WHERE true
+             ON CONFLICT(media_uri,kind) DO UPDATE SET value=excluded.value,next_attempt_at=excluded.next_attempt_at",
+        )
+        .bind(serde_json::to_string(&queued)?)
+        .execute(write.connection().await?)
+        .await?;
+        write.held(queued);
+        write.commit().await?;
+        Ok(())
+    }
+
+    /// Drops the ratings waiting to be written to the files of `source`; Rufin keeps them.
+    pub async fn drop_file_deliveries(&self, source: &SourceId) -> LibraryResult<()> {
+        let mut write = self.write().await?;
+        let dropped: Vec<String> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+            "DELETE FROM outbox WHERE kind='rating' AND media_uri IN({}) RETURNING media_uri",
+            source_tracks("?1")
+        )))
+        .bind(source.as_str())
+        .fetch_all(write.connection().await?)
+        .await?;
+        write.held(dropped);
+        write.commit().await?;
+        Ok(())
+    }
+
+    /// How many ratings wait to be written to the files of each source.
+    pub async fn waiting_file_ratings(&self) -> LibraryResult<Vec<(SourceId, u64)>> {
+        let mut connection = self.acquire_reader().await?;
+        let rows: Vec<(String, i64)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+            "SELECT source.object_id,count(*) FROM outbox
+                 JOIN tracks track USING(media_uri) JOIN sources source USING(source_key)
+                 WHERE outbox.kind='rating' AND {} GROUP BY source.source_key",
+            file_source()
+        )))
+        .fetch_all(&mut *connection)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(source, waiting)| (SourceId::new(source), waiting as u64))
+            .collect())
+    }
+
+    /// A metadata edit wrote these tracks' ratings into their files: the files' are the
+    /// ratings now, so Rufin's copies and any write still waiting go.
+    pub async fn ratings_written(&self, uris: &[String]) -> LibraryResult<()> {
+        if uris.is_empty() {
+            return Ok(());
+        }
+        let mut write = self.write().await?;
+        sqlx::query(
+            "DELETE FROM outbox WHERE kind='rating' AND media_uri IN(SELECT value FROM json_each(?1))",
+        )
+        .bind(serde_json::to_string(uris)?)
+        .execute(write.connection().await?)
+        .await?;
+        for uri in uris {
+            drop_copy(&mut write, uri, DeliveryKind::Rating).await?;
+        }
+        write.held(uris.to_vec());
         write.commit().await?;
         Ok(())
     }
@@ -316,7 +448,19 @@ impl Catalog {
     }
 }
 
-/// Puts a value as the one the source reports on the row of a server URI.
+/// The condition that `source` is a file source: its tracks' ratings are their files' tags.
+fn file_source() -> String {
+    crate::SourceKind::file_library_sql("source.kind")
+}
+
+/// Selects the URIs of the tracks of the source bound as `parameter`.
+fn source_tracks(parameter: &str) -> String {
+    format!(
+        "SELECT track.media_uri FROM tracks track JOIN sources source USING(source_key) WHERE source.object_id={parameter}"
+    )
+}
+
+/// Puts a value as the one the source reports on the row of a URI.
 async fn put_native(
     write: &mut Write<'_>,
     uri: &str,
@@ -340,7 +484,7 @@ async fn put_native(
         DeliveryKind::Favorite => state.favorite = value.map(|value| value != 0),
         DeliveryKind::Rating => state.rating = value,
     };
-    // Deliveries go to servers, whose URIs name the kind of their row.
+    // A server's URI names the kind of its row; a file source delivers the ratings of tracks.
     match crate::source_entity_parts(uri)
         .map(|(_, kind, _)| kind)
         .as_deref()

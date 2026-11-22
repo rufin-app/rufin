@@ -112,6 +112,9 @@ pub(crate) struct ConfiguredSource {
     pub(crate) local_access: Option<SavedLocalAccess>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub(crate) enable_half_stars: bool,
+    /// A file source writes each rating into its file's tags.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) write_ratings: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

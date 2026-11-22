@@ -1,4 +1,4 @@
-import { openPreferences, showSettings } from "./preferences.js";
+import { openPreferences, showRatingWrites, showSettings } from "./preferences.js";
 import { tr } from "./ui.js";
 import { api, state } from "./connection.js";
 
@@ -24,6 +24,7 @@ function updateSources(configured) {
   libraries = configured.libraries || [];
   state.selectedLibrary = configured.library || null;
   markSource();
+  showRatingWrites();
 }
 
 // Marks the source button while the server of the page's source does not answer.

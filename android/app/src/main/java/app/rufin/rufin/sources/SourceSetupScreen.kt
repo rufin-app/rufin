@@ -47,6 +47,8 @@ internal fun SourceSetupScreen(model: RufinConnection, onClose: () -> Unit, sour
         if (saved) { delay(2000); saved = false }
     }
     val context = LocalContext.current
+    // Half stars are a setting of some sources; writing ratings to files, of each file source.
+    val ratingSettings = form.offersHalfStarSetting || setup.source?.fileLibrary == true
     val close: () -> Unit = { model.closeSourceSetup(); onClose() }
     val added: () -> Unit = { if (welcome != null) loading = true else close() }
     // Back leaves a new source's form for the list, as the bar's arrow does.
@@ -119,7 +121,7 @@ internal fun SourceSetupScreen(model: RufinConnection, onClose: () -> Unit, sour
             if (!setup.ready) Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { if (setup.failure == null) CircularProgressIndicator() }
             else if (form.kind == null) SourceChoices(model, setup, welcome, Modifier.weight(1f), chooseFolder::launch, added, close)
             else if (form.kind == "local") Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (form.offersHalfStarSetting) SourceRatingSettings(setup)
+                if (ratingSettings) SourceRatingSettings(setup)
                 SettingsGroup {
                     SettingsRow(translate("Music"), leading = { RufinIcon("rufin-folders-symbolic", null) },
                         trailing = { RufinIcon("rufin-go-next-symbolic", null) },
@@ -164,7 +166,7 @@ internal fun SourceSetupScreen(model: RufinConnection, onClose: () -> Unit, sour
                     "plex" -> item { PlexSourceForm(setup, sourceId != null, browser) }
                     "webdav", "smb" -> item { FileSourceForm(setup, sourceId != null, browser) }
                 }
-                if (form.offersHalfStarSetting) item { SourceRatingSettings(setup) }
+                if (ratingSettings) item { SourceRatingSettings(setup) }
                 item { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     setup.code?.let { code -> Text(code, style = MaterialTheme.typography.headlineLarge) }
                     setup.browserUrl?.takeUnless { setup.authorized || setup.choosingProfiles }?.let { url ->

@@ -523,7 +523,9 @@ internal fun MediaMenuBackdrop(identity: ByteArray?, player: PlayerConnection, c
 }
 
 @Composable
-private fun MenuRating(value: UByte?, halfStars: Boolean, commit: (UByte?) -> Unit) {
+internal fun MenuRating(value: UByte?, halfStars: Boolean, enabled: Boolean = true, onCommit: (UByte?) -> Unit) {
+    // The gestures outlive a composition, so they call the commit of the latest one.
+    val commit by rememberUpdatedState(onCommit)
     val step = if (halfStars) 1 else 2
     val stored = ((value?.toInt() ?: 0).coerceIn(0, 10) + step - 1) / step * step
     var preview by remember(value, step) { mutableStateOf<Int?>(null) }
@@ -535,15 +537,15 @@ private fun MenuRating(value: UByte?, halfStars: Boolean, commit: (UByte?) -> Un
             .semantics {
                 contentDescription = translate("Rating")
                 progressBarRangeInfo = ProgressBarRangeInfo(displayed.toFloat(), 0f..10f, if (halfStars) 9 else 4)
-                setProgress { requested ->
+                if (enabled) setProgress { requested ->
                     val rating = ((requested / step).roundToInt() * step).coerceIn(0, 10)
                     commit(rating.takeIf { it > 0 }?.toUByte())
                     true
                 }
             }
-            .pointerInput(step) { detectTapGestures(onTap = { commit(ratingAt(it.x).takeIf { it > 0 }?.toUByte()) }) }
-            .pointerInput(step) {
-                detectHorizontalDragGestures(onDragStart = { preview = ratingAt(it.x) },
+            .pointerInput(step, enabled) { if (enabled) detectTapGestures(onTap = { commit(ratingAt(it.x).takeIf { it > 0 }?.toUByte()) }) }
+            .pointerInput(step, enabled) {
+                if (enabled) detectHorizontalDragGestures(onDragStart = { preview = ratingAt(it.x) },
                     onHorizontalDrag = { change, _ -> preview = ratingAt(change.position.x); change.consume() },
                     onDragEnd = { preview?.let { commit(it.takeIf { it > 0 }?.toUByte()) }; preview = null },
                     onDragCancel = { preview = null })

@@ -12,7 +12,12 @@ pub enum MetadataFieldKind {
     Date,
     Boolean,
     List,
+    /// Half stars from 1 to 10 as text; empty for no rating.
+    Rating,
 }
+
+/// The key of a track's rating among its metadata fields.
+pub const RATING_FIELD: &str = "rating";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "bindings", derive(uniffi::Record))]
@@ -25,7 +30,9 @@ pub struct MetadataField {
     pub mixed: bool,
     pub suggestion: Option<String>,
     /// The values a field with a fixed vocabulary takes: one of them when its kind is Text,
-    /// any number when it is List. Empty for a field that takes any text.
+    /// any number when it is List. Empty for a field that takes any text. A Rating's are the
+    /// ratings it takes: every half star, or the even ones where its source rates in whole
+    /// stars.
     pub options: Vec<String>,
 }
 
@@ -135,6 +142,7 @@ impl MetadataField {
             "genre" => (msgid("Genres"), List),
             "comment" => (msgid("Comment"), Text),
             "bpm" => (msgid("BPM"), Number),
+            RATING_FIELD => (msgid("Rating"), Rating),
             "locked" => (msgid("Lock metadata"), Boolean),
             "musicbrainz_recording_id" => (msgid("MusicBrainz recording ID"), Text),
             "musicbrainz_release_track_id" => (msgid("MusicBrainz release track ID"), Text),

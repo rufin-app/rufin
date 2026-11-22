@@ -17,6 +17,7 @@ pub(super) fn routes() -> Router<ProductHandles> {
         .route("/api/sources/found", get(found))
         .route("/api/sources/select", post(select))
         .route("/api/sources/library", post(select_library))
+        .route("/api/sources/rating-writes", post(rating_writes))
         .route("/api/sources/edit", get(editable))
         .route("/api/sources/refresh", post(select))
         .route(
@@ -232,7 +233,7 @@ async fn list(State(products): State<ProductHandles>) -> Result<Response<Body>, 
             "library": selected.as_ref().and_then(|source|source.music_folder_object_id.clone()),
             "libraries": selected.as_ref().map(|source|source.music_folders.iter().map(|folder|json!({"id":folder.object_id,"name":folder.name})).collect::<Vec<_>>()).unwrap_or_default(),
             "unavailable_folders": configured.local_folders.iter().filter(|folder|folder.unavailable).map(|folder|&folder.location).collect::<Vec<_>>(),
-            "sources": configured.sources.iter().map(|s| json!({"id":s.id,"name":s.name,"kind":s.kind,"unreachable":s.unreachable,"owns_playlists":s.owns_playlists,"supports_playlist_public":s.supports_playlist_public,"quality":products.settings.download_settings(s.id.clone()).quality,"download_quality":quality_view(products.settings.download_settings(s.id.clone()).quality)})).collect::<Vec<_>>()
+            "sources": configured.sources.iter().map(|s| json!({"id":s.id,"name":s.name,"kind":s.kind,"unreachable":s.unreachable,"owns_playlists":s.owns_playlists,"supports_playlist_public":s.supports_playlist_public,"quality":products.settings.download_settings(s.id.clone()).quality,"download_quality":quality_view(products.settings.download_settings(s.id.clone()).quality),"rating_writes":s.file_library.then(|| json!({"enabled":s.writes_ratings,"texts":rufin_core::runtime::source::rating_writes_texts(s.ratings_waiting)}))})).collect::<Vec<_>>()
         }),
     ))
 }
@@ -268,6 +269,24 @@ pub(super) async fn select_library(
     let input: Input = body(request).await?;
     let selected = ensure_selected(&products, input.source).await?;
     completion(products.source.set_music_folder(selected, input.library)).await?;
+    Ok(accepted())
+}
+
+/// Sets whether a file source writes ratings into its files. The sources are published again
+/// once it has.
+async fn rating_writes(
+    State(products): State<ProductHandles>,
+    request: Request<Body>,
+) -> Result<Response<Body>, Error> {
+    #[derive(Deserialize)]
+    struct Input {
+        source: sources::SourceId,
+        enabled: bool,
+    }
+    let input: Input = body(request).await?;
+    products
+        .source
+        .set_rating_writes(input.source, input.enabled);
     Ok(accepted())
 }
 

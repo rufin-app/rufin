@@ -48,6 +48,16 @@ impl SourceKind {
         matches!(self, Self::Local | Self::Webdav | Self::Smb)
     }
 
+    /// The SQL condition that `column` holds the kind of a file library.
+    pub(crate) fn file_library_sql(column: &str) -> String {
+        let kinds = Self::NAMES
+            .iter()
+            .filter(|(kind, _)| kind.file_library())
+            .map(|(_, name)| format!("'{name}'"))
+            .collect::<Vec<_>>();
+        format!("{column} IN({})", kinds.join(","))
+    }
+
     pub fn subsonic(self) -> bool {
         matches!(self, Self::Navidrome | Self::Subsonic)
     }

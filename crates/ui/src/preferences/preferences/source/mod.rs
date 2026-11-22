@@ -79,6 +79,86 @@ pub fn half_stars_row(shell: &Rc<Shell>, source: &SourceSummary) -> Option<adw::
     Some(row)
 }
 
+/// A file source's switch that writes ratings into its files. Turning it on asks first, and
+/// the row follows the source while it shows: its subtitle counts the ratings still to write.
+pub fn rating_writes_row(shell: &Rc<Shell>, source: &SourceSummary) -> Option<adw::SwitchRow> {
+    use adw::prelude::*;
+    use rufin_core::runtime::source::rating_writes_texts;
+    if !source.file_library {
+        return None;
+    }
+    let texts = rating_writes_texts(source.ratings_waiting);
+    let row = adw::SwitchRow::builder()
+        .title(&texts.title)
+        .subtitle(&texts.subtitle)
+        .active(source.writes_ratings)
+        .build();
+    let source_handle = shell.products.source.clone();
+    let source_id = source.id.clone();
+    // Set while the row takes the source's state, which is no choice of the user's.
+    let following = Rc::new(Cell::new(false));
+    let follows = Rc::clone(&following);
+    row.connect_active_notify(move |row| {
+        if follows.get() {
+            return;
+        }
+        if !row.is_active() {
+            source_handle.set_rating_writes(source_id.clone(), false);
+            return;
+        }
+        let resource = "preferences/dialogs/rating_writes.ui";
+        let builder = crate::ui_resource::builder(resource);
+        crate::objects!(builder, resource, { confirm: adw::AlertDialog });
+        let texts = rating_writes_texts(0);
+        confirm.set_heading(Some(&texts.heading));
+        confirm.set_body(&texts.body);
+        confirm.set_response_label("write", &texts.confirm);
+        let (weak, follows) = (row.downgrade(), Rc::clone(&follows));
+        let (source_handle, source_id) = (source_handle.clone(), source_id.clone());
+        gtk::glib::spawn_future_local(async move {
+            let Some(row) = weak.upgrade() else { return };
+            if confirm.choose_future(Some(&row)).await == "write" {
+                source_handle.set_rating_writes(source_id, true);
+            } else {
+                follows.set(true);
+                row.set_active(false);
+                follows.set(false);
+            }
+        });
+    });
+    let task = Rc::new(RefCell::new(None::<gtk::glib::JoinHandle<()>>));
+    let running = Rc::clone(&task);
+    let source_handle = shell.products.source.clone();
+    let source_id = source.id.clone();
+    row.connect_map(move |row| {
+        let mut changes = source_handle.configuration_changes();
+        let (weak, following) = (row.downgrade(), Rc::clone(&following));
+        let (source_handle, source_id) = (source_handle.clone(), source_id.clone());
+        let next = gtk::glib::spawn_future_local(async move {
+            while changes.changed().await.is_ok() {
+                let Some(row) = weak.upgrade() else { return };
+                let sources = source_handle.list_sources().sources;
+                let Some(source) = sources.iter().find(|source| source.id == source_id) else {
+                    continue;
+                };
+                row.set_subtitle(&rating_writes_texts(source.ratings_waiting).subtitle);
+                following.set(true);
+                row.set_active(source.writes_ratings);
+                following.set(false);
+            }
+        });
+        if let Some(previous) = running.replace(Some(next)) {
+            previous.abort();
+        }
+    });
+    row.connect_unmap(move |_| {
+        if let Some(task) = task.borrow_mut().take() {
+            task.abort();
+        }
+    });
+    Some(row)
+}
+
 pub fn playlist_auto_save_row(shell: &Rc<Shell>, source: &SourceSummary) -> Option<adw::SwitchRow> {
     use adw::prelude::*;
     if !source.file_library {

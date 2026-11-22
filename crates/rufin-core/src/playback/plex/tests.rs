@@ -129,6 +129,7 @@ async fn external_server_change_uses_the_configured_profile_and_preserves_unavai
                 music_folder_id: None,
                 local_access: None,
                 enable_half_stars: true,
+                write_ratings: false,
             }];
             Ok(())
         })

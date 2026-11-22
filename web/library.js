@@ -1147,6 +1147,7 @@ function disposeHome() {
 }
 
 export {
+  bindRatingChip,
   cardCover,
   init,
   openLinks,
@@ -1159,6 +1160,8 @@ export {
   showChanged,
   setFavorite,
   showPage,
+  showRating,
+  starValue,
   viewRequest,
   disposeHome,
   bindCards,

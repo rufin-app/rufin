@@ -545,6 +545,7 @@ impl MetadataBatch {
                 .map_err(Error::Write)?;
         }
         let invalidated = std::sync::atomic::AtomicBool::new(invalidated);
+        let rating_in_tags = self.source.rating_in_tags(source);
         let (pending, changed, invalidated) = (&followups, &changed, &invalidated);
         let result = files
             .save_tracks(
@@ -561,11 +562,17 @@ impl MetadataBatch {
                     {
                         invalidated.store(true, std::sync::atomic::Ordering::Relaxed);
                     }
+                    let mut edit = record
+                        .state
+                        .edit(&record.draft)
+                        .map_err(Error::InvalidInput)?;
+                    if !rating_in_tags {
+                        self.source
+                            .rate_edited(self.uri(changed[position]), &mut edit)
+                            .await;
+                    }
                     Ok((
-                        record
-                            .state
-                            .edit(&record.draft)
-                            .map_err(Error::InvalidInput)?,
+                        edit,
                         record.draft.revision,
                         sources::artwork_file(record.draft.artwork.binding.as_deref()),
                     ))

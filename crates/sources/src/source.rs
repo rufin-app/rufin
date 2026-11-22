@@ -21,7 +21,7 @@ use crate::{
     ImageBytes, SourceConfiguration, SourceError, SourceId, SourceResult, SourceSettingsChange,
     SourceSetup,
 };
-pub use metadata::{FileEditSession, lyrics_storage, write_lyrics};
+pub use metadata::{FileEditSession, RatingWrite, lyrics_storage, write_lyrics};
 
 /// A missing file differs from a path that could not be checked.
 pub async fn local_files_available(

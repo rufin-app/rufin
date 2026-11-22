@@ -1115,7 +1115,7 @@ async fn gapless_preparation_resolves_exactly_the_next_position() {
                 source_id: source_id.clone(), kind: "plex".into(), name: "Gapless".into(),
                 provider_payload: serde_json::json!({"version":1,"server_id":"server","profile_id":"user","base_url":endpoint,"address_override":endpoint,"local":true,"relay":false,"owned":true,"trust_invalid_cert":false}).to_string(),
             },
-            credential: Some(credential.clone()), music_folder_id: None, local_access: None, enable_half_stars: true,
+            credential: Some(credential.clone()), music_folder_id: None, local_access: None, enable_half_stars: true, write_ratings: false,
         }];
         Ok(())
     }).unwrap();

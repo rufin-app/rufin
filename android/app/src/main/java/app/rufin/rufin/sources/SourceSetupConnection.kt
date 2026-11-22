@@ -101,6 +101,9 @@ internal class SourceSetupConnection(private val model: RufinConnection, val sou
         try { source.setHalfStars(id, enabled); form.halfStars = enabled }
         finally { source.destroy() }
     }
+    /** The edited source as core last published it; a remote folder's connection is not among them. */
+    val source get() = model.sources?.sources?.find { it.id == sourceId }
+    fun setRatingWrites(enabled: Boolean) { bridge?.setRatingWrites(sourceId ?: return, enabled) }
     fun selectProvider(kind: String, server: FoundServer? = null) {
         cancelAuthorization()
         form = SourceForm().also {

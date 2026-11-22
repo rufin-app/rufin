@@ -10,7 +10,10 @@ use rufin_core::downloads::{DownloadQueueState, DownloadRule};
 use localization::{msgid, tr, tr_with};
 use tracing::warn;
 
-use super::{PreferencesNavigationControls, source::half_stars_row};
+use super::{
+    PreferencesNavigationControls,
+    source::{half_stars_row, rating_writes_row},
+};
 use crate::shell::shell::Shell;
 use crate::widgets::source_labels::{configured_source_display_name, configured_source_icon_name};
 use rufin_core::runtime::source::{LocalFolder, SourceSummary, source_row_subtitle};
@@ -484,6 +487,12 @@ pub fn local_sources_page(shell: &Rc<Shell>, dialog: &adw::Dialog) -> adw::Prefe
         .and_then(|source| half_stars_row(shell, source))
     {
         local_group.add(&half_stars);
+    }
+    if let Some(row) = local_source
+        .as_ref()
+        .and_then(|source| rating_writes_row(shell, source))
+    {
+        local_group.add(&row);
     }
     if let Some(row) = local_source
         .as_ref()

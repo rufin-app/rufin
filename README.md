@@ -29,9 +29,9 @@
 
 | Source | Favorites, ratings and playlists | Metadata editing | Also |
 |---|---|---|---|
-| <img src="resources/icons/hicolor/symbolic/apps/app.rufin.rufin-symbolic.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;&nbsp;**Local folders** | Kept by Rufin | Written to the files | Folders are watched for changes |
-| <img src="resources/icons/hicolor/64x64/apps/app.rufin.rufin.source.webdav.png" width="18" height="18" align="absmiddle" alt="">&nbsp;&nbsp;**WebDAV / Nextcloud** | Kept by Rufin | Written to the files | No mount needed |
-| <img src="resources/icons/hicolor/64x64/apps/app.rufin.rufin.source.smb.png" width="18" height="18" align="absmiddle" alt="">&nbsp;&nbsp;**SMB / Samba** | Kept by Rufin | Written to the files | No mount needed, share discovery |
+| <img src="resources/icons/hicolor/symbolic/apps/app.rufin.rufin-symbolic.svg" width="20" height="20" align="absmiddle" alt="">&nbsp;&nbsp;**Local folders** | Kept by Rufin; ratings can also be written to the files | Written to the files | Folders are watched for changes |
+| <img src="resources/icons/hicolor/64x64/apps/app.rufin.rufin.source.webdav.png" width="18" height="18" align="absmiddle" alt="">&nbsp;&nbsp;**WebDAV / Nextcloud** | Kept by Rufin; ratings can also be written to the files | Written to the files | No mount needed |
+| <img src="resources/icons/hicolor/64x64/apps/app.rufin.rufin.source.smb.png" width="18" height="18" align="absmiddle" alt="">&nbsp;&nbsp;**SMB / Samba** | Kept by Rufin; ratings can also be written to the files | Written to the files | No mount needed, share discovery |
 | <img src="resources/icons/hicolor/64x64/apps/app.rufin.rufin.source.jellyfin.png" width="18" height="18" align="absmiddle" alt="">&nbsp;&nbsp;**Jellyfin** | On the server | Over the server API | Instant Mix, live library updates |
 | <img src="resources/icons/hicolor/64x64/apps/app.rufin.rufin.source.emby.png" width="18" height="18" align="absmiddle" alt="">&nbsp;&nbsp;**Emby** | On the server; ratings kept by Rufin | Over the server API | Instant Mix, live library updates |
 | <img src="resources/icons/hicolor/64x64/apps/app.rufin.rufin.source.navidrome.png" width="18" height="18" align="absmiddle" alt="">&nbsp;&nbsp;**Navidrome** / <img src="resources/icons/hicolor/64x64/apps/app.rufin.rufin.source.opensubsonic.png" width="18" height="18" align="absmiddle" alt="">&nbsp;&nbsp;**OpenSubsonic** | On the server | Through matched local files | Radio, public share links |

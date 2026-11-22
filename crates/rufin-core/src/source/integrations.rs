@@ -208,6 +208,7 @@ impl SourceOwner {
                     music_folder_id: None,
                     local_access: None,
                     enable_half_stars: false,
+                    write_ratings: false,
                 };
                 if let Some(saved) = stored
                     .sources

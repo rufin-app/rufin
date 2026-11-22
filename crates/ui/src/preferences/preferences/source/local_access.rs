@@ -103,11 +103,17 @@ fn manage_server_content(
     if let Some(row) = super::playlist_auto_save_row(shell, &server) {
         content.append(&row);
     }
-    if let Some(half_stars) = super::half_stars_row(shell, &server) {
+    let library_rows = [
+        super::half_stars_row(shell, &server),
+        super::rating_writes_row(shell, &server),
+    ];
+    if library_rows.iter().any(Option::is_some) {
         let library = adw::PreferencesGroup::builder()
             .title(tr("Library"))
             .build();
-        library.add(&half_stars);
+        for row in library_rows.into_iter().flatten() {
+            library.add(&row);
+        }
         content.append(&library);
     }
 

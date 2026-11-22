@@ -1,4 +1,5 @@
 import { api } from "./connection.js";
+import { bindRatingChip, showRating, starValue } from "./library.js";
 import { $, button, el, icon, notice, run, tr } from "./ui.js";
 
 // The editor core keeps open for this dialog, as GTK's metadata dialog holds it.
@@ -122,6 +123,32 @@ function calendar(input) {
   return host;
 }
 
+// A rating as a cover's five stars: a star rates, the one already shown clears. Its options
+// are the ratings it takes, so an odd one says its source rates in half stars.
+function stars(field, shown, set) {
+  const chip = el("span", "metadata-rating");
+  chip.setAttribute("role", "group");
+  chip.setAttribute("aria-label", field.label);
+  chip.dataset.half = String(field.options.includes("1"));
+  for (let index = 0; index < 5; index++) {
+    const star = el("button");
+    star.type = "button";
+    star.dataset.star = index;
+    star.dataset.key = `${field.key}-${index}`;
+    star.setAttribute("aria-label", `${index + 1}/5`);
+    star.disabled = !field.writable;
+    star.append(icon("rufin-star-outline-symbolic"));
+    star.addEventListener("click", (event) => {
+      const value = String(starValue(chip, star, event.detail ? event.clientX : Infinity));
+      set(value === chip.dataset.rating ? "" : value);
+    });
+    chip.append(star);
+  }
+  showRating(chip, Number(shown));
+  if (field.writable) bindRatingChip(chip);
+  return chip;
+}
+
 function show(value) {
   editor = { ...editor, ...value };
   const host = $("metadata-fields");
@@ -129,17 +156,22 @@ function show(value) {
   host.replaceChildren();
   for (const field of editor.fields) {
     if (!field.writable && !field.value) continue;
+    // A rating's options are the ratings it takes, not a vocabulary to choose from.
+    const rating = field.kind === "Rating";
     const several = field.options.length && field.kind === "List";
     const list = !field.options.length && field.kind === "List";
     const shown = field.mixed ? "" : field.value;
-    // A menu's items and a list's chips are not the row's control, so its row is not a label.
-    const row = el(several || list ? "div" : "label", "pref-row metadata-field");
+    // A menu's items, a list's chips and a rating's stars are not the row's control, so its
+    // row is not a label.
+    const row = el(several || list || rating ? "div" : "label", "pref-row metadata-field");
     const label = el("span", "pref-label");
     label.append(el("span", "", field.mixed ? field.mixed_label : field.label));
     const set = (value) =>
       run(async () => show(await api(`/metadata${query()}`, "PATCH", { operation: "set", key: field.key, value })));
     let input;
-    if (several) {
+    if (rating) {
+      input = stars(field, shown, set);
+    } else if (several) {
       input = choices(field, set);
     } else if (field.options.length) {
       input = el("select");
@@ -150,12 +182,12 @@ function show(value) {
       input = el("input");
       if (field.kind === "Number") Object.assign(input, { type: "number", min: "0", step: "any" });
     }
-    if (!several && !list) {
+    if (!several && !list && !rating) {
       // The number a text starts with: tags hold `8; 8` and `120.5` too.
       input.value = field.kind === "Number" ? parseInt(shown) || "" : shown;
       input.addEventListener("change", () => set(input.value));
     }
-    if (!list) input.dataset.key = field.key;
+    if (!list && !rating) input.dataset.key = field.key;
     input.disabled = !field.writable;
     if (!field.writable) row.title = tr("This source cannot edit this field");
     row.append(label, input);

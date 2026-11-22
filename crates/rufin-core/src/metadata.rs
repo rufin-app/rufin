@@ -76,6 +76,8 @@ pub(super) struct EditSession {
     destination: EditDestination,
     previous_artwork: Option<Vec<u8>>,
     media_uri: String,
+    /// The track's rating is saved with its tags: its source is a file source.
+    rating_in_tags: bool,
 }
 
 enum EditDestination {
@@ -189,12 +191,49 @@ impl EditSession {
             .await?;
             (EditDestination::Files(target), draft)
         };
+        let mut draft = draft;
+        let rating_in_tags = owner.rating_in_tags(source.as_ref());
+        // A track of a source shows its rating. A file source saves it with the tags, so it
+        // is editable where they are; any other source takes it as a star click.
+        if item.kind() == SourceEntityKind::Track
+            && source.is_some()
+            && let Ok(Some(row)) = catalog.track(item.media_uri(), &cancel).await
+        {
+            let rating = row.state.rating.unwrap_or(0);
+            let writable = !rating_in_tags || draft.fields.iter().any(|field| field.writable);
+            let mut field = sources::MetadataField::new(
+                sources::RATING_FIELD,
+                if rating > 0 {
+                    rating.to_string()
+                } else {
+                    String::new()
+                },
+                writable,
+            );
+            // The values it takes: every half star, or whole stars alone.
+            let half_stars = owner.shared.configured_sources(None).half_stars_enabled(
+                item.media_uri(),
+                source.as_ref().map(|source| source.source_id().as_str()),
+            );
+            field.options = (1..=10)
+                .filter(|rating| half_stars || rating % 2 == 0)
+                .map(|rating| rating.to_string())
+                .collect();
+            // It stands after the genres, before the fields few tracks fill.
+            let at = draft
+                .fields
+                .iter()
+                .position(|field| field.key == "genre")
+                .map_or(draft.fields.len(), |genre| genre + 1);
+            draft.fields.insert(at, field);
+        }
         Ok((
             Arc::new(Self {
                 source,
                 media_uri: item.media_uri().to_string(),
                 destination,
                 previous_artwork: draft.artwork.binding.clone(),
+                rating_in_tags,
             }),
             draft,
         ))
@@ -226,9 +265,12 @@ impl EditSession {
     async fn save(
         &self,
         owner: &SourceOwner,
-        edit: sources::MetadataEdit,
+        mut edit: sources::MetadataEdit,
         lyrics: Option<lyrics::LyricsEdit>,
     ) -> Result<(), SourceMetadataError> {
+        if !self.rating_in_tags {
+            owner.rate_edited(&self.media_uri, &mut edit).await;
+        }
         if edit.changes.is_empty() && edit.artwork.is_none() && lyrics.is_none() {
             return Ok(());
         }

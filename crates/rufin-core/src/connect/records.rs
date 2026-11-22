@@ -2297,6 +2297,7 @@ fn received_source(
             music_folder_id: None,
             local_access: None,
             enable_half_stars: false,
+            write_ratings: false,
         });
         source.configuration.provider_payload = payload;
         source.music_folder_id = value.music_folder_id;
@@ -2329,6 +2330,8 @@ fn received_source(
         },
         credential,
         music_folder_id: value.music_folder_id,
+        // Writing ratings into files is this device's own choice.
+        write_ratings: existing.as_ref().is_some_and(|source| source.write_ratings),
         local_access: existing.and_then(|source| source.local_access),
         enable_half_stars: value.half_stars,
     }))

@@ -11,6 +11,16 @@ fn failure(error: impl std::fmt::Display) -> Error {
     Error::Write(error.to_string())
 }
 
+/// What became of a rating on its way into a file's tags.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RatingWrite {
+    Written,
+    /// The file takes no rating from Rufin: it is read-only, a cue sheet's, or gone.
+    Unwritable,
+    /// The file cannot be reached now.
+    Later,
+}
+
 #[derive(Clone)]
 enum FileLocation {
     Native(PathBuf),
@@ -831,6 +841,7 @@ impl FileEditSession {
         let mut selected = tracks.chunks(128);
         let mut ordinal = 0i64;
         let mut failures = Vec::new();
+        let mut rated = Vec::new();
         let result = async {
             loop {
                 let Some(uris) = selected.next() else { break };
@@ -945,6 +956,12 @@ impl FileEditSession {
                                 Err(error) => return Err(error),
                             };
                             saved = true;
+                            if edits
+                                .iter()
+                                .any(|(edit, _, _)| edit.changes.contains_key(crate::RATING_FIELD))
+                            {
+                                rated.push(file.media_uri.clone());
+                            }
                             if !mapped && let Some(source) = &self.source {
                                 pending.push(
                                     committed
@@ -1074,6 +1091,13 @@ impl FileEditSession {
         } else {
             Ok(())
         };
+        // The files hold these ratings now, and the publication above shows them.
+        let publication = publication.and(
+            catalog
+                .ratings_written(&rated)
+                .await
+                .map_err(|error| Error::SavedRefreshFailed(error.to_string())),
+        );
         if mapped && saved {
             self.source
                 .as_ref()
@@ -1182,36 +1206,52 @@ impl Source {
         self.refresh_metadata_after_write(catalog, None);
     }
 
+    /// Writes a track's rating, in half stars, into its file's tags.
     pub async fn write_file_track_rating(
         self: &Arc<Self>,
         catalog: &Catalog,
         source: library::SourceKey,
         uri: &str,
         rating: Option<u8>,
-    ) -> Result<(), Error> {
+    ) -> RatingWrite {
         if !matches!(
             self.implementation,
             Implementation::Local(_) | Implementation::Files(_)
         ) {
-            return Ok(());
+            return RatingWrite::Unwritable;
         }
-        self.catalog_operation(catalog, async |observation| {
-            let (file, playable) = self.resolved_track(catalog, uri).await?;
-            if playable.source != Some(source) {
-                return Err(Error::Unavailable);
+        let result = self
+            .catalog_operation(catalog, async |observation| {
+                let (file, playable) = self.resolved_track(catalog, uri).await?;
+                if playable.source != Some(source) {
+                    return Err(Error::Unavailable);
+                }
+                let (prepared, _) = file
+                    .prepare(None)
+                    .await?
+                    .mutate(TagUpdate::Rating(rating), None)
+                    .await?;
+                prepared
+                    .commit(&|| self.is_retired())
+                    .await?
+                    .write_catalog(self, observation)
+                    .await
+            })
+            .await;
+        match result {
+            Ok(()) | Err(Error::SavedRefreshFailed(_)) => RatingWrite::Written,
+            Err(Error::Unavailable) => RatingWrite::Unwritable,
+            Err(Error::Conflict) => RatingWrite::Later,
+            Err(_) if self.is_retired() => RatingWrite::Later,
+            Err(error) => {
+                tracing::warn!(%error, "Could not write a rating to its file");
+                // A file that can be reached and still not written stays unwritten.
+                match self.resolved_track(catalog, uri).await {
+                    Ok((file, _)) if file.revision().await.is_err() => RatingWrite::Later,
+                    _ => RatingWrite::Unwritable,
+                }
             }
-            let (prepared, _) = file
-                .prepare(None)
-                .await?
-                .mutate(TagUpdate::Rating(rating), None)
-                .await?;
-            prepared
-                .commit(&|| self.is_retired())
-                .await?
-                .write_catalog(self, observation)
-                .await
-        })
-        .await
+        }
     }
 
     /// Where the lyrics of a playable can be saved, from its row. Reads no SQL.

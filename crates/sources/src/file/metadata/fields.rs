@@ -86,7 +86,7 @@ fields![
     ("album_artist", AlbumArtist, Text, 3),
     ("track_number", TrackNumber, Number, 1),
     ("disc_number", DiscNumber, Number, 1),
-    ("genre", Genre, Text, 7),
+    ("genre", Genre, List, 7),
     ("comment", Comment, Text, 7),
     ("bpm", IntegerBpm, Number, 1),
     ("musicbrainz_recording_id", MusicBrainzRecordingId, Text, 1),
@@ -265,6 +265,10 @@ pub(super) fn apply(
                 "title" | "sort_title" | "musicbrainz_artist_id"
             )
         {
+            continue;
+        }
+        // The rating is written beside the tag's items, in each format's own way.
+        if key == crate::RATING_FIELD {
             continue;
         }
         let field = FIELDS

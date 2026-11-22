@@ -124,6 +124,8 @@ pub(crate) struct Shared {
     discovery: tokio::sync::watch::Sender<Option<DiscoveryUpdate>>,
     selected: Mutex<Option<SelectedLibrary>>,
     catalog_counts: Mutex<HashMap<SourceId, (usize, usize)>>,
+    /// How many ratings wait to be written to the files of each source.
+    ratings_waiting: Mutex<HashMap<SourceId, u64>>,
     /// What the last look at each Local folder found: its place on the host, and whether it
     /// could not be read.
     local_folders: Mutex<HashMap<String, (String, bool)>>,
@@ -179,10 +181,35 @@ impl Shared {
                 .unwrap_or_else(|poisoned| poisoned.into_inner()),
             &unreachable,
             &self
+                .ratings_waiting
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+            &self
                 .local_folders
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()),
         )
+    }
+
+    /// Counts the ratings that wait to be written to files, and publishes the sources again
+    /// when a count changed.
+    pub(crate) async fn count_waiting_ratings(&self) {
+        let waiting = match self.catalog.waiting_file_ratings().await {
+            Ok(waiting) => waiting.into_iter().collect::<HashMap<_, _>>(),
+            Err(error) => return self.warn_nonfatal(&error.to_string()),
+        };
+        let changed = {
+            let mut held = self
+                .ratings_waiting
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let changed = *held != waiting;
+            *held = waiting;
+            changed
+        };
+        if changed {
+            self.configured();
+        }
     }
 
     pub(crate) fn selected(&self) -> Option<SelectedLibrary> {
@@ -470,6 +497,7 @@ impl SourceOwner {
                 discovery: tokio::sync::watch::channel(None).0,
                 selected: Mutex::new(None),
                 catalog_counts: Mutex::new(HashMap::new()),
+                ratings_waiting: Mutex::new(HashMap::new()),
                 local_folders: Mutex::new(HashMap::new()),
                 selection_intent: Mutex::new(Weak::new()),
                 connection: Mutex::new(None),
@@ -1990,6 +2018,7 @@ impl SourceOwner {
                     music_folder_id: None,
                     local_access: None,
                     enable_half_stars: false,
+                    write_ratings: false,
                 };
                 let configured = owner.persist_connected_source(&configured, credential)?;
                 persisted_source_id = Some(configuration.source_id.clone());
@@ -2149,6 +2178,39 @@ impl SourceOwner {
                 return;
             }
             owner.shared.configured();
+        });
+    }
+
+    /// Sets whether a file source writes ratings into its files' tags. Turning it on queues
+    /// every rating Rufin holds for the source's tracks; turning it off drops the queue and
+    /// leaves the tags that were written.
+    pub fn set_rating_writes(&self, source_id: SourceId, enabled: bool) {
+        let owner = self.clone();
+        self.shared.runtime.spawn(async move {
+            if let Err(error) = owner.shared.settings.update(|stored| {
+                let configured = stored
+                    .sources
+                    .configured
+                    .iter_mut()
+                    .find(|configured| configured.configuration.source_id == source_id)
+                    .ok_or_else(|| "the configured source no longer exists".to_string())?;
+                configured.write_ratings = enabled;
+                Ok(())
+            }) {
+                owner.shared.warn_nonfatal(&error);
+                return;
+            }
+            let catalog = &owner.shared.catalog;
+            let queue = if enabled {
+                catalog.queue_file_ratings(&source_id).await
+            } else {
+                catalog.drop_file_deliveries(&source_id).await
+            };
+            if let Err(error) = queue {
+                owner.shared.warn_nonfatal(&error.to_string());
+            }
+            owner.shared.configured();
+            owner.shared.count_waiting_ratings().await;
         });
     }
 }
@@ -2325,6 +2387,7 @@ impl SourceOwner {
                     music_folder_id: None,
                     local_access: None,
                     enable_half_stars: false,
+                    write_ratings: false,
                 });
                 stored.ui.set_download_quality(
                     configuration.source_id.clone(),
@@ -2980,18 +3043,33 @@ impl SourceOwner {
         Ok(())
     }
 
-    /// Writes the rating. A server that takes ratings gets it from the outbox; a file source
-    /// writes it into the file's tags. A server item's URI names its source; the source of
-    /// another track is read once the rating is saved.
-    async fn apply_rating(&self, target: FavoriteTarget, rating: Option<u8>) {
+    /// Writes the rating. Rufin holds it; the outbox also takes it to a server that takes
+    /// ratings, or into the file of a file source that writes them. A URI names its source,
+    /// or else is a track whose source is read first.
+    pub(crate) async fn apply_rating(&self, target: FavoriteTarget, rating: Option<u8>) {
         let named = library::source_entity_parts(target.media_uri())
             .filter(|(_, kind, _)| kind == target.kind())
             .map(|(source_id, _, _)| source_id);
-        let deliver = named
-            .as_ref()
-            .and_then(|source_id| self.configuration(source_id))
-            .is_some_and(|configuration| {
-                configuration.is(|kind| kind.delivers(library::DeliveryKind::Rating))
+        let source_id = match (named, &target) {
+            (Some(source_id), _) => Some(source_id),
+            (None, FavoriteTarget::Track(uri)) => self
+                .shared
+                .catalog
+                .track_source_by_uri(uri, &ReadCancellation::new())
+                .await
+                .ok()
+                .flatten(),
+            (None, _) => None,
+        };
+        let deliver = source_id
+            .and_then(|source_id| {
+                configured_source(&self.shared.settings.load().sources, &source_id).ok()
+            })
+            .is_some_and(|configured| {
+                writes_ratings(&configured) && matches!(target, FavoriteTarget::Track(_))
+                    || configured
+                        .configuration
+                        .is(|kind| kind.delivers(library::DeliveryKind::Rating))
             });
         if let Err(error) = self
             .shared
@@ -3000,32 +3078,24 @@ impl SourceOwner {
             .await
         {
             self.shared.warn_nonfatal(&error.to_string());
-            return;
         }
-        if deliver {
-            return;
-        }
-        let FavoriteTarget::Track(uri) = &target else {
-            return;
-        };
-        let source_id = match named {
-            Some(source_id) => Some(source_id),
-            None => self
-                .shared
-                .catalog
-                .track_source_by_uri(uri, &ReadCancellation::new())
-                .await
-                .ok()
-                .flatten(),
-        };
-        if let Some(source_id) = source_id
-            && let Some(source_key) = self.shared.catalog.source_key(&source_id)
-            && let Ok(source) = self.client(&source_id)
-            && let Err(error) = source
-                .write_file_track_rating(&self.shared.catalog, source_key, uri, rating)
-                .await
-        {
-            warn!(%error, "could not write file Track rating");
+    }
+
+    /// Whether a metadata edit saves a rating with the tags: the source is a file source.
+    pub(crate) fn rating_in_tags(&self, source: Option<&Arc<Source>>) -> bool {
+        source
+            .and_then(|source| self.configuration(source.source_id()))
+            .is_some_and(|configuration| configuration.is(library::SourceKind::file_library))
+    }
+
+    /// Takes the rating out of a track's metadata edit and saves it as a star click does.
+    pub(crate) async fn rate_edited(&self, uri: &str, edit: &mut sources::MetadataEdit) {
+        if let Some(rating) = edit.changes.remove(sources::RATING_FIELD) {
+            self.apply_rating(
+                FavoriteTarget::Track(uri.to_owned()),
+                rating.trim().parse().ok(),
+            )
+            .await;
         }
     }
 
@@ -3278,6 +3348,14 @@ fn configured_source(
         .ok_or_else(|| "the configured source no longer exists".to_string())
 }
 
+/// Whether a file source writes each rating into its file's tags.
+pub(crate) fn writes_ratings(configured: &ConfiguredSource) -> bool {
+    configured.write_ratings
+        && configured
+            .configuration
+            .is(library::SourceKind::file_library)
+}
+
 fn half_stars_enabled(configured: &ConfiguredSource) -> bool {
     configured.configuration.is(library::SourceKind::half_stars) || configured.enable_half_stars
 }
@@ -3321,6 +3399,8 @@ fn source_summary(configured: &ConfiguredSource) -> SourceSummary {
         supports_playlist_public: configuration.is(library::SourceKind::playlist_public),
         file_library: configuration.is(library::SourceKind::file_library),
         offers_half_star_setting: configuration.is(library::SourceKind::offers_half_star_setting),
+        writes_ratings: writes_ratings(configured),
+        ratings_waiting: 0,
         stores_lyrics_locally: configuration.is(|kind| {
             kind == library::SourceKind::Local
                 || kind.subsonic() && configured.local_access.is_some()
@@ -3334,6 +3414,7 @@ fn configured_sources(
     selected: Option<&SelectedLibrary>,
     counts: &HashMap<SourceId, (usize, usize)>,
     unreachable: &HashSet<SourceId>,
+    ratings_waiting: &HashMap<SourceId, u64>,
     folders: &HashMap<String, (String, bool)>,
 ) -> ConfiguredSources {
     let sources = stored
@@ -3342,6 +3423,10 @@ fn configured_sources(
         .iter()
         .map(|configured| SourceSummary {
             unreachable: unreachable.contains(&configured.configuration.source_id),
+            ratings_waiting: ratings_waiting
+                .get(&configured.configuration.source_id)
+                .copied()
+                .unwrap_or(0),
             ..source_summary(configured)
         })
         .collect::<Vec<_>>();
@@ -3540,7 +3625,7 @@ mod source_tests {
         let reference = seal_credential(secrets.as_ref(), &secret).unwrap();
         let configured:Vec<_> = ["one","two"].into_iter().map(|server|ConfiguredSource {
             configuration: SourceConfiguration {source_id:SourceId::new(server),kind:"plex".into(),name:server.into(),provider_payload:serde_json::json!({"version":1,"server_id":server,"profile_id":"profile","base_url":"http://127.0.0.1:9","address_override":"http://127.0.0.1:9","local":true,"relay":false,"owned":true,"trust_invalid_cert":false}).to_string()},
-            credential:Some(reference.clone()),music_folder_id:None,local_access:None,enable_half_stars:false,
+            credential:Some(reference.clone()),music_folder_id:None,local_access:None,enable_half_stars:false,write_ratings:false,
         }).collect();
         settings
             .update(|stored| {
@@ -3675,6 +3760,7 @@ mod source_tests {
             music_folder_id: None,
             local_access: None,
             enable_half_stars: false,
+            write_ratings: false,
         };
         owner
             .shared
@@ -3890,6 +3976,7 @@ mod source_tests {
                             music_folder_id: None,
                             local_access: None,
                             enable_half_stars: false,
+                            write_ratings: false,
                         });
                         Ok(())
                     })
@@ -4042,6 +4129,7 @@ mod source_tests {
                 music_folder_id: None,
                 local_access: None,
                 enable_half_stars: false,
+                write_ratings: false,
             });
             Ok(())
         }).unwrap();
@@ -4240,6 +4328,7 @@ mod source_tests {
                             music_folder_id: None,
                             local_access: None,
                             enable_half_stars: false,
+                            write_ratings: false,
                         });
                         Ok(())
                     })
@@ -4350,6 +4439,7 @@ mod source_tests {
                             music_folder_id: None,
                             local_access: None,
                             enable_half_stars: false,
+                            write_ratings: false,
                         });
                         Ok(())
                     })

@@ -260,10 +260,12 @@ fn append_named_entry(
     if mixed {
         title = mixed_field_label(&title, count);
     }
-    // A number and a list have rows of their own. Text, a date with its calendar and a
-    // vocabulary's choices are an entry row.
-    let kind = Some(field.kind).filter(|_| field.options.is_empty());
-    let (control, clear, undo) = kind.and_then(kinds::Control::of_kind).unwrap_or_else(|| {
+    // A number, a list and a rating have rows of their own. Text, a date with its calendar
+    // and a vocabulary's choices are an entry row.
+    let own = Some(field).filter(|field| {
+        field.options.is_empty() || field.kind == sources::MetadataFieldKind::Rating
+    });
+    let (control, clear, undo) = own.and_then(kinds::Control::of_field).unwrap_or_else(|| {
         let resource = "preferences/dialogs/metadata_field.ui";
         let builder = crate::ui_resource::builder(resource);
         crate::objects!(builder, resource, { entry: adw::EntryRow, clear: gtk::Button, undo: gtk::Button, choose: gtk::MenuButton, choices: gtk::Box, calendar: gtk::MenuButton });

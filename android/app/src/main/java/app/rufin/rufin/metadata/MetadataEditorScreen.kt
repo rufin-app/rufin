@@ -139,7 +139,9 @@ private fun MetadataFields(connection: MetadataConnection, state: MetadataEditor
             val number = field.kind == MetadataFieldKind.NUMBER
             val date = field.kind == MetadataFieldKind.DATE
             var picking by remember { mutableStateOf(false) }
-            if (field.options.isNotEmpty()) MetadataChoiceField(connection, presented, editable)
+            // A rating's options are the ratings it takes, not a vocabulary to pick from.
+            if (field.kind == MetadataFieldKind.RATING) MetadataRatingField(connection, presented, editable)
+            else if (field.options.isNotEmpty()) MetadataChoiceField(connection, presented, editable)
             else if (field.kind == MetadataFieldKind.LIST) MetadataListField(connection, presented, editable)
             // The number a text starts with: tags hold `8; 8` and `120.5` too.
             else OutlinedTextField(value = if (field.mixed) "" else if (number) field.value.takeWhile { it in '0'..'9' } else field.value,
@@ -173,6 +175,26 @@ private fun MetadataFields(connection: MetadataConnection, state: MetadataEditor
 private fun MetadataReset(connection: MetadataConnection, presented: app.rufin.rufin.shared.rufin_core.MetadataFieldPresentation, editable: Boolean) {
     if (presented.identified) IconButton({ connection.undo(presented.field.key) }, enabled = editable) {
         RufinIcon("rufin-edit-undo-symbolic", translate("Reset")) }
+}
+
+/** A rating as the menus' five stars: a tap sets it, a tap on the rating it has clears it. */
+@Composable
+private fun MetadataRatingField(connection: MetadataConnection, presented: app.rufin.rufin.shared.rufin_core.MetadataFieldPresentation, editable: Boolean) {
+    val field = presented.field
+    val rating = if (field.mixed) null else field.value.toUByteOrNull()
+    Column {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(if (field.mixed) presented.mixedLabel else field.label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
+                color = if (presented.identified) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            MetadataReset(connection, presented, editable)
+        }
+        // Half stars where the field takes odd ratings: its source rates in them.
+        app.rufin.rufin.browse.MenuRating(rating, "1" in field.options, editable && field.writable) { chosen ->
+            connection.setField(field.key, chosen?.takeIf { it != rating }?.toString().orEmpty())
+        }
+        if (!field.writable) Text(translate("This source cannot edit this field"), Modifier.padding(horizontal = 16.dp),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }
 
 /** A list's values as chips, each removed with a tap, under the field that adds one. */

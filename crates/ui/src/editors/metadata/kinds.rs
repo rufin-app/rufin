@@ -12,14 +12,20 @@ pub(super) enum Control {
     Entry(adw::EntryRow),
     Number(adw::SpinRow),
     List(Rc<Values>),
+    /// The stars, and whether they take half stars.
+    Rating(adw::ActionRow, crate::ratings::RatingControl, bool),
 }
 
 impl Control {
-    /// The row of a number or a list; the other kinds edit text in an entry row.
-    pub(super) fn of_kind(kind: MetadataFieldKind) -> Option<(Self, gtk::Button, gtk::Button)> {
+    /// The row of a number, a list or a rating; the other kinds edit text in an entry row.
+    pub(super) fn of_field(
+        field: &sources::MetadataField,
+    ) -> Option<(Self, gtk::Button, gtk::Button)> {
+        let kind = field.kind;
         let resource = match kind {
             MetadataFieldKind::Number => "preferences/dialogs/metadata_number_field.ui",
             MetadataFieldKind::List => "preferences/dialogs/metadata_list_field.ui",
+            MetadataFieldKind::Rating => "preferences/dialogs/metadata_rating_field.ui",
             MetadataFieldKind::Text | MetadataFieldKind::Date | MetadataFieldKind::Boolean => {
                 return None;
             }
@@ -27,6 +33,14 @@ impl Control {
         let builder = crate::ui_resource::builder(resource);
         crate::objects!(builder, resource, { clear: gtk::Button, undo: gtk::Button });
         let control = match kind {
+            MetadataFieldKind::Rating => {
+                crate::objects!(builder, resource, { row: adw::ActionRow, stars: gtk::Box });
+                // Its options are the ratings it takes: an odd one is a half star.
+                let half_stars = field.options.iter().any(|rating| rating == "1");
+                let rating = crate::ratings::RatingControl::new(None, half_stars);
+                stars.append(rating.widget());
+                Self::Rating(row, rating, half_stars)
+            }
             MetadataFieldKind::Number => {
                 crate::objects!(builder, resource, { row: adw::SpinRow });
                 // No number is an empty row, not a zero.
@@ -58,6 +72,7 @@ impl Control {
             Self::Entry(row) => row.clone().upcast(),
             Self::Number(row) => row.clone().upcast(),
             Self::List(values) => values.row.clone(),
+            Self::Rating(row, _, _) => row.clone().upcast(),
         }
     }
 
@@ -77,6 +92,9 @@ impl Control {
                 }
             }
             Self::List(values) => values.set_text(text),
+            Self::Rating(_, rating, half_stars) => {
+                rating.set_rating(text.parse().ok(), *half_stars);
+            }
         }
     }
 
@@ -90,6 +108,9 @@ impl Control {
                 row.connect_changed(move |row| changed(&row.text()));
             }
             Self::List(values) => values.changed.borrow_mut().push(Rc::new(changed)),
+            Self::Rating(_, rating, _) => rating.connect_commit(move |rating| {
+                changed(&rating.map(|rating| rating.to_string()).unwrap_or_default());
+            }),
         }
     }
 }

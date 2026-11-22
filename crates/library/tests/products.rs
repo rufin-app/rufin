@@ -1653,7 +1653,7 @@ async fn smart_toolbar_sorts_and_filters_eleven_members_without_changing_definit
             .bind(fixture.source).bind(&uri).bind(fixture.albums[0])
             .bind(format!("Toolbar {index:02}{}", if index == 9 { " İstanbul" } else { "" }))
             .bind(format!("Artist {:02}", 10-index)).bind(1000+index).bind(index)
-            .bind(2020+index).bind(100+index).bind(index*10).bind(index%2)
+            .bind(2020+index).bind(100+index).bind((index+1)*9).bind(index%2)
             .execute(&mut raw).await.unwrap();
         sqlx::query("INSERT INTO listens(media_uri,track_title,artist_name,album_title,started_at,local_period,duration_millis,listened_millis,skipped) VALUES(?1,'Toolbar','Artist','Album',?2,'2026-01',1000,1000,0)")
             .bind(&uri).bind(100+index).execute(&mut raw).await.unwrap();

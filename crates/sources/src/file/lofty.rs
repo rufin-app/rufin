@@ -233,6 +233,11 @@ pub(crate) fn read_lofty_scan(
                     }
                 }
                 Frame::Timestamp(time) => push(raw, id, &time.timestamp.to_string()),
+                Frame::Popularimeter(rating) => {
+                    let byte = rating.rating.to_string();
+                    push(raw, id, &byte);
+                    push(raw, &format!("{id}:{}", rating.email), &byte);
+                }
                 Frame::Url(link) => push(raw, id, link.url()),
                 _ => {}
             }

@@ -52,9 +52,13 @@ pub(crate) fn favorite(flags: u16) -> bool {
     }
 }
 
-/// The rating a row shows, 0..100: the user's own, else the one its source reports.
+/// The rating a row shows, 1..100: the user's own, else the one its source reports. A zero
+/// is unrated, and the user's zero hides the source's rating.
 pub(crate) fn rating(user: u8, native: u8) -> Option<u8> {
-    [user, native].into_iter().find(|rating| *rating != UNRATED)
+    [user, native]
+        .into_iter()
+        .find(|rating| *rating != UNRATED)
+        .filter(|rating| *rating > 0)
 }
 
 pub(crate) fn year_of(year: i16) -> Option<i16> {

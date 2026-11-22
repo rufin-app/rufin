@@ -322,6 +322,9 @@
         </div>
       </section>
       <section id="pref-source" role="tabpanel" hidden>
+        <div class="pref-group" id="pref-source-settings" hidden>
+          <label class="pref-row"><span class="pref-label"><span id="pref-rating-writes-title"></span><small id="pref-rating-writes-subtitle"></small></span><input type="checkbox" role="switch" id="pref-rating-writes" /></label>
+        </div>
         <h4>{{ localization::tr("Server Actions") }}</h4>
         <div class="pref-group" id="pref-source-actions"></div>
       </section>
@@ -356,4 +359,14 @@
       </section>
     </div>
   </div>
+</dialog>
+<dialog id="rating-writes-dialog" aria-labelledby="rating-writes-heading" aria-describedby="rating-writes-body">
+  <form method="dialog">
+    <h2 id="rating-writes-heading"></h2>
+    <p id="rating-writes-body"></p>
+    <div class="dialog-actions">
+      <button value="cancel">{{ localization::tr("Cancel") }}</button>
+      <button value="confirm" class="primary" id="rating-writes-confirm"></button>
+    </div>
+  </form>
 </dialog>

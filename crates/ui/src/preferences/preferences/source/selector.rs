@@ -310,6 +310,8 @@ mod tests {
             supports_playlist_public: false,
             file_library: false,
             offers_half_star_setting: false,
+            writes_ratings: false,
+            ratings_waiting: 0,
             stores_lyrics_locally: false,
             unreachable: false,
         }
@@ -389,6 +391,8 @@ mod tests {
             supports_playlist_public: false,
             file_library: true,
             offers_half_star_setting: true,
+            writes_ratings: false,
+            ratings_waiting: 0,
             stores_lyrics_locally: true,
             unreachable: false,
         };

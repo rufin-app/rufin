@@ -10,6 +10,7 @@ pub(crate) mod lyrics;
 pub(crate) mod media;
 pub(crate) mod metadata;
 pub(crate) mod playlist;
+pub(crate) mod rating;
 pub(crate) mod remote;
 pub(crate) mod tags;
 pub(crate) mod walk;

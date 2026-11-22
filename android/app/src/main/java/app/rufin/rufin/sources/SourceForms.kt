@@ -84,9 +84,21 @@ internal fun SourceSwitch(label: String, checked: Boolean, change: (Boolean) -> 
 
 @Composable
 internal fun SourceRatingSettings(setup: SourceSetupConnection) {
+    val source = setup.source
+    var asking by remember { mutableStateOf(false) }
+    val texts = remember(source?.ratingsWaiting) { ratingWritesTexts(source?.ratingsWaiting ?: 0UL) }
     SettingsGroup(translate("Library")) {
-        SourceSwitch("Enable partial star ratings", setup.form.halfStars, setup::setHalfStars, !setup.working)
+        if (setup.form.offersHalfStarSetting)
+            SourceSwitch("Enable partial star ratings", setup.form.halfStars, setup::setHalfStars, !setup.working)
+        if (source?.fileLibrary == true) SettingsRow(texts.title, summary = texts.subtitle,
+            modifier = Modifier.toggleable(source.writesRatings, enabled = !setup.working, role = Role.Switch) { on ->
+                if (on) { asking = true } else setup.setRatingWrites(false)
+            }, trailing = { Switch(source.writesRatings, null, enabled = !setup.working) })
     }
+    // Writing changes the files, so turning it on asks first.
+    if (asking) AlertDialog(onDismissRequest = { asking = false }, title = { Text(texts.heading) }, text = { Text(texts.body) },
+        confirmButton = { TextButton({ asking = false; setup.setRatingWrites(true) }) { Text(texts.confirm) } },
+        dismissButton = { TextButton({ asking = false }) { Text(translate("Cancel")) } })
 }
 
 @Composable
