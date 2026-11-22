@@ -26,9 +26,7 @@ fn main() -> ExitCode {
         return result;
     }
     #[cfg(unix)]
-    if let Some(result) = playback_gstreamer::restart_with_http1() {
-        return result;
-    }
+    playback_gstreamer::force_http1();
     if let Some(result) = rufin_controller::discovery_worker_argument() {
         return result;
     }
@@ -41,10 +39,21 @@ fn main() -> ExitCode {
         None => false,
     };
     let settings = app::startup_settings(&paths::roots());
-    if let Some(result) =
-        restart_with_language(&settings.load().ui.appearance.language, updated_restart)
-    {
-        return result;
+    let language = localization::process_language(&settings.load().ui.appearance.language)
+        .filter(|language| env::var("LANGUAGE").ok().as_deref() != Some(language.as_str()));
+    if let Some(language) = language {
+        // GTK takes the launch token out of the environment when it loads, so starting the
+        // process again here would leave the desktop waiting on a launch that never reports.
+        #[cfg(unix)]
+        // SAFETY: No other thread exists yet to read or change the environment.
+        #[allow(unsafe_code)]
+        unsafe {
+            env::set_var("LANGUAGE", language);
+        }
+        #[cfg(not(unix))]
+        if let Some(result) = restart_with_language(&language, updated_restart) {
+            return result;
+        }
     }
     if headless {
         let _desktop_platform = desktop_integration::Platform::initialize();
@@ -124,11 +133,8 @@ fn restart_after_storage_reset() -> io::Result<ExitCode> {
     })
 }
 
-fn restart_with_language(saved_language: &str, updated_restart: bool) -> Option<ExitCode> {
-    let language = localization::process_language(saved_language)?;
-    if env::var("LANGUAGE").ok().as_deref() == Some(language.as_str()) {
-        return None;
-    }
+#[cfg(not(unix))]
+fn restart_with_language(language: &str, updated_restart: bool) -> Option<ExitCode> {
     let executable = env::current_exe().ok()?;
     let mut command = Command::new(executable);
     command
@@ -138,48 +144,32 @@ fn restart_with_language(saved_language: &str, updated_restart: bool) -> Option<
         // The helper has already acknowledged this version before the language relaunch.
         command.env(UPDATED_RESTART_VERSION_ENV, env!("CARGO_PKG_VERSION"));
     }
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt as _;
-
-        let error = command.exec();
-        let _ = writeln!(
-            io::stderr().lock(),
-            "Could not select Rufin language: {error}"
-        );
-        Some(ExitCode::FAILURE)
-    }
-    #[cfg(not(unix))]
-    {
-        match command.spawn() {
-            Ok(mut child) => {
-                if env::args_os().nth(1).as_deref() == Some(OsStr::new("--headless")) {
-                    return Some(match child.wait() {
-                        Ok(status) => ExitCode::from(status.code().unwrap_or(1) as u8),
-                        Err(error) => {
-                            let _ =
-                                writeln!(io::stderr().lock(), "Could not wait for Rufin: {error}");
-                            ExitCode::FAILURE
-                        }
-                    });
-                }
-                #[cfg(target_os = "windows")]
-                if updated_restart
-                    && let Err(error) =
-                        desktop_integration::Platform::allow_foreground_activation(child.id())
-                {
-                    let _ = writeln!(io::stderr().lock(), "{error}");
-                }
-                Some(ExitCode::SUCCESS)
+    match command.spawn() {
+        Ok(mut child) => {
+            if env::args_os().nth(1).as_deref() == Some(OsStr::new("--headless")) {
+                return Some(match child.wait() {
+                    Ok(status) => ExitCode::from(status.code().unwrap_or(1) as u8),
+                    Err(error) => {
+                        let _ = writeln!(io::stderr().lock(), "Could not wait for Rufin: {error}");
+                        ExitCode::FAILURE
+                    }
+                });
             }
-            Err(error) => {
-                let _ = writeln!(
-                    io::stderr().lock(),
-                    "Could not select Rufin language: {error}"
-                );
-                Some(ExitCode::FAILURE)
+            #[cfg(target_os = "windows")]
+            if updated_restart
+                && let Err(error) =
+                    desktop_integration::Platform::allow_foreground_activation(child.id())
+            {
+                let _ = writeln!(io::stderr().lock(), "{error}");
             }
+            Some(ExitCode::SUCCESS)
+        }
+        Err(error) => {
+            let _ = writeln!(
+                io::stderr().lock(),
+                "Could not select Rufin language: {error}"
+            );
+            Some(ExitCode::FAILURE)
         }
     }
 }
@@ -293,7 +283,6 @@ fn macos_bundle_command(
         )
         .env("RUFIN_LOCALEDIR", resources_dir.join("share/locale"))
         .env("XDG_DATA_DIRS", resources_dir.join("share"));
-    command.env("SOUP_FORCE_HTTP1", "1");
     if registry_path
         .parent()
         .is_some_and(|parent| fs::create_dir_all(parent).is_ok())

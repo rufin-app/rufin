@@ -34,7 +34,7 @@ pub fn start_backend(
         .map_err(|error| error.to_string())
 }
 #[cfg(unix)]
-pub use process::restart_with_http1;
+pub use process::force_http1;
 
 fn gstreamer_playback_error(
     message: &gst::Message,
