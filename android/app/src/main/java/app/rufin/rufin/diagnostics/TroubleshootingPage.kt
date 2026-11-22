@@ -1,0 +1,91 @@
+package app.rufin.rufin.diagnostics
+
+import app.rufin.rufin.app.RufinConnection
+
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import app.rufin.rufin.ui.LocalPlayerBottomPadding
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import app.rufin.rufin.core.*
+import app.rufin.rufin.ui.RufinIcon
+import kotlinx.coroutines.*
+
+@Composable
+internal fun TroubleshootingPage(model: RufinConnection, save: () -> Unit) {
+    val context = LocalContext.current
+    val state = rememberLazyListState()
+    var lines by remember { mutableStateOf<List<String>>(emptyList()) }
+    LaunchedEffect(model.service, model.ready) {
+        val runtime = model.service?.runtime?.value?.getOrNull() ?: return@LaunchedEffect
+        lines = emptyList()
+        var cursor = 0uL
+        var startCharacter = 0uL
+        while (isActive) {
+            val update = withContext(Dispatchers.IO) { runtime.diagnosticUpdates(cursor) }
+            if (update.end != cursor) {
+                val tail = state.layoutInfo.totalItemsCount - 1
+                val follow = tail <= 0 || state.layoutInfo.visibleItemsInfo.lastOrNull()?.index == tail
+                // The whole log can arrive at once: its lines are cut off the main thread and shown in one change,
+                // so opening the page never stalls the drawer closing over it.
+                val shown = lines
+                val trimmed = update.startCharacter - startCharacter
+                lines = withContext(Dispatchers.Default) {
+                    val next = ArrayList(shown)
+                    var removed = trimmed
+                    var removedLines = 0
+                    while (removedLines < next.size && removed > 0uL) {
+                        val line = next[removedLines]
+                        val characters = line.codePointCount(0, line.length).toULong()
+                        if (characters > removed) {
+                            next[removedLines] = line.substring(line.offsetByCodePoints(0, removed.toInt()))
+                            break
+                        }
+                        removed -= characters
+                        removedLines++
+                    }
+                    next.subList(0, removedLines).clear()
+                    val added = update.text.split('\n')
+                    for ((index, part) in added.withIndex()) {
+                        val line = part + if (index < added.lastIndex) "\n" else ""
+                        if (line.isEmpty()) continue
+                        if (next.lastOrNull()?.endsWith('\n') == false) next[next.lastIndex] += line
+                        else next.add(line)
+                    }
+                    next
+                }
+                cursor = update.end
+                startCharacter = update.startCharacter
+                if (follow && lines.isNotEmpty()) state.scrollToItem(lines.lastIndex)
+            }
+            delay(250)
+        }
+    }
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(translate("Debug logging"), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+            Switch(model.debugLogging, model::changeDebugLogging, enabled = model.ready)
+            IconButton({ (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Rufin", lines.joinToString(""))) }) {
+                RufinIcon("rufin-edit-copy-symbolic", translate("Copy"))
+            }
+            IconButton(save, enabled = model.ready) { RufinIcon("rufin-document-save-symbolic", translate("Save")) }
+        }
+        Text(translate("Logs have secrets and absolute folder paths redacted, but you may still want to review the logs before sharing them"),
+            Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodySmall)
+        SelectionContainer(Modifier.weight(1f)) {
+            LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), state = state, contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalPlayerBottomPadding.current)) {
+                items(lines.size) { index -> Text(lines[index].removeSuffix("\n"), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall) }
+            }
+        }
+    }
+}

@@ -9,9 +9,8 @@ use jni::{
 use crate::host::{AndroidError, error};
 
 pub(crate) fn initialize(env: &mut Env<'_>, context: &JObject<'_>) -> jni::errors::Result<()> {
-    let client_class = env.find_class(jni_str!(
-        "io/github/screwys/rufin/platform/AndroidDiscoveryClient"
-    ))?;
+    let client_class =
+        env.find_class(jni_str!("app/rufin/rufin/platform/AndroidDiscoveryClient"))?;
     sources::install_discovery_host(Arc::new(DiscoveryHost {
         context: env.new_global_ref(context)?,
         client_class: env.new_global_ref(client_class)?,

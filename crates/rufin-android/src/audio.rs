@@ -11,9 +11,7 @@ use jni::{
 static TRACK_CLASS: OnceLock<Global<JClass<'static>>> = OnceLock::new();
 
 pub(crate) fn register(env: &mut Env<'_>) -> jni::errors::Result<()> {
-    let class = env.find_class(jni_str!(
-        "io/github/screwys/rufin/platform/AndroidAudioTrack"
-    ))?;
+    let class = env.find_class(jni_str!("app/rufin/rufin/platform/AndroidAudioTrack"))?;
     let _ = TRACK_CLASS.set(env.new_global_ref(class)?);
     gst::Element::register(
         None,

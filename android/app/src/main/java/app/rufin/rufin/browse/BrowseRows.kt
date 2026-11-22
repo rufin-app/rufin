@@ -1,0 +1,111 @@
+package app.rufin.rufin.browse
+
+import app.rufin.rufin.core.AndroidBrowseRow
+import app.rufin.rufin.shared.library.AlbumRow
+import app.rufin.rufin.shared.library.ArtistRow
+import app.rufin.rufin.shared.library.PlaylistFolderRow
+import app.rufin.rufin.shared.library.PlaylistListRow
+import app.rufin.rufin.shared.library.PlaylistRow
+import app.rufin.rufin.shared.library.Row
+import app.rufin.rufin.shared.library.SmartPlaylistRow
+import app.rufin.rufin.shared.library.FavoriteTarget
+import app.rufin.rufin.shared.rufin_core.MetadataItemId
+import app.rufin.rufin.shared.library.TagKind
+import app.rufin.rufin.shared.library.TagRow
+import app.rufin.rufin.shared.library.TrackRow
+import app.rufin.rufin.shared.library.sourceIdForUri
+import app.rufin.rufin.shared.rufin_core.Route
+
+/** An artist page that lists the artist's releases. */
+internal val Route.showsReleases: Boolean
+    get() = this is Route.ArtistDetail || this is Route.AlbumArtistDetail ||
+        this is Route.ArtistDiscography || this is Route.AlbumArtistDiscography
+
+private val AndroidBrowseRow.folder get() = (row as? Row.Folder)?.v1
+internal val AndroidBrowseRow.track: TrackRow?
+    get() = when (val row = row) {
+        is Row.Track -> row.v1
+        is Row.AlbumTrack -> row.track
+        else -> null
+    }
+internal val AndroidBrowseRow.albumRow: AlbumRow?
+    get() = when (val row = row) {
+        is Row.Album -> row.v1
+        is Row.AlbumHeading -> row.v1
+        else -> null
+    }
+internal val AndroidBrowseRow.artistRow: ArtistRow? get() = (row as? Row.Artist)?.v1
+internal val AndroidBrowseRow.tag: TagRow? get() = (row as? Row.Tag)?.v1
+internal val AndroidBrowseRow.genre: TagRow? get() = tag?.takeIf { it.kind == TagKind.GENRE }
+private val AndroidBrowseRow.playlistListRow: PlaylistListRow? get() = (row as? Row.Playlist)?.v1
+internal val AndroidBrowseRow.playlist: PlaylistRow? get() = (playlistListRow as? PlaylistListRow.Playlist)?.v1
+internal val AndroidBrowseRow.smartPlaylist: SmartPlaylistRow? get() = (playlistListRow as? PlaylistListRow.SmartPlaylist)?.v1
+internal val AndroidBrowseRow.playlistFolder: PlaylistFolderRow? get() = (playlistListRow as? PlaylistListRow.Folder)?.v1
+
+/** The track, album or artist the row shows, which it favorites, rates and edits. A pinned station's
+ *  row is the item it plays as, which is none of them. */
+internal val AndroidBrowseRow.target: FavoriteTarget?
+    get() = if (station != null) null else when (val row = row) {
+        is Row.Track -> FavoriteTarget.Track(row.v1.mediaUri)
+        is Row.AlbumTrack -> FavoriteTarget.Track(row.track.mediaUri)
+        is Row.Album -> FavoriteTarget.Album(row.v1.mediaUri)
+        is Row.AlbumHeading -> FavoriteTarget.Album(row.v1.mediaUri)
+        is Row.Artist -> FavoriteTarget.Artist(row.v1.mediaUri)
+        else -> null
+    }
+
+internal val AndroidBrowseRow.isTrack: Boolean get() = target is FavoriteTarget.Track
+internal val AndroidBrowseRow.isFolder: Boolean get() = row is Row.Folder
+
+/** The editor of the row's track, album or artist. */
+internal val AndroidBrowseRow.metadataItem: MetadataItemId?
+    get() = when (val target = target) {
+        is FavoriteTarget.Track -> MetadataItemId.Track(target.v1)
+        is FavoriteTarget.Album -> MetadataItemId.Album(target.v1)
+        is FavoriteTarget.Artist -> MetadataItemId.Artist(target.v1)
+        null -> null
+    }
+
+internal val AndroidBrowseRow.key: String
+    get() = track?.let { it.entry?.key?.toString() ?: it.mediaUri } ?: albumRow?.objectId ?: artistRow?.objectId
+        ?: genre?.objectId ?: tag?.key?.toString() ?: playlist?.objectId ?: smartPlaylist?.objectId
+        ?: playlistFolder?.let { "playlist-folder:${it.objectId}" } ?: folder?.objectId.orEmpty()
+
+internal val AndroidBrowseRow.mediaUri: String
+    get() = track?.mediaUri ?: albumRow?.mediaUri ?: artistRow?.mediaUri ?: ""
+
+internal val AndroidBrowseRow.title: String
+    get() = displayTitle ?: track?.title ?: albumRow?.title ?: artistRow?.name ?: tag?.name ?: playlist?.name
+        ?: smartPlaylist?.name ?: playlistFolder?.name ?: folder?.name.orEmpty()
+
+internal val AndroidBrowseRow.artist: String
+    get() = track?.artist ?: albumRow?.artist ?: artistRow?.name ?: ""
+
+internal val AndroidBrowseRow.album: String
+    get() = track?.album ?: albumRow?.title ?: ""
+
+internal val AndroidBrowseRow.subtitle: String
+    get() = track?.let { "${it.artist} · ${it.album}" }
+        ?: albumRow?.artist
+        ?: playlistFolder?.let { "${app.rufin.rufin.core.trackCountText(trackCount)} · $durationText" } ?: ""
+
+internal val AndroidBrowseRow.favorite: Boolean
+    get() = (track?.state ?: albumRow?.state ?: artistRow?.state)?.favorite == true
+
+internal val AndroidBrowseRow.year: Long?
+    get() = track?.year ?: albumRow?.year
+
+/** The year with an album's version beside it, as GTK's facts show them. */
+internal val AndroidBrowseRow.yearText: String?
+    get() = listOfNotNull(year?.toString(), albumRow?.version).joinToString(" · ").ifEmpty { null }
+
+internal val AndroidBrowseRow.sourceId: String?
+    get() = track?.sourceId ?: genre?.sourceId ?: playlist?.sourceId
+        ?: (albumRow?.mediaUri ?: artistRow?.mediaUri)?.let(::sourceIdForUri)
+
+internal val AndroidBrowseRow.rating: UByte?
+    get() = (track?.state ?: albumRow?.state ?: artistRow?.state)?.rating?.takeIf { it in 0..255 }?.toUByte()
+
+internal val AndroidBrowseRow.playlistFolderMember: app.rufin.rufin.shared.library.PlaylistFolderMember?
+    get() = playlist?.let { app.rufin.rufin.shared.library.PlaylistFolderMember.Playlist(it.playlistKey) }
+        ?: smartPlaylist?.let { app.rufin.rufin.shared.library.PlaylistFolderMember.SmartPlaylist(it.smartPlaylistKey) }

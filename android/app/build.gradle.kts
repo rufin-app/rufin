@@ -27,7 +27,7 @@ repositories {
 }
 
 android {
-    namespace = "io.github.screwys.rufin"
+    namespace = "app.rufin.rufin"
     compileSdk { version = release(37) { minorApiLevel = 2 } }
     ndkVersion = "29.0.14206865"
     defaultConfig {

@@ -20,7 +20,7 @@ static NETWORK: OnceLock<Global<JObject<'static>>> = OnceLock::new();
 
 pub(crate) fn initialize(env: &mut Env<'_>, context: &JObject<'_>) -> jni::errors::Result<()> {
     let network = env.new_object(
-        jni_str!("io/github/screwys/rufin/platform/AndroidNetwork"),
+        jni_str!("app/rufin/rufin/platform/AndroidNetwork"),
         jni_sig!("(Landroid/content/Context;)V"),
         &[JValue::Object(context)],
     )?;
