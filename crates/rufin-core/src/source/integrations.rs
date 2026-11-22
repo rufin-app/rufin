@@ -152,12 +152,11 @@ impl SourceOwner {
                     .iter()
                     .find(|s| s.configuration.source_id == id)
                     .ok_or("The connection no longer exists")?;
-                let credential = saved
-                    .credential
-                    .as_ref()
-                    .map(|r| load_provider_secret(owner.shared.secrets.as_ref(), r))
-                    .transpose()?
-                    .flatten();
+                let credential = saved.credential.as_ref().and_then(|r| {
+                    load_provider_secret(owner.shared.secrets.as_ref(), r)
+                        .ok()
+                        .flatten()
+                });
                 match Source::edit(saved.configuration.clone(), credential, input, None)
                     .await
                     .map_err(string_error)?

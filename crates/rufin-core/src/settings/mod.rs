@@ -1068,12 +1068,11 @@ pub(crate) fn store_scrobbling(
         } else if stored
             .scrobbling_credentials
             .get(&kind)
-            .map(|credential| load_provider_secret(secrets, credential))
-            .transpose()?
-            .flatten()
+            .and_then(|credential| load_provider_secret(secrets, credential).ok().flatten())
             .as_deref()
             != Some(value)
         {
+            // A saved credential that no longer opens is replaced like any other.
             let credential = seal_credential(secrets, value)?;
             stored.scrobbling_credentials.insert(kind, credential);
         }
@@ -1715,6 +1714,33 @@ mod tests {
         assert_eq!(store.saves.load(Ordering::Relaxed), 0);
         assert_eq!(store.deletes.load(Ordering::Relaxed), 0);
         assert!(!file.load().scrobbling_secrets_present);
+    }
+
+    #[test]
+    fn scrobbling_secret_is_entered_again_after_the_key_is_lost() {
+        let memory_secrets = || {
+            let store: Arc<dyn SecretStore> = Arc::new(secrets::MemorySecretStore::new());
+            Arc::new(SwitchableSecretStore::new(store))
+        };
+        let file = SettingsFile::memory();
+        let secrets = memory_secrets();
+        let scope = file.load().secret_scope_id.clone();
+        let mut settings = load_scrobbling_settings(&file, &secrets);
+        settings.listenbrainz.user_token = "old".to_string();
+        persist_scrobbling_settings(&file, &secrets, &settings, &scope).expect("persist");
+
+        let secrets = memory_secrets();
+        let mut settings = load_scrobbling_settings(&file, &secrets);
+        assert!(settings.listenbrainz.user_token.is_empty());
+        settings.listenbrainz.user_token = "new".to_string();
+        persist_scrobbling_settings(&file, &secrets, &settings, &scope).expect("enter again");
+
+        assert_eq!(
+            load_scrobbling_settings(&file, &secrets)
+                .listenbrainz
+                .user_token,
+            "new"
+        );
     }
 
     #[test]
