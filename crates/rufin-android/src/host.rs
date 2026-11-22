@@ -30,7 +30,7 @@ pub(crate) fn error(value: impl ToString) -> AndroidError {
     reason = "jni 0.22.4 generates AtomicBool::fetch_update calls"
 )]
 const _: jni::NativeMethod = jni::native_method! {
-    java_type = "io.github.screwys.rufin.NativeHost",
+    java_type = "app.rufin.rufin.NativeHost",
     extern fn configure_gstreamer() -> void,
 };
 
@@ -57,8 +57,8 @@ fn configure_gstreamer<'local>(
     reason = "jni 0.22.4 generates AtomicBool::fetch_update calls"
 )]
 const _: jni::NativeMethod = jni::native_method! {
-    java_type = "io.github.screwys.rufin.NativeHost",
-    extern fn initialize(context: android.content.Context, documents: io.github.screwys.rufin.platform.AndroidDocuments) -> void,
+    java_type = "app.rufin.rufin.NativeHost",
+    extern fn initialize(context: android.content.Context, documents: app.rufin.rufin.platform.AndroidDocuments) -> void,
 };
 
 fn initialize<'local>(

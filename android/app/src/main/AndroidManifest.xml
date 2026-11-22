@@ -24,8 +24,7 @@
         </provider>
         <activity android:name=".RufinActivity" android:exported="false"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density" />
-        <!-- Launcher entries, one per app icon; AppIcon keeps exactly one enabled. The colored one keeps
-             the old activity name, so home screen shortcuts survive updates. -->
+        <!-- Launcher entries, one per app icon; AppIcon keeps exactly one enabled. -->
         <activity-alias android:name=".MainActivity" android:targetActivity=".RufinActivity"
             android:exported="true" android:icon="@drawable/launcher_colored">
             <intent-filter>

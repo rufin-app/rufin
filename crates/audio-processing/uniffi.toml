@@ -1,4 +1,4 @@
 [bindings.kotlin]
 android = true
-package_name = "io.github.screwys.rufin.shared.audio_processing"
+package_name = "app.rufin.rufin.shared.audio_processing"
 cdylib_name = "rufin_android"

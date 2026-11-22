@@ -1,4 +1,4 @@
 [bindings.kotlin]
 android = true
-package_name = "io.github.screwys.rufin.shared.lyrics"
+package_name = "app.rufin.rufin.shared.lyrics"
 cdylib_name = "rufin_android"

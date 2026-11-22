@@ -536,7 +536,7 @@ fn icons(root: &Path, generated: &Path) -> Result<()> {
     paths.sort();
     paths.push(root.join("resources/icons/hicolor/symbolic/apps/app.rufin.rufin-symbolic.svg"));
     let mut mapping = String::from(
-        "package io.github.screwys.rufin\n\ninternal data class RufinIconResource(val drawable: Int, val glyphScale: Float, val glyphX: Float, val glyphY: Float, val canvas: Float)\n\ninternal val rufinIconResources = mapOf(\n",
+        "package app.rufin.rufin\n\ninternal data class RufinIconResource(val drawable: Int, val glyphScale: Float, val glyphX: Float, val glyphY: Float, val canvas: Float)\n\ninternal val rufinIconResources = mapOf(\n",
     );
     for path in paths {
         if path.extension().is_none_or(|extension| extension != "svg") {
@@ -630,7 +630,7 @@ fn icons(root: &Path, generated: &Path) -> Result<()> {
         ));
     }
     mapping.push_str(")\n");
-    let output = generated.join("icons/io/github/screwys/rufin/IconResources.kt");
+    let output = generated.join("icons/app/rufin/rufin/IconResources.kt");
     fs::create_dir_all(output.parent().ok_or("Icon mapping directory is missing")?)?;
     if fs::read_to_string(&output).ok().as_deref() != Some(mapping.as_str()) {
         fs::write(output, mapping)?;

@@ -1,0 +1,185 @@
+package app.rufin.rufin.sources
+
+import app.rufin.rufin.shared.rufin_core.*
+
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalAutofillManager
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.unit.dp
+import app.rufin.rufin.app.RufinConnection
+import app.rufin.rufin.core.*
+import app.rufin.rufin.ui.RufinIcon
+import app.rufin.rufin.ui.SourceIcon
+import app.rufin.rufin.settings.SettingsGroup
+import app.rufin.rufin.settings.SettingsRow
+import app.rufin.rufin.settings.settingsButtonColors
+import kotlinx.coroutines.delay
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun SourceSetupScreen(model: RufinConnection, onClose: () -> Unit, sourceId: String? = null,
+    /** A remote folder of this kind, "webdav" or "smb", to add or edit: a connection, not a music source. */
+    connection: String? = null, welcome: SourceWelcome? = null) {
+    val setup = remember(model, sourceId) { model.sourceSetupSession(sourceId) }
+    val form = setup.form
+    LaunchedEffect(setup) {
+        if (connection != null && sourceId == null) { setup.selectProvider(connection); setup.form.integration = true }
+    }
+    // The first source ends on the loading page instead of closing.
+    var loading by rememberSaveable { mutableStateOf(false) }
+    val autofillManager = LocalAutofillManager.current
+    var mapping by remember { mutableStateOf(false) }
+    var saved by remember(setup) { mutableStateOf(false) }
+    LaunchedEffect(saved) {
+        if (saved) { delay(2000); saved = false }
+    }
+    val context = LocalContext.current
+    val close: () -> Unit = { model.closeSourceSetup(); onClose() }
+    val added: () -> Unit = { if (welcome != null) loading = true else close() }
+    // Back leaves a new source's form for the list, as the bar's arrow does.
+    val back: () -> Unit = { if (sourceId == null && connection == null && form.kind != null) { setup.cancelAuthorization(); form.kind = null } else close() }
+    BackHandler(onBack = back)
+    if (loading && welcome != null) {
+        SourceLoadingPage(model, welcome, close)
+        return
+    }
+    val chooseFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri?.let { setup.folder(it, added) }
+    }
+    val browser: (String) -> Unit = { url ->
+        try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+        catch (error: Exception) { setup.reportError(error) }
+    }
+    val canSubmit = when (form.kind) {
+        "plex" -> sourceId != null || setup.authorized && setup.choices.isNotEmpty()
+        "emby" -> form.manualEmby && form.url.isNotBlank() && form.username.isNotBlank()
+            || setup.authorized && setup.choices.isNotEmpty() || sourceId != null
+        "peer" -> form.name.isNotBlank()
+        // A server needs its address and a username, or an API key in the username's place.
+        "jellyfin", "navidrome", "subsonic" -> setup.authorized || form.url.isNotBlank() &&
+            if (form.kind == "subsonic" && form.subsonicAuth == "api_key") form.secret.isNotBlank() else form.username.isNotBlank()
+        else -> setup.authorized || form.url.isNotBlank()
+    }
+    if (mapping && sourceId != null) LocalAccessDialog(model, sourceId,
+        onDismiss = { mapping = false }, onSaved = { mapping = false })
+    Scaffold(topBar = {
+            // The greeting has no bar: its own first line carries Skip.
+            if (welcome == null || form.kind != null) TopAppBar(title = {
+                Text(setup.providers.firstOrNull { it.first == form.kind }?.second ?: translate(
+                    if (sourceId != null) "Edit Source" else "Add Source"))
+            }, navigationIcon = {
+                IconButton(back) {
+                    RufinIcon("rufin-go-previous-symbolic", translate("Back"))
+                }
+            }, actions = {
+                IconButton(close) { RufinIcon("rufin-window-close-symbolic", translate("Close")) }
+            })
+    }, bottomBar = {
+        if (setup.ready && form.kind != null && form.kind != "local") {
+            Surface {
+                Button({
+                    // Tells a password manager the login was sent, so it offers to save it under Rufin.
+                    autofillManager?.commit()
+                    saved = false
+                    setup.submit { if (sourceId == null) added() else saved = true }
+                }, Modifier.fillMaxWidth().navigationBarsPadding().imePadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp), enabled = !setup.working && canSubmit) {
+                    Text(translate(if (sourceId == null) "Connect" else if (saved) "Saved..." else "Save"))
+                }
+            }
+        }
+    }) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
+            if (setup.working) {
+                val progress = model.sourceProgress
+                val total = progress?.total
+                if (progress != null && total != null && total > 0UL) {
+                    LinearProgressIndicator(progress = {
+                        (progress.completed.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                    }, modifier = Modifier.fillMaxWidth())
+                } else LinearProgressIndicator(Modifier.fillMaxWidth())
+                model.sourceStatus?.let {
+                    Text(it, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            setup.failure?.let { app.rufin.rufin.ui.ErrorNotice(it) }
+            if (!setup.ready) Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { if (setup.failure == null) CircularProgressIndicator() }
+            else if (form.kind == null) SourceChoices(model, setup, welcome, Modifier.weight(1f), chooseFolder::launch, added, close)
+            else if (form.kind == "local") Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (form.offersHalfStarSetting) SourceRatingSettings(setup)
+                SettingsGroup {
+                    SettingsRow(translate("Music"), leading = { RufinIcon("rufin-folders-symbolic", null) },
+                        trailing = { RufinIcon("rufin-go-next-symbolic", null) },
+                        modifier = Modifier.clickable(enabled = !setup.working) { setup.music(added) })
+                    SettingsRow(translate("Choose folder"), leading = { RufinIcon("rufin-folders-symbolic", null) },
+                        trailing = { RufinIcon("rufin-go-next-symbolic", null) },
+                        modifier = Modifier.clickable(enabled = !setup.working) { chooseFolder.launch(null) })
+                }
+                if (sourceId != null) SourceActions(model, sourceId, form.name, close)
+            } else LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                item { SourceTextField("Name", form.name, { form.name = it }, !setup.working) }
+                when (form.kind) {
+                    "jellyfin", "emby" -> item { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (form.kind == "emby") SourceSwitch("Connect manually", form.manualEmby, {
+                            setup.cancelAuthorization(); form.manualEmby = it
+                        }, !setup.working)
+                        if (form.kind == "jellyfin" || form.manualEmby) {
+                            SourceCredentials(form, setup.working, sourceId != null)
+                            SourceDiscovery(setup)
+                            if (form.kind == "jellyfin") OutlinedButton({ setup.quickConnect(browser) }, enabled = !setup.working && form.url.isNotBlank(), colors = settingsButtonColors()) {
+                                Text(translate("Quick Connect"))
+                            }
+                        } else {
+                            SourceTextField("Username or email", form.username, { form.username = it }, !setup.working,
+                                autofill = ContentType.Username, required = true)
+                            SourceTextField("Password", form.secret, { form.secret = it }, !setup.working, secret = true,
+                                autofill = ContentType.Password)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton({ autofillManager?.commit(); setup.embyLogin(false, browser) }, enabled = !setup.working && form.username.isNotBlank(), colors = settingsButtonColors()) { Text(translate("Sign in")) }
+                                OutlinedButton({ setup.embyLogin(true, browser) }, enabled = !setup.working, colors = settingsButtonColors()) { Text(translate("Sign in with a code")) }
+                            }
+                            SourceChoices(setup.choices, setup.selectedServer) { setup.selectedServer = it }
+                        }
+                        if (form.kind == "jellyfin" || form.manualEmby) SourceSwitch("Verify server certificate", !form.trustInvalidCertificate, { form.trustInvalidCertificate = !it }, !setup.working)
+                    } }
+                    "navidrome", "subsonic" -> item { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (form.kind == "subsonic") SourceOptions("Authentication", listOf("password" to "Password", "legacy_password" to "Legacy password", "api_key" to "API key"), form.subsonicAuth, enabled = !setup.working) { form.subsonicAuth = it }
+                        SourceCredentials(form, setup.working, sourceId != null, apiKey = form.subsonicAuth == "api_key")
+                        SourceSwitch("Verify server certificate", !form.trustInvalidCertificate, { form.trustInvalidCertificate = !it }, !setup.working)
+                    } }
+                    "plex" -> item { PlexSourceForm(setup, sourceId != null, browser) }
+                    "webdav", "smb" -> item { FileSourceForm(setup, sourceId != null, browser) }
+                }
+                if (form.offersHalfStarSetting) item { SourceRatingSettings(setup) }
+                item { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    setup.code?.let { code -> Text(code, style = MaterialTheme.typography.headlineLarge) }
+                    setup.browserUrl?.takeUnless { setup.authorized || setup.choosingProfiles }?.let { url ->
+                        Text(translate("Complete sign-in in your browser"))
+                        TextButton({ browser(url) }) { RufinIcon("rufin-external-link-symbolic", null); Spacer(Modifier.width(8.dp)); Text(translate("Sign In in Browser")) }
+                    }
+                    if (setup.working && setup.browserUrl != null) TextButton(setup::cancelAuthorization) { Text(translate("Cancel")) }
+                } }
+                if (sourceId != null && !form.integration && form.kind in setOf("jellyfin", "emby", "plex", "navidrome", "subsonic", "peer")) item {
+                    SettingsGroup { SettingsRow(translate("Local File Mapping"),
+                        trailing = { RufinIcon("rufin-go-next-symbolic", null) },
+                        modifier = Modifier.clickable(enabled = !setup.working) { mapping = true }) }
+                }
+                if (sourceId != null && !form.integration && connection == null) item { SourceActions(model, sourceId, form.name, close) }
+            }
+        }
+    }
+}

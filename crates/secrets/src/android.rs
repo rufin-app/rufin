@@ -13,7 +13,7 @@ static KEYRING: OnceLock<Global<JObject<'static>>> = OnceLock::new();
 pub fn initialize(env: &mut Env<'_>, context: &JObject<'_>) -> jni::errors::Result<()> {
     if KEYRING.get().is_none() {
         let keyring = env.new_object(
-            jni_str!("io/github/screwys/rufin/platform/AndroidKeyring"),
+            jni_str!("app/rufin/rufin/platform/AndroidKeyring"),
             jni_sig!("(Landroid/content/Context;)V"),
             &[JValue::Object(context)],
         )?;
