@@ -2,7 +2,7 @@
 
 ## Security Stance
 
-Rufin is officially supported as APK, Flatpak, Fedora RPM, nixpkgs/scoop/brew/AUR packages, and Windows/MacOS executables. Data security is taken seriously within the expectations of a music player. If you find a security or privacy issue, you can email to me@screwy.dev. You can also encrypt it with my [public key](https://screwy.dev/screwy.txt) if your mail client does not find the key automatically.
+Rufin is officially supported as APK, Flatpak, Fedora RPM, nixpkgs/brew/AUR packages, and Windows/MacOS executables. Data security is taken seriously within the expectations of a music player. If you find a security or privacy issue, you can email to me@screwy.dev. You can also encrypt it with my [public key](https://screwy.dev/screwy.txt) if your mail client does not find the key automatically.
 
 Rust dependencies are checked with cargo-deny, including advisories, license policy and source policy. Dependency updates are held for 7 days before our own Renovate bot opens them.
 
@@ -28,7 +28,7 @@ Rufin, by design, comes with external lyric, metadata and cover lookups enabled,
 
 ### Music servers
 
-Your configured Jellyfin, Emby, Plex, Navidrome, or OpenSubsonic server, plus configured WebDAV and Samba shares. Again, Rufin can not control your server settings that do external requests on their own. Private mode keeps this path working.
+Your configured Jellyfin, Emby, Plex, Navidrome, or OpenSubsonic server, plus configured WebDAV and Samba shares. Again, Rufin can not control your server settings that do external requests on their own. 
 
 ### Metadata
 
