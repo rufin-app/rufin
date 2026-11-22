@@ -28,7 +28,9 @@ import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 
 private const val DOCUMENT_PAGE_SIZE = 128
@@ -102,6 +104,20 @@ class AndroidDocuments(
                     JSONObject().put("id", id).put("uri", uri.toString()).put("name", entry.getString("name"))
                 }
                 "list" -> list(uri, request.optLong("offset"))
+                "child" -> JSONObject().put("entry", child(uri, request.getString("name")) ?: JSONObject.NULL)
+                "identities" -> {
+                    val listed = request.getJSONArray("documents")
+                    val documents = (0 until listed.length()).map { Uri.parse(listed.getString(it)) }
+                    // Each lookup crosses to the media provider and back, so a few run at once.
+                    val pool = Executors.newFixedThreadPool(4)
+                    val identities = try {
+                        pool.invokeAll(documents.map { document -> Callable {
+                            equivalentMediaIdentity(document)
+                                ?: nativeIdentity("document", document.authority.orEmpty(), DocumentsContract.getDocumentId(document))
+                        } }).map { it.get() }
+                    } finally { pool.shutdown() }
+                    JSONObject().put("native_ids", JSONArray(identities))
+                }
                 "open" -> open(uri)
                 "prefix" -> {
                     val asset = openAsset(uri)
@@ -217,7 +233,8 @@ class AndroidDocuments(
         arrayOf(
         MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME,
         MediaStore.MediaColumns.MIME_TYPE, MediaStore.MediaColumns.SIZE, MediaStore.MediaColumns.DATE_MODIFIED,
-        ) + if (Build.VERSION.SDK_INT >= 29) arrayOf(MediaStore.MediaColumns.VOLUME_NAME) else emptyArray()
+        ) + if (Build.VERSION.SDK_INT >= 29) arrayOf(MediaStore.MediaColumns.VOLUME_NAME, MediaStore.MediaColumns.RELATIVE_PATH)
+            else arrayOf(MediaStore.MediaColumns.DATA)
     } else arrayOf(
         DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME,
         DocumentsContract.Document.COLUMN_MIME_TYPE, DocumentsContract.Document.COLUMN_SIZE,
@@ -251,7 +268,8 @@ class AndroidDocuments(
         throw FileNotFoundException("The document is unavailable")
     }
 
-    private fun entry(cursor: Cursor, parent: Uri, child: Boolean): JSONObject {
+    /** `listed` entries of a folder skip the media lookup: they say so, and "identities" makes it for the ones that need it. */
+    private fun entry(cursor: Cursor, parent: Uri, child: Boolean, listed: Boolean = false): JSONObject {
         val media = isMedia(parent)
         val name = cursor.getString(1)
         val type = cursor.getString(2) ?: "application/octet-stream"
@@ -261,15 +279,20 @@ class AndroidDocuments(
         val uri = if (!child) parent else if (media) ContentUris.withAppendedId(parent, cursor.getLong(0))
             else DocumentsContract.buildDocumentUriUsingTree(parent, cursor.getString(0))
         val writable = media || flags and DocumentsContract.Document.FLAG_SUPPORTS_WRITE != 0
+        val provisional = listed && !media && type != DocumentsContract.Document.MIME_TYPE_DIR
         val identity = if (media) {
             val volume = if (Build.VERSION.SDK_INT >= 29) cursor.getString(5) else parent.pathSegments.first()
             nativeIdentity("media", volume, cursor.getLong(0).toString())
         } else {
-            val equivalent = if (type != DocumentsContract.Document.MIME_TYPE_DIR) equivalentMediaIdentity(uri) else null
+            val equivalent = if (type != DocumentsContract.Document.MIME_TYPE_DIR && !listed) equivalentMediaIdentity(uri) else null
             equivalent ?: nativeIdentity("document", parent.authority.orEmpty(), cursor.getString(0))
         }
+        // The media collection is one flat list; the folder a file is in tells its entries apart.
+        val folder = if (!media) null
+            else if (Build.VERSION.SDK_INT >= 29) "${cursor.getString(5)}/${cursor.getString(6).orEmpty()}".trim('/')
+            else cursor.getString(5)?.substringBeforeLast('/', "")?.trim('/')
         return JSONObject().put("uri", uri.toString()).put("name", name)
-            .put("native_id", identity)
+            .put("native_id", identity).put("provisional", provisional).put("folder", folder ?: JSONObject.NULL)
             .put("directory", type == DocumentsContract.Document.MIME_TYPE_DIR).put("mime_type", type)
             .put("size", size ?: JSONObject.NULL)
             .put("revision", if (modified != null && modified > 0) "$modified:${size ?: -1}" else JSONObject.NULL)
@@ -327,43 +350,45 @@ class AndroidDocuments(
         return hash.digest().joinToString("") { "%02x".format(it) }
     }
 
+    private fun children(parent: Uri) =
+        DocumentsContract.buildChildDocumentsUriUsingTree(parent, DocumentsContract.getDocumentId(parent))
+
+    /** A provider that pages says so; any other answers with the whole folder, which this one query reads. */
     private fun list(uri: Uri, offset: Long): JSONObject {
         val parent = documentUri(uri)
         if (isMediaCollection(parent)) return listMedia(parent, offset)
-        val children = DocumentsContract.buildChildDocumentsUriUsingTree(parent, DocumentsContract.getDocumentId(parent))
-        val entries = JSONArray()
-        var next: Long? = null
-        var position = offset.toInt()
-        val paged = if (Build.VERSION.SDK_INT >= 26) {
+        val page = if (Build.VERSION.SDK_INT >= 26) {
             val arguments = Bundle().apply {
                 putInt(ContentResolver.QUERY_ARG_LIMIT, DOCUMENT_PAGE_SIZE)
-                putInt(ContentResolver.QUERY_ARG_OFFSET, position)
+                putInt(ContentResolver.QUERY_ARG_OFFSET, offset.toInt())
             }
-            val candidate = try { resolver.query(children, projection(parent), arguments, null) }
+            try { resolver.query(children(parent), projection(parent), arguments, null) }
                 catch (_: IllegalArgumentException) { null }
                 catch (_: UnsupportedOperationException) { null }
-            val honored = candidate?.extras?.getStringArray(ContentResolver.EXTRA_HONORED_ARGS).orEmpty()
-            if (ContentResolver.QUERY_ARG_LIMIT in honored && ContentResolver.QUERY_ARG_OFFSET in honored) {
-                position = 0
-                candidate
-            } else {
-                candidate?.close()
-                null
-            }
         } else null
-        (paged ?: resolver.query(children, projection(parent), null, null, null))?.use { cursor ->
-            if (cursor.moveToPosition(position)) {
-                do {
-                    entries.put(entry(cursor, parent, true))
-                    if (entries.length() == DOCUMENT_PAGE_SIZE) {
-                        if (paged == null && cursor.moveToNext()) next = offset + DOCUMENT_PAGE_SIZE
-                        break
-                    }
-                } while (cursor.moveToNext())
-            }
-        } ?: throw FileNotFoundException("The folder is unavailable")
-        if (paged != null && entries.length() > 0) next = offset + entries.length()
+        val cursor = page ?: resolver.query(children(parent), projection(parent), null, null, null)
+            ?: throw FileNotFoundException("The folder is unavailable")
+        val entries = JSONArray()
+        val paged = cursor.use {
+            while (it.moveToNext()) entries.put(entry(it, parent, true, listed = true))
+            val honored = it.extras?.getStringArray(ContentResolver.EXTRA_HONORED_ARGS).orEmpty()
+            ContentResolver.QUERY_ARG_LIMIT in honored && ContentResolver.QUERY_ARG_OFFSET in honored
+        }
+        val next = if (paged && entries.length() > 0) offset + entries.length() else null
         return JSONObject().put("entries", entries).put("next", next ?: JSONObject.NULL)
+    }
+
+    /** The entry a folder lists under a name; no other entry has its identity looked up. */
+    private fun child(uri: Uri, name: String): JSONObject? {
+        val parent = documentUri(uri)
+        val cursor = if (isMediaCollection(parent)) {
+            resolver.query(parent, projection(parent), "${MediaStore.MediaColumns.DISPLAY_NAME} = ?", arrayOf(name),
+                "${MediaStore.MediaColumns._ID} ASC")
+        } else resolver.query(children(parent), projection(parent), null, null, null)
+        (cursor ?: throw FileNotFoundException("The folder is unavailable")).use {
+            while (it.moveToNext()) if (it.getString(1) == name) return entry(it, parent, true)
+        }
+        return null
     }
 
     private fun listMedia(parent: Uri, afterId: Long): JSONObject {
@@ -518,22 +543,8 @@ class AndroidDocuments(
                 }
                 else -> {
                     val parent = parents.lastOrNull() ?: throw SecurityException("Select the containing folder to access related documents")
-                    var offset = 0L
-                    var found: Uri? = null
-                    while (found == null) {
-                        val page = list(parent, offset)
-                        val entries = page.getJSONArray("entries")
-                        for (index in 0 until entries.length()) {
-                            val entry = entries.getJSONObject(index)
-                            if (entry.getString("name") == part) {
-                                found = Uri.parse(entry.getString("uri"))
-                                break
-                            }
-                        }
-                        if (found != null || page.isNull("next")) break
-                        offset = page.getLong("next")
-                    }
-                    parents.add(found ?: throw FileNotFoundException("The related document was not found"))
+                    val found = child(parent, part) ?: throw FileNotFoundException("The related document was not found")
+                    parents.add(Uri.parse(found.getString("uri")))
                 }
             }
         }

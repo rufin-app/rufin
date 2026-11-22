@@ -5,12 +5,12 @@ use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 
 impl FileSource {
-    /// The file's lyrics: a sidecar first, then the embedded text. `siblings` are the names a
+    /// The file's lyrics: a sidecar first, then the embedded text. `siblings` are the files a
     /// listing found in the file's directory; candidates there that it did not list are not
-    /// read.
+    /// read, and the others are read where it located them.
     pub(crate) async fn read_track_lyrics(
         &self,
-        siblings: Option<&std::collections::BTreeSet<String>>,
+        siblings: Option<&std::collections::BTreeMap<String, String>>,
         relative: &str,
         track: &mut crate::file::media::ScannedTrack,
     ) -> SourceResult<()> {
@@ -20,14 +20,23 @@ impl FileSource {
             track.track.cue_path.is_some(),
         );
         let input = self.input().await?;
-        if let Some(siblings) =
-            siblings.filter(|_| self.document_access().is_none() && track.track.cue_path.is_none())
-        {
+        if let Some(siblings) = siblings.filter(|_| track.track.cue_path.is_none()) {
             let directory = relative.rsplit_once('/').map_or("", |(parent, _)| parent);
-            candidates.retain(|candidate| {
-                let (parent, name) = candidate.rsplit_once('/').unwrap_or(("", candidate));
-                parent != directory || siblings.contains(name)
-            });
+            candidates = candidates
+                .iter()
+                .filter_map(|candidate| {
+                    let (parent, name) = candidate.rsplit_once('/').unwrap_or(("", candidate));
+                    if parent != directory {
+                        return Some(candidate.clone());
+                    }
+                    let native = siblings.get(name)?;
+                    Some(if parent.is_empty() {
+                        native.clone()
+                    } else {
+                        format!("{parent}/{native}")
+                    })
+                })
+                .collect();
         }
         let sidecar = self.sidecar_lyrics(&input, &candidates).await?;
         let bundle = match sidecar {

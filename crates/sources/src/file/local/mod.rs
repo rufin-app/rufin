@@ -1010,7 +1010,7 @@ impl walk::FileSource for LocalFiles<'_> {
         file: &mut library::LocalFileWrite,
         _native: &str,
         worker: std::sync::Arc<std::sync::Mutex<crate::file::media::Worker>>,
-        _siblings: Option<&std::collections::BTreeSet<String>>,
+        _siblings: Option<&std::collections::BTreeMap<String, String>>,
     ) -> SourceResult<crate::file::media::MediaRead> {
         if file.path.starts_with("content:") {
             // A document a playlist named, outside the document folders.
@@ -1046,7 +1046,7 @@ impl walk::FileSource for LocalFiles<'_> {
         file: &mut library::LocalFileWrite,
         _native: &str,
         worker: std::sync::Arc<std::sync::Mutex<crate::file::media::Worker>>,
-        _siblings: Option<&std::collections::BTreeSet<String>>,
+        _siblings: Option<&std::collections::BTreeMap<String, String>>,
     ) -> SourceResult<walk::CueRead> {
         let path = PathBuf::from(&file.path);
         tokio::task::spawn_blocking(move || {
