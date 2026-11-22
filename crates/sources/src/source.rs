@@ -503,6 +503,15 @@ pub struct LiveFolder {
     pub name: String,
 }
 
+/// One page of a server's search results: the keys of the tracks, albums and artists the
+/// Catalog holds of it, each kind in the server's order, and whether the server may hold more
+/// of the kind.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct SearchPage {
+    pub keys: [Vec<i64>; 3],
+    pub more: [bool; 3],
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct LiveFolderPage {
     pub folders: Vec<LiveFolder>,
@@ -1605,16 +1614,16 @@ impl Source {
         .await
     }
 
-    /// What the server finds for `query`, in music folder `music_folder` (its key and object
-    /// id): the server narrows to it where its search takes a folder, else the Catalog does; the
-    /// rows count their totals in it either way.
+    /// One page of what the server finds for `query`: of each kind (tracks, albums, artists)
+    /// `offsets` asks for, the results from that offset. It searches in music folder
+    /// `music_folder` (its key and object id).
     pub async fn live_search(
         &self,
         catalog: &Catalog,
         query: &str,
-        limit: usize,
+        offsets: [Option<usize>; 3],
         music_folder: Option<(library::FolderKey, &str)>,
-    ) -> SourceResult<library::SearchResults> {
+    ) -> SourceResult<SearchPage> {
         self.reach(async {
             if matches!(
                 self.implementation,
@@ -1627,20 +1636,20 @@ impl Source {
                 changes.start_observation().await?;
                 let source_id = self.source_id.as_str();
                 let folder_id = music_folder.map(|(_, id)| id);
-                let batch = match &self.implementation {
+                let (batch, more) = match &self.implementation {
                     Implementation::Plex(source) => {
                         source
-                            .live_search(source_id, query, limit, folder_id)
+                            .live_search(source_id, query, offsets, folder_id)
                             .await?
                     }
                     Implementation::JellyfinEmby(source) => {
                         source
-                            .live_search(source_id, query, limit, folder_id)
+                            .live_search(source_id, query, offsets, folder_id)
                             .await?
                     }
                     Implementation::OpenSubsonic(source) => {
                         source
-                            .live_search(source_id, query, limit, folder_id)
+                            .live_search(source_id, query, offsets, folder_id)
                             .await?
                     }
                     _ => return Err(SourceError::InvalidRequest("File Search is Catalog-owned")),
@@ -1669,17 +1678,17 @@ impl Source {
                     .lock()
                     .unwrap_or_else(|poisoned| poisoned.into_inner())
                     .extend(partial);
-                Ok(catalog
-                    .search_rows_by_objects(
+                let keys = catalog
+                    .search_keys_by_objects(
                         changes.source,
                         music_folder.map(|(key, _)| key),
-                        false,
                         &tracks,
                         &albums,
                         &artists,
                         &library::ReadCancellation::new(),
                     )
-                    .await?)
+                    .await?;
+                Ok(SearchPage { keys, more })
             })
             .await
         })
@@ -2874,7 +2883,7 @@ mod live_acquisition_tests {
                         .await
                         .unwrap(),
                     "track",
-                    20,
+                    [Some(0); 3],
                     None
                 )
                 .await,

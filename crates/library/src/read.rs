@@ -477,7 +477,7 @@ pub struct Fetched {
 }
 
 /// A window is at most this many rows; an artist's albums at most half.
-const WINDOW: usize = 256;
+pub(crate) const WINDOW: usize = 256;
 
 /// What rows show besides their own record: plays when a list asks for them, the list a
 /// playlist folder's totals come from, the time and music folder smart playlists are counted

@@ -331,28 +331,49 @@ impl PlexSource {
         }
         Ok(())
     }
+    /// A page of what the server finds for `query`, in `section` when one is given, of each
+    /// kind (tracks, albums, artists) `offsets` asks for, and whether the server may hold more
+    /// of it. Its search takes no offset and gives more of a kind only under a larger limit,
+    /// in another order: a later page asks with the limit doubled and gives every result, of
+    /// which the caller keeps the ones it has not seen; a page with none is the end.
     pub(crate) async fn live_search(
         &self,
         source_id: &str,
         query: &str,
-        limit: usize,
+        offsets: [Option<usize>; 3],
         section: Option<&str>,
-    ) -> SourceResult<library::CatalogBatch> {
+    ) -> SourceResult<(library::CatalogBatch, [bool; 3])> {
+        let page = library::SEARCH_PAGE;
+        let pages = offsets.iter().flatten().max().copied().unwrap_or(0) / page;
+        let limit = page << pages.min(16);
         let mut parameters = vec![
             ("query", query.into()),
-            ("limit", limit.clamp(1, 100).to_string()),
+            ("limit", limit.to_string()),
             ("includeCollections", "0".into()),
         ];
         parameters.extend(section.map(|section| ("sectionId", raw_item_id(section).into())));
         let response = self.get("/hubs/search", &parameters).await?;
-        let native = items(&response["MediaContainer"]["Hub"])
-            .iter()
-            .flat_map(|hub| items(&hub["Metadata"]).iter().take(limit.clamp(1, 100)))
-            .map(|item| (item, item::ItemResponse::Summary));
-        Ok(item::read_items(source_id, native)?
+        let mut more = [false; 3];
+        let mut native = Vec::new();
+        for hub in items(&response["MediaContainer"]["Hub"]) {
+            let kind = match hub["type"].as_str() {
+                Some("track") => 0,
+                Some("album") => 1,
+                Some("artist") => 2,
+                _ => continue,
+            };
+            if offsets[kind].is_none() {
+                continue;
+            }
+            let found = items(&hub["Metadata"]);
+            more[kind] = !found.is_empty();
+            native.extend(found.iter().map(|item| (item, item::ItemResponse::Summary)));
+        }
+        let batch = item::read_items(source_id, native)?
             .into_iter()
             .next()
-            .unwrap_or_default())
+            .unwrap_or_default();
+        Ok((batch, more))
     }
     pub(crate) async fn browse_folder(
         &self,

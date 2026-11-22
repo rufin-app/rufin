@@ -92,6 +92,46 @@ pub(crate) async fn listed_tracks(
         .collect()
 }
 
+/// The rows of the first page of what `source` finds for `query`.
+#[cfg(test)]
+pub(crate) struct Searched {
+    pub tracks: Vec<library::TrackRow>,
+    pub albums: Vec<library::AlbumRow>,
+    pub artists: Vec<library::ArtistRow>,
+}
+
+#[cfg(test)]
+pub(crate) async fn searched(
+    catalog: &library::Catalog,
+    source: &crate::Source,
+    query: &str,
+) -> Searched {
+    let page = source
+        .live_search(catalog, query, [Some(0); 3], None)
+        .await
+        .unwrap();
+    let mut searched = Searched {
+        tracks: Vec::new(),
+        albums: Vec::new(),
+        artists: Vec::new(),
+    };
+    for (kind, keys) in page.keys.iter().enumerate() {
+        let rows = catalog
+            .search_rows(kind, keys, None, true, &library::ReadCancellation::new())
+            .await
+            .unwrap();
+        for row in rows {
+            match row {
+                library::Row::Track(row) => searched.tracks.push(row),
+                library::Row::Album(row) => searched.albums.push(row),
+                library::Row::Artist(row) => searched.artists.push(row),
+                _ => {}
+            }
+        }
+    }
+    searched
+}
+
 /// The album rows of a list.
 #[cfg(test)]
 pub(crate) async fn listed_albums(

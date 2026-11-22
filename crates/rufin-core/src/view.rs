@@ -10,7 +10,7 @@ use library::{
     AlbumSpan, Catalog, Collection, Fetch, FolderRead, FolderRow, Header, HeaderKey, HomeAlbumRow,
     HomeBlockKind, HomePage, HomeProviderSection, HomeSectionRows, HomeTrackRow, Item,
     LibraryError, LibraryResult, ListKind, ListRead, MemberRead, MemberSelection, Read,
-    ReadCancellation, RouteSeedWindow, Row, ScrollSection, SearchResults, SourceKey, TagRow,
+    ReadCancellation, RouteSeedWindow, Row, ScrollSection, SourceKey, TagRow,
 };
 
 use crate::playback::{PlayRequest, QueuePlacement, random_u64};
@@ -23,6 +23,7 @@ use crate::settings::{
 use crate::source::SourceOwner;
 use crate::source::feed::Changed;
 use crate::source::folders::FolderProjection;
+use crate::source::search::Searched;
 
 /// What a committed change means for an open page, weakest first.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -133,11 +134,24 @@ enum Body {
         track_len: usize,
     },
     Home(Box<HomePage>),
-    /// What a search found, each kind best first, and whether a change to what it
-    /// matches committed since: a reread matches the query in the Catalog again only then.
-    Search(Box<SearchResults>, std::sync::atomic::AtomicBool),
+    Search(Box<Search>),
     /// The collection the route names is gone or empty, or the route lists nothing itself.
     Missing,
+}
+
+/// What a search found so far, each kind best first: the next pages of results its server
+/// found join it as rows past them are read, one page at a time.
+struct Search {
+    results: std::sync::Mutex<Searched>,
+    asking: tokio::sync::Mutex<()>,
+}
+
+impl Search {
+    fn results(&self) -> std::sync::MutexGuard<'_, Searched> {
+        self.results
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
 }
 
 /// A view and the rows it read when it opened: its header, the seed window starting at
@@ -165,7 +179,7 @@ enum Plan {
         tracks: MemberRead,
     },
     Home(Box<HomePage>),
-    Search(Box<SearchResults>),
+    Search(Box<Searched>),
     Missing,
 }
 
@@ -816,8 +830,7 @@ impl SourceOwner {
                     self,
                     selected,
                     options.search_mode,
-                    options.filter.clone(),
-                    true,
+                    &options.filter,
                     cancel,
                 )
                 .await?;
@@ -978,7 +991,10 @@ async fn read(
             (None, 0, Vec::new(), None)
         }
         Plan::Search(results) => {
-            view.body = Body::Search(results, Default::default());
+            view.body = Body::Search(Box::new(Search {
+                results: std::sync::Mutex::new(*results),
+                asking: Default::default(),
+            }));
             (None, 0, Vec::new(), None)
         }
         Plan::Missing => (None, 0, Vec::new(), None),
@@ -1150,22 +1166,6 @@ impl View {
     /// downloads read it again only where they order or filter its rows; the rows and header
     /// that show them show them through [`crate::shown::ShownChanges`].
     pub fn refresh(&self, current: Option<&SelectedLibrary>, changed: &Changed) -> Refresh {
-        if let Body::Search(_, rematch) = &self.body {
-            let mode = self.options.search_mode;
-            let matched = |source: &SourceKey| {
-                !self.route.requires_selected_source(mode)
-                    || self
-                        .selected
-                        .as_ref()
-                        .is_some_and(|selected| selected.source_key == *source)
-            };
-            if changed.all
-                || changed.sources.iter().any(matched)
-                || changed.lyrics && mode == library::SearchMode::Lyrics
-            {
-                rematch.store(true, Ordering::Relaxed);
-            }
-        }
         let refresh = changes(
             &self.owner,
             &self.route,
@@ -1449,12 +1449,108 @@ impl View {
         ))
     }
 
-    /// What a search found, each kind best first.
-    pub fn search_results(&self) -> Option<&SearchResults> {
-        match &self.body {
-            Body::Search(results, _) => Some(results),
-            _ => None,
+    /// How many results of `category` a search found so far, and whether its server may hold
+    /// more: a read of rows past them asks for the next page.
+    pub fn search_len(&self, category: CollectionCategory) -> (usize, bool) {
+        let Body::Search(search) = &self.body else {
+            return (0, false);
+        };
+        let results = search.results();
+        let kind = category as usize;
+        (
+            results.found.keys[kind].len(),
+            results.next.is_some_and(|next| next[kind].is_some()),
+        )
+    }
+
+    /// Search results `range` of `category`, at most 256, each kind best first, each track
+    /// with the excerpt of its lyrics a lyrics search matched. The rows end where the results
+    /// do: a range past the ones found so far asks the server for its next page.
+    pub async fn search_rows(
+        &self,
+        category: CollectionCategory,
+        range: Range<usize>,
+        cancel: &ReadCancellation,
+    ) -> LibraryResult<Vec<(Row, Option<library::LyricsSnippet>)>> {
+        let Body::Search(search) = &self.body else {
+            return Ok(Vec::new());
+        };
+        let kind = category as usize;
+        let selected = Scope::of(&self.route).apply(self.selected.as_ref());
+        while let (Some(selected), (len, true)) = (&selected, self.search_len(category))
+            && range.end > len
+        {
+            let _asking = search.asking.lock().await;
+            // Another read asked for this page meanwhile.
+            let Some(offset) = search.results().next.and_then(|next| next[kind]) else {
+                break;
+            };
+            if self.search_len(category).0 != len {
+                continue;
+            }
+            let mut offsets = [None; 3];
+            offsets[kind] = Some(offset);
+            let page = crate::source::search::server_page(
+                &self.owner,
+                selected,
+                &self.options.filter,
+                offsets,
+                cancel,
+            )
+            .await?;
+            // The results end where the server gives no more, also when it does not answer.
+            let page = match page {
+                Some(Ok(page)) => page,
+                Some(Err(error)) => {
+                    tracing::warn!(%error, "the server did not give more search results");
+                    Default::default()
+                }
+                None => Default::default(),
+            };
+            let mut results = search.results();
+            let keys = &mut results.found.keys[kind];
+            let held = keys
+                .iter()
+                .copied()
+                .collect::<std::collections::HashSet<_>>();
+            keys.extend((page.keys[kind].iter()).filter(|key| !held.contains(key)));
+            // A page with nothing new is the last one.
+            let more = page.more[kind] && keys.len() > held.len();
+            if let Some(next) = &mut results.next {
+                next[kind] = more.then_some(offset + library::SEARCH_PAGE);
+            }
         }
+        let (keys, lyrics) = {
+            let results = search.results();
+            let keys = &results.found.keys[kind];
+            let end = range.end.min(keys.len());
+            (
+                keys[range.start.min(end)..end].to_vec(),
+                results.found.lyrics.clone().filter(|_| kind == 0),
+            )
+        };
+        let catalog = self.catalog();
+        let rows = catalog
+            .search_rows(kind, &keys, self.music_folder(), self.art, cancel)
+            .await?;
+        let mut excerpts = match &lyrics {
+            Some(found) => keys
+                .iter()
+                .copied()
+                .zip(catalog.lyrics_excerpts(found, &keys, cancel).await?)
+                .collect::<std::collections::BTreeMap<_, _>>(),
+            None => Default::default(),
+        };
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                let excerpt = match &row {
+                    Row::Track(track) => excerpts.remove(&track.track_key.raw()).flatten(),
+                    _ => None,
+                };
+                (row, excerpt)
+            })
+            .collect())
     }
 
     /// How many child folders come before a folder's tracks.
@@ -1831,29 +1927,27 @@ impl View {
                 )
                 .await
             }
-            // A favorite, rating or play change reads the results it found again, in their
-            // order; a change to what they match matches the query in the Catalog again. Only
-            // a new query searches the server.
-            (Body::Search(results, rematch), _) if options == self.options => {
-                let folder = self.music_folder();
-                let results = if rematch.load(Ordering::Relaxed) {
-                    crate::source::search::search(
-                        &self.owner,
-                        Scope::of(&self.route)
-                            .apply(self.selected.as_ref())
-                            .as_ref(),
-                        options.search_mode,
-                        options.filter.clone(),
-                        false,
-                        cancel,
-                    )
-                    .await?
-                } else {
-                    self.catalog()
-                        .reread_search(results, folder, cancel)
+            // The results stay whose they are until the query changes: the ones its server
+            // found keep the server's set and order, less what the Catalog no longer holds;
+            // the Catalog matches its own again.
+            (Body::Search(search), _) if options == self.options => {
+                let results = search.results().clone();
+                let found = match results.next {
+                    Some(_) => self.catalog().search_held(&results.found),
+                    None => {
+                        crate::source::search::matched(
+                            &self.owner,
+                            Scope::of(&self.route)
+                                .apply(self.selected.as_ref())
+                                .as_ref(),
+                            options.search_mode,
+                            &options.filter,
+                            cancel,
+                        )
                         .await?
+                    }
                 };
-                let plan = Plan::Search(Box::new(results));
+                let plan = Plan::Search(Box::new(Searched { found, ..results }));
                 read(self.again(options, settings), plan, None, seed, cancel).await
             }
             (Body::Releases { .. }, _)

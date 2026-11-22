@@ -306,45 +306,73 @@ impl JellyfinEmbySource {
         Ok(page)
     }
 
-    /// What the server finds for `query`, under music folder `music_folder` when one is given.
+    /// A page of what the server finds for `query`, under music folder `music_folder` when one
+    /// is given: of each kind (tracks, albums, artists) `offsets` asks for, the results from
+    /// that offset, and whether the server may hold more of it.
     pub(crate) async fn live_search(
         &self,
         source_id: &str,
         query: &str,
-        limit: usize,
+        offsets: [Option<usize>; 3],
         music_folder: Option<&str>,
-    ) -> SourceResult<library::CatalogBatch> {
+    ) -> SourceResult<(library::CatalogBatch, [bool; 3])> {
         if query.trim().is_empty() {
-            return Ok(library::CatalogBatch::default());
+            return Ok(Default::default());
         }
-        let limit = limit.clamp(1, 100);
         let parent = music_folder.map(raw_item_id);
-        let (artists, albums, songs) = tokio::join!(
-            self.search_people(query, limit, parent),
-            self.search_items("MusicAlbum", ALBUM_FIELDS, query, limit, parent),
-            self.search_items("Audio", TRACK_FIELDS, query, limit, parent)
+        let (songs, albums, artists) = tokio::join!(
+            async {
+                match offsets[0] {
+                    Some(offset) => {
+                        self.search_items("Audio", TRACK_FIELDS, query, offset, parent)
+                            .await
+                    }
+                    None => Ok(Vec::new()),
+                }
+            },
+            async {
+                match offsets[1] {
+                    Some(offset) => {
+                        self.search_items("MusicAlbum", ALBUM_FIELDS, query, offset, parent)
+                            .await
+                    }
+                    None => Ok(Vec::new()),
+                }
+            },
+            async {
+                match offsets[2] {
+                    Some(offset) => self.search_people(query, offset, parent).await,
+                    None => Ok(Vec::new()),
+                }
+            }
         );
-        if artists.is_err() && albums.is_err() && songs.is_err() {
-            return Err(songs.err().unwrap());
+        // A kind the server could not search finds none while another kind answers.
+        let mut found = [songs, albums, artists];
+        if (0..3).all(|kind| offsets[kind].is_none() || found[kind].is_err())
+            && let Some(error) = found
+                .iter_mut()
+                .find_map(|found| std::mem::replace(found, Ok(Vec::new())).err())
+        {
+            return Err(error);
         }
-        Ok(library::CatalogBatch {
+        let [songs, albums, artists] = found.map(Result::unwrap_or_default);
+        let more = [&songs, &albums, &artists].map(|found| found.len() >= library::SEARCH_PAGE);
+        let batch = library::CatalogBatch {
             artists: artists
-                .unwrap_or_default()
                 .iter()
                 .filter_map(|item| artist_from_item(self.kind, source_id, item).transpose())
                 .collect::<library::LibraryResult<_>>()?,
             albums: albums
-                .unwrap_or_default()
                 .iter()
                 .filter_map(|item| album_from_item(self.kind, source_id, item).transpose())
                 .collect::<library::LibraryResult<_>>()?,
             tracks: songs
-                .unwrap_or_default()
                 .iter()
                 .filter_map(|item| track_from_item(self.kind, source_id, item).transpose())
                 .collect::<library::LibraryResult<_>>()?,
             ..Default::default()
-        })
+        };
+        Ok((batch, more))
     }
 
     async fn search_items(
@@ -352,16 +380,17 @@ impl JellyfinEmbySource {
         item_types: &str,
         fields: &str,
         query: &str,
-        limit: usize,
+        offset: usize,
         parent: Option<&str>,
     ) -> SourceResult<Vec<Value>> {
+        let limit = library::SEARCH_PAGE;
         let mut url = endpoint(&self.base_url(), "Items")?;
         url.query_pairs_mut()
             .append_pair("UserId", &self.user_id)
             .append_pair("Recursive", "true")
             .append_pair("IncludeItemTypes", item_types)
             .append_pair("SearchTerm", query)
-            .append_pair("StartIndex", "0")
+            .append_pair("StartIndex", &offset.to_string())
             .append_pair("Limit", &limit.to_string())
             .append_pair("Fields", fields);
         if let Some(parent) = parent {
@@ -379,11 +408,12 @@ impl JellyfinEmbySource {
     async fn search_people(
         &self,
         query: &str,
-        limit: usize,
+        offset: usize,
         parent: Option<&str>,
     ) -> SourceResult<Vec<Value>> {
+        let limit = library::SEARCH_PAGE;
         let mut url = endpoint(&self.base_url(), "Artists")?;
-        url.query_pairs_mut().append_pair("UserId",&self.user_id).append_pair("SearchTerm",query).append_pair("StartIndex","0").append_pair("Limit",&limit.to_string()).append_pair("Fields","ParentId,UserData,ItemCounts,ChildCount,AlbumCount,SongCount,ImageTags,ImageBlurHashes,ProviderIds,SortName");
+        url.query_pairs_mut().append_pair("UserId",&self.user_id).append_pair("SearchTerm",query).append_pair("StartIndex",&offset.to_string()).append_pair("Limit",&limit.to_string()).append_pair("Fields","ParentId,UserData,ItemCounts,ChildCount,AlbumCount,SongCount,ImageTags,ImageBlurHashes,ProviderIds,SortName");
         if let Some(parent) = parent {
             url.query_pairs_mut().append_pair("ParentId", parent);
         }
@@ -1385,10 +1415,7 @@ mod tests {
             }
             let mut updates = catalog.changes();
             crate::published(&mut updates);
-            let results = owner
-                .live_search(&catalog, "Match", 10, None)
-                .await
-                .unwrap();
+            let results = crate::searched(&catalog, &owner, "Match").await;
             assert!(
                 crate::published(&mut updates)
                     .expect("catalog update")

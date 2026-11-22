@@ -9,9 +9,9 @@ use std::time::Duration;
 
 use crate::widgets::selection::PlayTarget;
 use adw::prelude::*;
+use gtk::glib;
 use gtk::subclass::prelude::ObjectSubclassIsExt;
-use gtk::{gio, glib};
-use library::{ReadCancellation, SearchResults};
+use library::ReadCancellation;
 use localization::{msgid, tr};
 use rufin_core::artwork::ArtworkBinding;
 use rufin_core::playback::QueuePlacement;
@@ -41,7 +41,7 @@ use crate::widgets::library_fields::{
     COLLECTION_GRID_MAX_CARD_WIDTH, TrackPresentation, add_field_skeleton_class, column_width,
 };
 use crate::widgets::recycled_cells::{RecycledMergedCell, RecycledTextCell, list_cell};
-use crate::widgets::view_model::{RowItem, connect_row_bind};
+use crate::widgets::view_model::{RowItem, RowList, Rows, connect_row_bind};
 use rufin_core::route::CollectionCategory;
 use rufin_core::route::Route;
 use rufin_core::route::detail_links::DetailLinks;
@@ -54,7 +54,7 @@ pub mod session;
 use crate::widgets::lyrics_snippet::LyricsSnippetView;
 
 #[derive(Clone, PartialEq)]
-#[expect(clippy::large_enum_variant, reason = "bounded prepared Search rows")]
+#[expect(clippy::large_enum_variant, reason = "windows of prepared Search rows")]
 enum SearchItem {
     Track(library::TrackRow, Option<library::LyricsSnippet>),
     Album(library::AlbumRow),
@@ -93,15 +93,6 @@ impl library::ShowsState for SearchItem {
 }
 
 impl SearchItem {
-    /// The track, album or artist it shows.
-    fn uri(&self) -> &str {
-        match self {
-            Self::Track(row, _) => &row.media_uri,
-            Self::Album(row) => &row.media_uri,
-            Self::Artist(row) => &row.media_uri,
-        }
-    }
-
     fn lyrics(&self) -> Option<&library::LyricsSnippet> {
         match self {
             Self::Track(_, snippet) => snippet.as_ref(),
@@ -443,7 +434,7 @@ struct SearchRouteProjection {
     category_host: gtk::Box,
     search_modes: gtk::Box,
     modes: [gtk::ToggleButton; 2],
-    models: [gio::ListStore; 3],
+    rows: [Rows<SearchItem>; 3],
     playing: crate::widgets::recycled_cells::TrackRowPlayingIndicator,
     active: RefCell<Option<SearchPresentation>>,
 }
@@ -477,7 +468,7 @@ impl SearchRouteProjection {
         let search = shell.chrome.topbar.search.clone();
 
         // The page shows the session's results, the one copy the header shows too.
-        let models = shell.search_session.models.clone();
+        let rows = shell.search_session.rows.clone();
         let category_pages =
             CollectionCategory::ALL.map(|_| gtk::Box::new(gtk::Orientation::Vertical, 0).upcast());
         let (results, switcher) =
@@ -504,7 +495,7 @@ impl SearchRouteProjection {
             category_host,
             search_modes,
             modes,
-            models,
+            rows,
             playing: crate::widgets::recycled_cells::TrackRowPlayingIndicator::new(),
             active: RefCell::new(None),
         });
@@ -565,7 +556,7 @@ impl SearchRouteProjection {
         };
         let collection = search_collection(
             &shell,
-            self.models[category as usize].clone(),
+            self.rows[category as usize].list_model(),
             category,
             (category == CollectionCategory::Tracks).then(|| self.playing.clone()),
         );
@@ -581,26 +572,17 @@ impl SearchRouteProjection {
         self.result_page
             .add_named(&presentation.collection.scrolling_widget(), Some("results"));
         self.active.replace(Some(presentation));
-        self.show_results(self.models[category as usize].n_items() != 0);
+        self.show_results(!self.rows[category as usize].is_empty());
     }
 
     fn register_now_playing(&self, shell: &Rc<CatalogUi>) {
-        let model = self.models[CollectionCategory::Tracks as usize].clone();
+        let rows = self.rows[CollectionCategory::Tracks as usize].clone();
         let indicator = self.playing.clone();
         shell.register_current_route_track_selection(Rc::new(move |current| {
+            // Among the rows read; a row read later shows it as it binds.
             let position = current
                 .and_then(|current| {
-                    (0..model.n_items()).find(|position| {
-                        model
-                            .item(*position)
-                            .and_then(|item| {
-                                crate::widgets::view_model::object_item::<SearchItem, _>(
-                                    item,
-                                    |item| item.media_uri() == Some(current.media_uri.as_str()),
-                                )
-                            })
-                            .unwrap_or(false)
-                    })
+                    rows.ready_position(|item| item.media_uri() == Some(&current.media_uri))
                 })
                 .unwrap_or(gtk::INVALID_LIST_POSITION);
             indicator.set_current(current.map(|current| current.media_uri.as_str()), position);
@@ -628,7 +610,7 @@ impl SearchRouteProjection {
             return;
         }
         if let Some(active) = self.active.borrow().as_ref() {
-            self.show_results(self.models[active.category as usize].n_items() != 0);
+            self.show_results(!self.rows[active.category as usize].is_empty());
         }
         self.status.set_visible_child_name(self.session.status());
     }
@@ -771,7 +753,7 @@ impl CatalogUi {
 
 fn search_collection(
     shell: &Rc<CatalogUi>,
-    model: gio::ListStore,
+    model: RowList,
     category: CollectionCategory,
     playing: Option<crate::widgets::recycled_cells::TrackRowPlayingIndicator>,
 ) -> LibraryCollectionProjection {
@@ -1157,23 +1139,16 @@ fn search_actions_column(shell: &Rc<CatalogUi>, field: LibraryField) -> gtk::Col
     crate::widgets::recycled_cells::row_action_column(field, &factory)
 }
 
-fn cached_items(mut results: SearchResults) -> [Vec<SearchItem>; 3] {
-    [
-        results
-            .tracks
-            .into_iter()
-            .map(|row| {
-                let snippet = results.lyrics.remove(&row.track_key);
-                SearchItem::Track(row, snippet)
-            })
-            .collect(),
-        results.albums.into_iter().map(SearchItem::Album).collect(),
-        results
-            .artists
-            .into_iter()
-            .map(SearchItem::Artist)
-            .collect(),
-    ]
+/// The rows of a Search page as the results the page and the header show.
+fn search_items(rows: Vec<(library::Row, Option<library::LyricsSnippet>)>) -> Vec<SearchItem> {
+    rows.into_iter()
+        .filter_map(|(row, lyrics)| match row {
+            library::Row::Track(row) => Some(SearchItem::Track(row, lyrics)),
+            library::Row::Album(row) => Some(SearchItem::Album(row)),
+            library::Row::Artist(row) => Some(SearchItem::Artist(row)),
+            _ => None,
+        })
+        .collect()
 }
 
 #[cfg(test)]

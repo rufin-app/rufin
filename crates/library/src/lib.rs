@@ -43,6 +43,7 @@ mod local;
 mod loudness;
 mod lyrics;
 mod lyrics_search;
+pub use lyrics_search::LyricsFound;
 mod lyrics_tokenizer;
 mod migration;
 mod mosaics;
@@ -148,7 +149,9 @@ pub use queue::{
     QueueUpdate, shuffle_order,
 };
 pub use radio::{RadioSeed, RadioTaste, SameArtist, SimilarArtist};
-pub use search::{LyricsSnippet, LyricsSnippetPart, SearchMode, SearchRequest, SearchResults};
+pub use search::{
+    LyricsSnippet, LyricsSnippetPart, SEARCH_PAGE, SearchFound, SearchMode, SearchRequest,
+};
 pub use smart_playlists::{
     SmartPlaylistActivityPeriod, SmartPlaylistCondition, SmartPlaylistCopy,
     SmartPlaylistDefinition, SmartPlaylistFieldSection, SmartPlaylistMatch, SmartPlaylistRow,

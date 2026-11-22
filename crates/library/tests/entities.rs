@@ -948,40 +948,25 @@ async fn tracks_and_collections_keep_complete_orders_and_bounded_rows() {
             album_artist: true
         }]
     );
-    assert_eq!(
-        fixture
-            .catalog
-            .search(
-                fixture.source,
-                None,
-                false,
-                &SearchRequest::new("artist b"),
-                &cancel
-            )
-            .await
-            .expect("multi-term Artist Search")
-            .artists
-            .into_iter()
-            .map(|artist| artist.name)
-            .collect::<Vec<_>>(),
-        ["Artist B"]
-    );
-    assert_eq!(
-        fixture
-            .catalog
-            .search(
-                fixture.source,
-                None,
-                true,
-                &SearchRequest::new("artist a"),
-                &cancel
-            )
-            .await
-            .expect("Album Artist Search")
-            .artists[0]
-            .artist_key,
-        fixture.artists[0]
-    );
+    let found = fixture
+        .catalog
+        .search(
+            fixture.source,
+            None,
+            &SearchRequest::new("artist b"),
+            &cancel,
+        )
+        .await
+        .expect("multi-term Artist Search");
+    let rows = fixture
+        .catalog
+        .search_rows(2, &found.keys[2], None, false, &cancel)
+        .await
+        .expect("Artist Search rows");
+    assert!(matches!(
+        rows.as_slice(),
+        [library::Row::Artist(artist)] if artist.name == "Artist B"
+    ));
     assert_eq!(
         tag(&fixture.catalog, Item::Mood(fixture.mood))
             .await

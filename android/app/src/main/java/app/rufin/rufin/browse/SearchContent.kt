@@ -24,8 +24,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.paging.LoadState
-import androidx.paging.LoadStates
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import app.rufin.rufin.core.translate
@@ -39,7 +37,8 @@ import app.rufin.rufin.ui.RufinIcon
 import app.rufin.rufin.ui.LocalPlayerBottomPadding
 import app.rufin.rufin.ui.rememberArtwork
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -112,17 +111,10 @@ internal fun SearchContent(
     }
 }
 
-/** How many results of each kind show while typing. */
+/** How many results of each kind show while typing; a kind shown in full lists every one. */
 private const val QUICK_RESULTS = 4
 
-/** Which of the search's three lists a result is in. */
-private val BrowseItem.searchKind get() = when {
-    row.albumRow != null -> app.rufin.rufin.shared.rufin_core.CollectionCategory.ALBUMS
-    row.artistRow != null -> app.rufin.rufin.shared.rufin_core.CollectionCategory.ARTISTS
-    else -> app.rufin.rufin.shared.rufin_core.CollectionCategory.TRACKS
-}
-
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Composable
 private fun SearchResults(
     browse: BrowseConnection,
@@ -135,9 +127,11 @@ private fun SearchResults(
         // Typing shows a few results of each kind under its heading, as the desktop's quick results do; Enter,
         // or a heading, shows one kind in full under tabs.
         LaunchedEffect(browse.searchText) { browse.searchSubmitted = false }
-        val found = browse.searchRows
+        val found = browse.searchKinds
         val kinds = remember(found, browse.categories) {
-            browse.categories.map { kind -> kind to found.filter { it.searchKind == kind.category } }.filter { it.second.isNotEmpty() }
+            browse.categories.mapNotNull { kind ->
+                found.firstOrNull { it.category == kind.category && it.rows.isNotEmpty() }?.let { kind to it }
+            }
         }
         if (kinds.isEmpty()) {
             if (browse.loading) app.rufin.rufin.ui.PageLoading() else BrowseEmptyState()
@@ -145,12 +139,15 @@ private fun SearchResults(
         }
         if (!browse.searchSubmitted) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 8.dp + LocalPlayerBottomPadding.current)) {
-                kinds.forEach { (kind, rows) ->
+                kinds.forEach { (kind, results) ->
+                    val rows = results.rows
                     item(key = "kind:${kind.category}") {
                         Row(Modifier.fillMaxWidth().clickable { browse.searchCategory = kind.category; browse.searchSubmitted = true }
                             .padding(start = 16.dp, end = 12.dp, top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(kind.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                            Text(rows.size.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            // A server that may hold more than it gave so far counts at least these.
+                            Text(if (results.more) "${results.count}+" else results.count.toString(),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             RufinIcon("rufin-go-next-symbolic", null, Modifier.padding(start = 4.dp).size(16.dp), MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -164,15 +161,17 @@ private fun SearchResults(
             }
             return
         }
-        // Search reads its rows whole: a result list is loaded, and an empty one shows as empty.
+        // A kind in full reads its rows as it scrolls, as a list page does.
         val kind = kinds.firstOrNull { it.first.category == browse.searchCategory } ?: kinds.first()
         Column(Modifier.fillMaxSize()) {
             app.rufin.rufin.ui.SegmentedPill(kinds.map { it.first.category }, kind.first.category, { browse.searchCategory = it },
                 Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp), scroll = rememberScrollState()) { category, _ ->
                 Text(kinds.first { it.first.category == category }.first.title, style = MaterialTheme.typography.titleSmall, maxLines = 1)
             }
-            val searchFlow = remember(browse, kind.first.category) {
-                snapshotFlow { browse.searchRows.filter { it.searchKind == kind.first.category } }.map { PagingData.from(it, LOADED) }
+            val category = kind.first.category
+            val searchFlow = remember(browse, category) {
+                snapshotFlow { browse.searchKinds.firstOrNull { it.category == category } }
+                    .flatMapLatest { it?.let(browse::searchPages) ?: flowOf(PagingData.empty<BrowseItem>()) }
             }
             val rows = searchFlow.collectAsLazyPagingItems()
             Box(Modifier.weight(1f)) {
@@ -239,5 +238,3 @@ private fun SearchResults(
     } }
     metadata?.row?.metadataItem?.let { item -> app.rufin.rufin.metadata.MetadataEditorScreen(player.model, item) { metadata = null } }
 }
-
-private val LOADED = LoadStates(LoadState.NotLoading(false), LoadState.NotLoading(true), LoadState.NotLoading(true))

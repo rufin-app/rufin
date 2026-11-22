@@ -1,14 +1,16 @@
-//! The Store indexes saved lyric documents and returns bounded track results with excerpts.
+//! The Store indexes saved lyric documents; a search finds every track they match and reads
+//! the excerpts of the ones a page shows.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use futures_util::TryStreamExt;
-use sqlx::{Connection, SqliteConnection};
+use sqlx::SqliteConnection;
 
 use crate::catalog::{snapshot::Packed, views::Context};
 use crate::{
-    Catalog, LibraryResult, LyricsSnippet, LyricsSnippetPart, ReadCancellation, SearchRequest,
-    SearchResults, TrackKey,
+    Catalog, LibraryResult, LyricsSnippet, LyricsSnippetPart, ReadCancellation, SearchFound,
+    SearchRequest,
 };
 
 /// One row per display document of a lyrics row, written by the lyrics Write. It needs the
@@ -24,25 +26,33 @@ pub(crate) async fn initialize(connection: &mut SqliteConnection) -> LibraryResu
     Ok(())
 }
 
+/// Where a lyrics search matched: the expressions it tried, and for each track it found the
+/// indexed document that matched and the expression that found it.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LyricsFound {
+    expressions: Vec<Vec<Phrase>>,
+    matches: BTreeMap<i64, (i64, usize)>,
+}
+
 impl Catalog {
-    /// Tracks whose lyrics match `request`, in every source; music folder `folder` narrows its
-    /// own source's.
+    /// Every track whose lyrics match `request`, in every source; music folder `folder`
+    /// narrows its own source's.
     pub async fn search_tracks_by_lyrics(
         &self,
         request: &SearchRequest,
         folder: Option<crate::FolderKey>,
         cancellation: &ReadCancellation,
-    ) -> LibraryResult<SearchResults> {
+    ) -> LibraryResult<SearchFound> {
         let expressions = expressions(request.query());
         if expressions.is_empty() {
-            return Ok(SearchResults::default());
+            return Ok(SearchFound::default());
         }
         self.loaded().await;
         if Context::new(&self.snapshot())
             .folder_slot(folder, None)
             .is_none()
         {
-            return Ok(SearchResults::default());
+            return Ok(SearchFound::default());
         }
         // A music folder narrows only its own source's tracks; a reload may move its slot.
         let kept = |key: i64| {
@@ -54,62 +64,80 @@ impl Catalog {
             })
         };
         let mut connection = self.acquire_cancellable(cancellation).await?;
-        let mut transaction = connection.begin().await?;
         let mut keys = Vec::new();
-        let mut lyrics = BTreeMap::new();
-        for phrases in expressions {
-            // Read in index order, stopping after a page of distinct tracks.
-            let mut rows = sqlx::query_as::<_, (i64, String, i64)>(
-                "SELECT track.track_key,lyrics.lyrics,lyrics_fts.rowid&3
+        let mut matches = BTreeMap::new();
+        for (index, phrases) in expressions.iter().enumerate() {
+            // In index order; a track an earlier expression found keeps that match.
+            let mut rows = sqlx::query_as::<_, (i64, i64)>(
+                "SELECT track.track_key,lyrics_fts.rowid
                      FROM lyrics_fts
                      JOIN lyrics_cache lyrics ON lyrics.lyrics_key=lyrics_fts.rowid>>2
                      JOIN tracks track ON track.media_uri=lyrics.media_uri
                      WHERE lyrics_fts MATCH ?1
-                       AND track.track_key NOT IN(SELECT value FROM json_each(?2))
                      ORDER BY lyrics_fts.rowid",
             )
-            .bind(expression(&phrases))
-            .bind(serde_json::to_string(&keys)?)
-            .fetch(&mut *transaction);
-            while let Some((key, payload, ordinal)) = rows.try_next().await? {
-                if keys.contains(&key) || !kept(key) {
+            .bind(expression(phrases))
+            .fetch(&mut *connection);
+            while let Some((key, document)) = rows.try_next().await? {
+                if matches.contains_key(&key) || !kept(key) {
                     continue;
                 }
                 keys.push(key);
-                let text = crate::lyrics::documents(&payload)
-                    .into_iter()
-                    .find(|(document, _)| *document as i64 == ordinal)
-                    .map(|(_, text)| text)
-                    .unwrap_or_default();
-                lyrics.insert(TrackKey::from_raw(key), snippet(&excerpt(&text, &phrases)));
-                if keys.len() == request.limit() {
-                    break;
-                }
-            }
-            if keys.len() == request.limit() {
-                break;
+                matches.insert(key, (document, index));
             }
         }
-        let tracks = self
-            .search_rows(
-                &mut transaction,
-                &[keys, Vec::new(), Vec::new()],
-                false,
-                None,
-            )
-            .await?
-            .tracks;
-        transaction.commit().await?;
-        Ok(SearchResults {
-            tracks,
-            lyrics,
-            ..SearchResults::default()
+        Ok(SearchFound {
+            keys: [keys, Vec::new(), Vec::new()],
+            lyrics: Some(Arc::new(LyricsFound {
+                expressions,
+                matches,
+            })),
         })
+    }
+
+    /// The excerpt of each of `tracks` where the lyrics search `found` matched it, in their
+    /// order.
+    pub async fn lyrics_excerpts(
+        &self,
+        found: &LyricsFound,
+        tracks: &[i64],
+        cancellation: &ReadCancellation,
+    ) -> LibraryResult<Vec<Option<LyricsSnippet>>> {
+        let matched = tracks
+            .iter()
+            .map(|track| found.matches.get(track).copied())
+            .collect::<Vec<_>>();
+        let lyrics = matched
+            .iter()
+            .flatten()
+            .map(|(document, _)| document >> 2)
+            .collect::<Vec<_>>();
+        let mut connection = self.acquire_cancellable(cancellation).await?;
+        let payloads = sqlx::query_as::<_, (i64, String)>(
+            "SELECT lyrics_key,lyrics FROM lyrics_cache
+                 WHERE lyrics_key IN(SELECT value FROM json_each(?1))",
+        )
+        .bind(serde_json::to_string(&lyrics)?)
+        .fetch_all(&mut *connection)
+        .await?
+        .into_iter()
+        .collect::<BTreeMap<_, _>>();
+        Ok(matched
+            .into_iter()
+            .map(|matched| {
+                let (document, expression) = matched?;
+                let text = crate::lyrics::documents(payloads.get(&(document >> 2))?)
+                    .into_iter()
+                    .find(|(ordinal, _)| *ordinal as i64 == document & 3)?
+                    .1;
+                Some(snippet(&excerpt(&text, &found.expressions[expression])))
+            })
+            .collect())
     }
 }
 
 /// One quoted phrase of a match expression; a prefix phrase matches its last token as a prefix.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct Phrase {
     text: String,
     prefix: bool,

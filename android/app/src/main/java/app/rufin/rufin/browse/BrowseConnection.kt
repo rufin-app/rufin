@@ -2,6 +2,7 @@ package app.rufin.rufin.browse
 
 import app.rufin.rufin.shared.library.QueuePlacement
 import app.rufin.rufin.shared.library.SidebarPin
+import app.rufin.rufin.shared.rufin_core.Changed
 import app.rufin.rufin.shared.rufin_core.Refresh
 import app.rufin.rufin.shared.rufin_core.Route
 import app.rufin.rufin.shared.rufin_core.SidebarRouteItem
@@ -20,6 +21,7 @@ import app.rufin.rufin.app.RufinConnection
 
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.Snapshot
+import androidx.paging.*
 import app.rufin.rufin.core.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -52,6 +54,10 @@ internal data class BrowseItem(val row: AndroidBrowseRow, val index: ULong, val 
     val downloads: Int = 0, val favorite: Boolean = false,
     /** A Quick mix entry's menu, which its menu offers instead of the row's. */
     val quickMix: QuickMixMenu? = null)
+/** What a search found of one category: its first rows, how many it found so far, and whether its server may
+ *  hold more, which rows past them ask for. */
+internal class SearchKind(val category: CollectionCategory, val view: AndroidView, val text: String,
+    val rows: List<BrowseItem>, val count: Int, val more: Boolean)
 /** A remembered search result as saved, and its library row while the library holds it. */
 internal class RecentSearch(val result: RecentSearchResult, val item: BrowseItem?, val route: Route?)
 
@@ -75,9 +81,10 @@ internal class BrowseConnection(private val connection: RufinConnection, private
     private var searchSubmission by mutableIntStateOf(0)
     private var searchChanges by mutableIntStateOf(0)
     private var searchRereads by mutableIntStateOf(0)
-    /** The Search page that found `searchRows`; it says when a change means searching again. */
+    /** The Search page that found `searchKinds`; it says when a change means reading them again. */
     @Volatile private var searchView: AndroidView? = null
-    var searchRows by mutableStateOf<List<BrowseItem>>(emptyList())
+    /** What the search found, by category. */
+    var searchKinds by mutableStateOf<List<SearchKind>>(emptyList())
         private set
     var recentSearchRows by mutableStateOf<List<RecentSearch>>(emptyList())
         private set
@@ -134,6 +141,14 @@ internal class BrowseConnection(private val connection: RufinConnection, private
      *  of a few of each. */
     var searchSubmitted by mutableStateOf(false)
     var searchCategory by mutableStateOf(CollectionCategory.TRACKS)
+
+    /** Every result of `kind`, read as the list scrolls: the rows it found so far keep their places, and its
+     *  server's next pages follow them. */
+    fun searchPages(kind: SearchKind) = Pager(PagingConfig(pageSize = 64, initialLoadSize = 64, prefetchDistance = 24,
+        maxSize = 192, jumpThreshold = 192)) {
+        SearchPagingSource(kind, search::hold,
+            { missed -> withContext(Dispatchers.Main) { search.showChanges(missed) } }) { search.changesShown }
+    }.flow
 
     fun submitSearch() {
         searchSubmitted = true
@@ -195,7 +210,7 @@ internal class BrowseConnection(private val connection: RufinConnection, private
                     val query = context.text.trim()
                     if (context.section != AppSection.Search || query.isEmpty() || context.library == null ||
                         context.mode == SearchMode.LYRICS && context.text != submitted.second && query.codePointCount(0, query.length) < 2) {
-                        searchRows = emptyList()
+                        searchKinds = emptyList()
                         searchView = null
                         searchLoading = false
                         return@collectLatest
@@ -213,12 +228,16 @@ internal class BrowseConnection(private val connection: RufinConnection, private
                             searchChanges++
                             return@collectLatest
                         }
-                        val rows = found.rows.mapIndexed { index, row ->
-                            BrowseItem(row, index.toULong(), found.view, searchResult = true, contextTitle = context.text)
+                        val revision = search.changesShown
+                        val kinds = found.kinds.map { kind ->
+                            SearchKind(kind.category, found.view, context.text, kind.rows.mapIndexed { index, row ->
+                                BrowseItem(row, index.toULong(), found.view, searchResult = true, contextTitle = context.text,
+                                    downloads = revision)
+                            }, kind.count.toInt(), kind.more)
                         }
                         searchView = found.view
-                        searchRows = rows
-                        search.hold(rows)
+                        searchKinds = kinds
+                        search.hold(kinds.flatMap { it.rows })
                         missed?.let(search::showChanges)
                         if (refresh == Refresh.REREAD) searchRereads++
                     } catch (cancelled: CancellationException) { throw cancelled }
@@ -386,5 +405,48 @@ internal class BrowseConnection(private val connection: RufinConnection, private
             artistAlbumsDisplay = null
             labelsVersion++
         }
+    }
+}
+
+/** A Search page's results of one category, read a page at a time. */
+private class SearchPagingSource(
+    private val kind: SearchKind,
+    /** Holds the rows it reads, so committed changes patch them. */
+    private val hold: (List<BrowseItem>) -> Unit,
+    /** Shows what committed while it read in the rows held. */
+    private val missed: suspend (Changed) -> Unit,
+    /** The search's changes so far, which the rows it reads show. */
+    private val revision: () -> Int,
+) : PagingSource<Int, BrowseItem>() {
+    override val jumpingSupported = true
+    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, BrowseItem> = try {
+        withContext(Dispatchers.Default) {
+            val offset = params.key ?: 0
+            val seeded = offset == 0 && (kind.rows.size >= params.loadSize || !kind.more && kind.rows.size >= kind.count)
+            val items = if (seeded) kind.rows.take(params.loadSize) else {
+                val shown = revision()
+                val read = kind.view.searchRows(kind.category, offset.toULong(), params.loadSize.toUInt())
+                val rows = read.rows.mapIndexed { index, row ->
+                    BrowseItem(row, (offset + index).toULong(), kind.view, searchResult = true, contextTitle = kind.text,
+                        downloads = shown)
+                }
+                hold(rows)
+                read.reading.missed()?.let { missed(it) }
+                rows
+            }
+            // Past the results found so far the server's next page follows, until one comes short.
+            val end = offset + items.size
+            val last = end >= kind.count && (!kind.more || items.size < params.loadSize)
+            LoadResult.Page(items,
+                if (offset == 0) null else (offset - params.loadSize).coerceAtLeast(0),
+                if (last || items.isEmpty()) null else end,
+                itemsBefore = offset,
+                itemsAfter = (kind.count - end).coerceAtLeast(0))
+        }
+    } catch (cancelled: CancellationException) { throw cancelled }
+    catch (error: Exception) { LoadResult.Error(error) }
+
+    override fun getRefreshKey(state: PagingState<Int, BrowseItem>): Int? = state.anchorPosition?.let {
+        (it - state.config.initialLoadSize / 2).coerceAtLeast(0)
     }
 }

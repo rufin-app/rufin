@@ -348,10 +348,10 @@ pub async fn build(
         let web_controller = Rc::new(web::Controller::new(products.clone()));
 
         Shell {
-            search_session: Rc::new(crate::library::SearchSession::new(
+            search_session: crate::library::SearchSession::new(
                 products.source.clone(),
                 products.runtime.clone(),
-            )),
+            ),
             shown_rows: Default::default(),
             web_controller,
             quitting,

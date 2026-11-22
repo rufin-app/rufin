@@ -1,36 +1,28 @@
 use super::*;
 use rufin_core::settings::app::{RecentSearchKind, RecentSearchResult};
 
-/// Search results; each row shows the row fields of its category's list (`fields`, in
-/// `CollectionCategory::ALL` order), as GTK's search does.
-fn search_rows(
-    mut rows: library::SearchResults,
-    fields: [Vec<LibraryField>; 3],
-) -> Vec<AndroidBrowseRow> {
-    let [tracks, albums, artists] = fields;
-    let shown = |rows: Vec<Row>, fields: &[LibraryField]| {
-        rows.into_iter()
-            .enumerate()
-            .map(|(index, row)| shown_row(row, fields, index))
-            .collect::<Vec<_>>()
-    };
-    let lyrics = &mut rows.lyrics;
-    rows.tracks
+/// How many results of each kind a search reads as it opens; the rest read as the page scrolls.
+const FIRST_RESULTS: usize = 64;
+
+/// Search results `range` of `category` of the Search page `view`; each row shows the row
+/// fields of its category's list, as GTK's search does.
+async fn search_rows(
+    view: &rufin_core::view::View,
+    fields: &[LibraryField],
+    category: CollectionCategory,
+    range: std::ops::Range<usize>,
+    cancel: &library::ReadCancellation,
+) -> Result<Vec<AndroidBrowseRow>, AndroidError> {
+    let first = range.start;
+    let rows = (view.search_rows(category, range, cancel).await).map_err(error)?;
+    Ok(rows
         .into_iter()
         .enumerate()
-        .map(|(index, track)| AndroidBrowseRow {
-            lyrics_snippet: lyrics.remove(&track.track_key),
-            ..shown_row(Row::Track(track), &tracks, index)
+        .map(|(index, (row, lyrics_snippet))| AndroidBrowseRow {
+            lyrics_snippet,
+            ..shown_row(row, fields, first + index)
         })
-        .chain(shown(
-            rows.albums.into_iter().map(Row::Album).collect(),
-            &albums,
-        ))
-        .chain(shown(
-            rows.artists.into_iter().map(Row::Artist).collect(),
-            &artists,
-        ))
-        .collect()
+        .collect())
 }
 
 impl AndroidLibrary {
@@ -51,11 +43,22 @@ impl AndroidLibrary {
         };
         let library = Arc::clone(&self);
         run_read(&self.runtime, move |cancel| async move {
-            let opened = read(cancel).await.map_err(error)?;
-            let results = opened.view.search_results().cloned().unwrap_or_default();
+            let view = read(cancel.clone()).await.map_err(error)?.view;
+            let mut kinds = Vec::new();
+            for category in CollectionCategory::ALL {
+                let fields = &fields[category as usize];
+                let rows = search_rows(&view, fields, category, 0..FIRST_RESULTS, &cancel).await?;
+                let (count, more) = view.search_len(category);
+                kinds.push(AndroidSearchKind {
+                    category,
+                    rows,
+                    count: count as u64,
+                    more,
+                });
+            }
             Ok(AndroidSearch {
-                rows: search_rows(results, fields),
-                view: library.view_of(opened.view),
+                kinds,
+                view: library.view_of(view),
                 reading,
             })
         })
@@ -63,18 +66,56 @@ impl AndroidLibrary {
     }
 }
 
-/// A search's results, the Search page that found them and what committed while it searched.
+/// What a search found of one category: its first rows, how many it found so far, and whether
+/// its server may hold more, which rows past them ask for.
+#[derive(uniffi::Record)]
+pub struct AndroidSearchKind {
+    pub category: CollectionCategory,
+    pub rows: Vec<AndroidBrowseRow>,
+    pub count: u64,
+    pub more: bool,
+}
+
+/// A search's results by category, the Search page that found them and what committed while
+/// it searched.
 #[derive(uniffi::Record)]
 pub struct AndroidSearch {
-    pub rows: Vec<AndroidBrowseRow>,
+    pub kinds: Vec<AndroidSearchKind>,
     pub view: Arc<AndroidView>,
     pub reading: Arc<AndroidReading>,
 }
 
 #[uniffi::export]
+impl AndroidView {
+    /// A Search page's results of `category` from `offset`, at most `limit` and 256, and what
+    /// committed while they read. Fewer than `limit` are the last ones.
+    pub async fn search_rows(
+        self: Arc<Self>,
+        category: CollectionCategory,
+        offset: u64,
+        limit: u32,
+    ) -> Result<AndroidRows, AndroidError> {
+        let runtime = self.runtime.clone();
+        let reading = AndroidReading::new(self.source.reading());
+        let fields = (self.settings.load())
+            .library_list(category.key())
+            .row_fields;
+        run_read(&runtime, move |cancel| async move {
+            let offset = usize::try_from(offset).map_err(error)?;
+            let range = offset..offset + limit.min(256) as usize;
+            Ok(AndroidRows {
+                rows: search_rows(&self.view, &fields, category, range, &cancel).await?,
+                reading,
+            })
+        })
+        .await
+    }
+}
+
+#[uniffi::export]
 impl AndroidLibrary {
     /// Searches `text` in the library selected now; the page it opens says when a committed
-    /// change, also one that committed while it searched, means it searches again.
+    /// change, also one that committed while it searched, means it reads its results again.
     pub async fn search(
         self: Arc<Self>,
         text: String,

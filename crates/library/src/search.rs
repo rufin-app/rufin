@@ -1,17 +1,17 @@
 //! Search over the resident Catalog, and the rows of server search results by object id.
 
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use crate::catalog::views::{Context, holds};
 use crate::read::Members;
 use crate::{
-    AlbumKey, AlbumRow, ArtistKey, ArtistRow, Catalog, Collection, FolderKey, Item, LibraryField,
-    LibraryResult, ListKind, ListRead, MemberRead, Read, ReadCancellation, Row, SourceKey,
-    TrackKey, TrackRow,
+    AlbumKey, ArtistKey, Catalog, Collection, FolderKey, Item, LibraryField, LibraryResult,
+    ListKind, ListRead, MemberRead, Read, ReadCancellation, Row, SourceKey, TrackKey,
 };
 
-const SEARCH_LIMIT: usize = 100;
+/// How many results of a kind a server is asked for in one page of its search.
+pub const SEARCH_PAGE: usize = 100;
 const SEARCH_TEXT_LIMIT: usize = 256;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -39,23 +39,17 @@ pub struct LyricsSnippetPart {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SearchRequest {
     query: String,
-    limit: usize,
     on_device: bool,
 }
 
 impl SearchRequest {
     pub fn new(query: impl Into<String>) -> Self {
-        Self::with_limit(query, 20)
-    }
-
-    pub fn with_limit(query: impl Into<String>, limit: usize) -> Self {
         let query = names::folded(query.into().trim())
             .chars()
             .take(SEARCH_TEXT_LIMIT)
             .collect();
         Self {
             query,
-            limit: limit.clamp(1, SEARCH_LIMIT),
             on_device: false,
         }
     }
@@ -70,18 +64,14 @@ impl SearchRequest {
     pub fn query(&self) -> &str {
         &self.query
     }
-
-    pub const fn limit(&self) -> usize {
-        self.limit
-    }
 }
 
+/// What a search found: the keys of its tracks, albums and artists in that order, each kind
+/// best first, and where the lyrics of each track matched when it searched lyrics.
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct SearchResults {
-    pub tracks: Vec<TrackRow>,
-    pub albums: Vec<AlbumRow>,
-    pub artists: Vec<ArtistRow>,
-    pub lyrics: BTreeMap<crate::TrackKey, LyricsSnippet>,
+pub struct SearchFound {
+    pub keys: [Vec<i64>; 3],
+    pub lyrics: Option<Arc<crate::lyrics_search::LyricsFound>>,
 }
 
 /// How well a row named `name` answers `query`, best first: its name is the query, starts with
@@ -116,153 +106,112 @@ fn rank(name: &str, query: &str, terms: &[(&str, bool)]) -> (u8, usize) {
 }
 
 impl Catalog {
-    /// The rows of a server's search results by object id in music folder `folder`, kept to it
-    /// as the lists of that folder hold them unless the server `kept` its results to it already
-    /// (its Catalog may not hold every result's folder yet).
-    pub async fn search_rows_by_objects(
+    /// The keys of a page of a server's search results by object id, each kind in the server's
+    /// order: the results the Catalog holds. A music folder `folder` the Catalog does not hold
+    /// finds none; the server kept its results to the folder.
+    pub async fn search_keys_by_objects(
         &self,
         source: SourceKey,
         folder: Option<FolderKey>,
-        album_artists: bool,
         track_objects: &[String],
         album_objects: &[String],
         artist_objects: &[String],
         cancellation: &ReadCancellation,
-    ) -> LibraryResult<SearchResults> {
-        if [
-            track_objects.len(),
-            album_objects.len(),
-            artist_objects.len(),
-        ]
-        .into_iter()
-        .any(|len| len > SEARCH_LIMIT)
-        {
-            return Err(crate::LibraryError::InvalidRequest(
-                "Search identity page exceeds 100 rows".into(),
-            ));
-        }
+    ) -> LibraryResult<[Vec<i64>; 3]> {
         let mut connection = self.acquire_loaded(cancellation).await?;
         let tracks = self
             .track_keys_by_objects(&mut connection, Some(source), track_objects)
             .await?;
-        let keys = {
-            let snapshot = self.snapshot();
-            let owner = snapshot
-                .source_slot(source)
-                .unwrap_or(crate::catalog::snapshot::NO_SOURCE);
-            let keys = |kind, objects: &[String]| {
-                let objects = (objects.iter()).map(|object| (owner, object.as_str()));
-                snapshot
-                    .object_keys(kind, &objects.collect::<Vec<_>>())
-                    .into_iter()
-                    .flatten()
-                    .collect()
-            };
-            let mut keys: [Vec<i64>; 3] = [
-                tracks,
-                keys(crate::CatalogKind::Album, album_objects),
-                keys(crate::CatalogKind::Artist, artist_objects),
-            ];
-            let context = Context::new(&snapshot);
-            // The server searched the folder; a folder the Catalog does not hold finds none.
-            if context.folder_slot(folder, Some(owner)).is_none() {
-                keys = Default::default();
-            }
-            keys
+        let snapshot = self.snapshot();
+        let owner = snapshot
+            .source_slot(source)
+            .unwrap_or(crate::catalog::snapshot::NO_SOURCE);
+        if Context::new(&snapshot)
+            .folder_slot(folder, Some(owner))
+            .is_none()
+        {
+            return Ok(Default::default());
+        }
+        let keys = |kind, objects: &[String]| {
+            let objects = (objects.iter()).map(|object| (owner, object.as_str()));
+            snapshot
+                .object_keys(kind, &objects.collect::<Vec<_>>())
+                .into_iter()
+                .flatten()
+                .collect()
         };
-        self.search_rows(&mut connection, &keys, album_artists, folder)
-            .await
+        Ok([
+            tracks,
+            keys(crate::CatalogKind::Album, album_objects),
+            keys(crate::CatalogKind::Artist, artist_objects),
+        ])
     }
 
-    /// The rows of search results, in one statement.
-    pub(crate) async fn search_rows(
+    /// The rows of search results `keys` of one `kind` (tracks, albums, artists), at most 256,
+    /// in their order; a result the Catalog no longer holds has none. Each row counts in music
+    /// folder `folder` as the one rule narrows its kind, with the plays of every kind, as
+    /// Search shows the fields of any list.
+    pub async fn search_rows(
         &self,
-        connection: &mut sqlx::SqliteConnection,
-        keys: &[Vec<i64>; 3],
-        album_artists: bool,
+        kind: usize,
+        keys: &[i64],
         folder: Option<FolderKey>,
-    ) -> LibraryResult<SearchResults> {
-        let items = keys[0]
+        art: bool,
+        cancellation: &ReadCancellation,
+    ) -> LibraryResult<Vec<Row>> {
+        let items = keys
             .iter()
-            .map(|key| Item::Track {
-                key: TrackKey::from_raw(*key),
-                entry: None,
+            .take(crate::read::WINDOW)
+            .map(|key| match kind {
+                0 => Item::Track {
+                    key: TrackKey::from_raw(*key),
+                    entry: None,
+                },
+                1 => Item::Album(AlbumKey::from_raw(*key)),
+                _ => Item::Artist {
+                    key: ArtistKey::from_raw(*key),
+                    album_artist: false,
+                },
             })
-            .chain(
-                keys[1]
-                    .iter()
-                    .map(|key| Item::Album(AlbumKey::from_raw(*key))),
-            )
-            .chain(keys[2].iter().map(|key| Item::Artist {
-                key: ArtistKey::from_raw(*key),
-                album_artist: album_artists,
-            }))
             .collect::<Vec<_>>();
-        // Each row counts in music folder `folder` as the one rule narrows its kind, with the
-        // plays of every kind, as Search orders by any list's sort.
         let shape = crate::read::Shape {
             activity: true,
             folder,
             ..crate::read::Shape::of(None)
         };
-        let rows = self.rows_of_on(connection, &items, &shape, true).await?;
-        let mut results = SearchResults::default();
-        for row in rows {
-            match row {
-                Row::Track(row) => results.tracks.push(row),
-                Row::Album(row) => results.albums.push(row),
-                Row::Artist(row) => results.artists.push(row),
-                _ => {}
-            }
-        }
-        Ok(results)
-    }
-
-    /// `results` read again from the current Catalog: the same rows with their current
-    /// totals, favorites, ratings and downloads.
-    pub async fn reread_search(
-        &self,
-        results: &SearchResults,
-        folder: Option<FolderKey>,
-        cancellation: &ReadCancellation,
-    ) -> LibraryResult<SearchResults> {
         let mut connection = self.acquire_loaded(cancellation).await?;
-        let keys = [
-            results
-                .tracks
-                .iter()
-                .map(|row| row.track_key.raw())
-                .collect(),
-            results
-                .albums
-                .iter()
-                .map(|row| row.album_key.raw())
-                .collect(),
-            results
-                .artists
-                .iter()
-                .map(|row| row.artist_key.raw())
-                .collect(),
-        ];
-        let album_artists = results.artists.iter().any(|row| row.album_artist);
-        let mut reread = self
-            .search_rows(&mut connection, &keys, album_artists, folder)
-            .await?;
-        reread.lyrics.clone_from(&results.lyrics);
-        Ok(reread)
+        self.rows_of_on(&mut connection, &items, &shape, art).await
     }
 
-    /// Tracks, albums and artists of a source whose texts hold every search term.
+    /// The results of `found` the Catalog still holds, in their order.
+    pub fn search_held(&self, found: &SearchFound) -> SearchFound {
+        use crate::catalog::snapshot::Packed;
+        let snapshot = self.snapshot();
+        let held = |kind: usize, key: &i64| match kind {
+            0 => (snapshot.tracks.get(*key)).is_some_and(|record| !record.deleted()),
+            1 => (snapshot.albums.get(*key)).is_some_and(|record| !record.deleted()),
+            _ => (snapshot.artists.get(*key)).is_some_and(|record| !record.deleted()),
+        };
+        SearchFound {
+            keys: std::array::from_fn(|kind| {
+                (found.keys[kind].iter().copied())
+                    .filter(|key| held(kind, key))
+                    .collect()
+            }),
+            lyrics: found.lyrics.clone(),
+        }
+    }
+
+    /// Every track, album and artist of a source whose texts hold every search term.
     pub async fn search(
         &self,
         source: SourceKey,
         folder: Option<FolderKey>,
-        album_artists: bool,
         request: &SearchRequest,
         cancellation: &ReadCancellation,
-    ) -> LibraryResult<SearchResults> {
+    ) -> LibraryResult<SearchFound> {
         if request.query.is_empty() {
-            return Ok(SearchResults::default());
+            return Ok(SearchFound::default());
         }
         // A one-letter term matches a whole word; a longer one matches anywhere.
         let terms = request
@@ -285,7 +234,7 @@ impl Catalog {
             folder,
             ..ListRead::new(
                 ListKind::Artists {
-                    album_artist: album_artists,
+                    album_artist: false,
                 },
                 Some(source),
                 LibraryField::Title,
@@ -299,7 +248,7 @@ impl Catalog {
                 let all = |holds: &dyn Fn(&str, bool) -> bool| {
                     terms.iter().all(|(term, word)| holds(term, *word))
                 };
-                // The best answers, each by the rank `ranked` gives a row that holds every term:
+                // Every answer, best first by the rank `ranked` gives a row that holds every term:
                 // rows of one rank keep the order of their list by title.
                 let named = |name: &str| rank(name, &request.query, &terms);
                 let found = |order: &crate::Order, ranked: &dyn Fn(u32) -> Option<(u8, usize)>| {
@@ -310,11 +259,7 @@ impl Catalog {
                                 .filter_map(|key| Some((ranked(*key)?, *key)))
                                 .collect::<Vec<_>>();
                             found.sort_by_key(|(rank, _)| *rank);
-                            found
-                                .into_iter()
-                                .map(|(_, key)| i64::from(key))
-                                .take(request.limit)
-                                .collect()
+                            found.into_iter().map(|(_, key)| i64::from(key)).collect()
                         }
                         _ => Vec::new(),
                     }
@@ -337,9 +282,7 @@ impl Catalog {
                     }),
                 ]
             };
-        let mut connection = self.acquire_loaded(cancellation).await?;
-        self.search_rows(&mut connection, &keys, album_artists, folder)
-            .await
+        Ok(SearchFound { keys, lyrics: None })
     }
 }
 

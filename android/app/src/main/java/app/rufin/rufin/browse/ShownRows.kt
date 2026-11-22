@@ -12,6 +12,8 @@ import kotlinx.coroutines.*
 internal open class ShownRows(private val browse: BrowseConnection, protected val scope: CoroutineScope) {
     /** How many favorite, rating and download changes were committed while the surface is open. */
     protected var downloads by mutableIntStateOf(0)
+    /** The changes so far, which a row read now shows. */
+    val changesShown get() = downloads
     /** Rows core patched, by identity: each patches only rows of the View that read the row it
      * patched, read before its change; a row read since shows itself. Written on the main thread
      * only; a patch goes once the surface stops holding its row. */

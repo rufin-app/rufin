@@ -330,7 +330,7 @@ impl MountedRoute {
             states(changed, view.as_deref());
         }
         for rows in &self.rows {
-            rows.show_changes(owner, changed);
+            rows.show_changes(owner, changed, rows.view().as_deref());
         }
         let Some((current, show)) = self.header.clone() else {
             return;

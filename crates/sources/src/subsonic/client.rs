@@ -269,32 +269,37 @@ impl SubsonicSource {
         Ok(page)
     }
 
-    /// What the server finds for `query`, in music folder `music_folder` when one is given.
+    /// A page of what the server finds for `query`, in music folder `music_folder` when one is
+    /// given: of each kind (tracks, albums, artists) `offsets` asks for, the results from that
+    /// offset, and whether the server may hold more of it.
     pub(crate) async fn live_search(
         &self,
         source_id: &str,
         query: &str,
-        limit: usize,
+        offsets: [Option<usize>; 3],
         music_folder: Option<&str>,
-    ) -> SourceResult<library::CatalogBatch> {
+    ) -> SourceResult<(library::CatalogBatch, [bool; 3])> {
         if query.trim().is_empty() {
-            return Ok(library::CatalogBatch::default());
+            return Ok(Default::default());
         }
-        let limit = limit.clamp(1, 100);
-        let count = limit.to_string();
+        let limit = library::SEARCH_PAGE;
+        let count = |kind: usize| offsets[kind].map_or(0, |_| limit).to_string();
+        let offset = |kind: usize| offsets[kind].unwrap_or(0).to_string();
         let mut parameters = vec![
             ("query", query.to_string()),
-            ("artistCount", count.clone()),
-            ("artistOffset", "0".to_string()),
-            ("albumCount", count.clone()),
-            ("albumOffset", "0".to_string()),
-            ("songCount", count),
-            ("songOffset", "0".to_string()),
+            ("artistCount", count(2)),
+            ("artistOffset", offset(2)),
+            ("albumCount", count(1)),
+            ("albumOffset", offset(1)),
+            ("songCount", count(0)),
+            ("songOffset", offset(0)),
         ];
         parameters
             .extend(music_folder.map(|folder| ("musicFolderId", raw_item_id(folder).to_string())));
         let body: Value = self.get_json("search3", &parameters).await?;
         let results = &body["searchResult3"];
+        let more =
+            ["song", "album", "artist"].map(|kind| json::items(&results[kind]).len() >= limit);
         let (mut artists, mut albums, mut songs) = tokio::try_join!(
             self.read_artists(source_id, json::items(&results["artist"])),
             self.read_albums(source_id, json::items(&results["album"])),
@@ -303,12 +308,15 @@ impl SubsonicSource {
         artists.truncate(limit);
         albums.truncate(limit);
         songs.truncate(limit);
-        Ok(library::CatalogBatch {
-            artists,
-            albums,
-            tracks: songs,
-            ..Default::default()
-        })
+        Ok((
+            library::CatalogBatch {
+                artists,
+                albums,
+                tracks: songs,
+                ..Default::default()
+            },
+            more,
+        ))
     }
 }
 
@@ -1938,10 +1946,7 @@ mod tests {
             .await
             .unwrap();
         let mut updates = catalog.changes();
-        let results = source_owner
-            .live_search(&catalog, "Track", 60, None)
-            .await
-            .unwrap();
+        let results = crate::searched(&catalog, &source_owner, "Track").await;
         assert!(
             crate::published(&mut updates)
                 .expect("catalog update")
@@ -2072,10 +2077,7 @@ mod tests {
             }
             let mut updates = catalog.changes();
             crate::published(&mut updates);
-            let results = source_owner
-                .live_search(&catalog, "Match", 10, None)
-                .await
-                .unwrap();
+            let results = crate::searched(&catalog, &source_owner, "Match").await;
             assert!(
                 crate::published(&mut updates)
                     .expect("catalog update")

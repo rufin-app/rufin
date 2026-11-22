@@ -26,23 +26,49 @@ pub struct SearchPreview {
     pub lyrics: Option<library::LyricsSnippet>,
 }
 
+/// How many results the header's dropdown shows; the Search page lists every one.
 pub const SEARCH_PREVIEW_LIMIT: usize = 30;
+
+/// What a Search page found and the first rows of each category.
+type Found = (Arc<rufin_core::view::View>, [Vec<SearchItem>; 3]);
+
+/// The Search page `view` with the first window of each category's rows.
+async fn found(
+    view: Arc<rufin_core::view::View>,
+    cancel: &ReadCancellation,
+) -> library::LibraryResult<Found> {
+    let mut seeds = <[Vec<SearchItem>; 3]>::default();
+    for category in CollectionCategory::ALL {
+        let rows = view
+            .search_rows(category, 0..crate::widgets::view_model::WINDOW, cancel)
+            .await?;
+        seeds[category as usize] = search_items(rows);
+    }
+    Ok((view, seeds))
+}
+
+/// How many rows `category` lists: the results found so far, and one more that stands for
+/// the server's next page while it may hold more.
+fn listed(view: &rufin_core::view::View, category: CollectionCategory) -> usize {
+    let (len, more) = view.search_len(category);
+    len + usize::from(more)
+}
 
 /// One current query shared by the header and the Search route.
 pub struct SearchSession {
     source: rufin_core::runtime::SourceHandle,
     runtime: tokio::runtime::Handle,
     /// The Search page that found the shown results; it says what a committed change means
-    /// for them.
-    view: RefCell<Option<Arc<rufin_core::view::View>>>,
+    /// for them, and their rows read their windows from it.
+    view: Rc<RefCell<Option<Arc<rufin_core::view::View>>>>,
     /// The library the search runs or waits in.
     searched_in: RefCell<Option<rufin_core::runtime::SelectedLibrary>>,
     query: RefCell<String>,
     mode: Cell<library::SearchMode>,
     /// The results by category, which the header and the Search page show.
-    pub(super) models: [gio::ListStore; 3],
-    /// The committed changes the results show.
-    changes: rufin_core::shown::ShownChanges,
+    pub(super) rows: [Rows<SearchItem>; 3],
+    /// The rows the header shows, held so their window stays read wherever the page scrolls.
+    previewed: RefCell<Vec<RowItem>>,
     status: Cell<&'static str>,
     pub(super) revision: Cell<u64>,
     generation: Cell<u64>,
@@ -53,105 +79,105 @@ pub struct SearchSession {
 }
 
 impl SearchSession {
-    /// Shows a committed change in the results, also while no Search route shows them,
-    /// through core's [`rufin_core::shown::ShownChanges`].
-    fn show_changes(&self, changed: &rufin_core::source::feed::Changed) {
-        use library::ShowsState;
-        let shown = self
-            .models
-            .iter()
-            .flat_map(|model| {
-                (0..model.n_items()).filter_map(|position| model.item(position).and_downcast())
-            })
-            .filter_map(|item: RowItem| {
-                let row = item.value::<Arc<SearchItem>>()?;
-                Some((item, row))
-            })
-            .collect::<Vec<_>>();
-        let rows = shown.iter().map(|(_, row)| &**row).collect::<Vec<_>>();
-        let view = self.view.borrow().clone();
-        let changes = self
-            .changes
-            .show(&self.source, &rows, changed, view.as_deref());
-        for (index, row) in changes.states {
-            shown[index].0.replace(Arc::new(row), true);
+    /// Shows what the Search page `view` found, `seeds` its first rows. The same search read
+    /// again keeps its rows in place until their windows are read, so their selection stays.
+    fn show_found(&self, view: Option<Arc<rufin_core::view::View>>, seeds: [Vec<SearchItem>; 3]) {
+        let same = match (&view, &*self.view.borrow()) {
+            (Some(view), Some(previous)) => view.same_list(previous),
+            _ => false,
+        };
+        self.view.replace(view.clone());
+        for (category, seed) in CollectionCategory::ALL.into_iter().zip(seeds) {
+            let len = view.as_ref().map_or(0, |view| listed(view, category));
+            self.rows[category as usize].replace(len, 0, seed, same);
         }
-        let Some(downloads) = changes.downloads else {
+        self.previewed.replace(
+            self.rows
+                .iter()
+                .flat_map(|rows| {
+                    let list = rows.list_model();
+                    (0..SEARCH_PREVIEW_LIMIT.min(rows.len()) as u32)
+                        .filter_map(move |position| list.item(position).and_downcast())
+                })
+                .collect(),
+        );
+    }
+
+    /// Takes the length of `category` after a read of its rows, which may have found the
+    /// server's next page or the end of its results.
+    fn take_len(&self, category: CollectionCategory) {
+        let Some(view) = self.view.borrow().clone() else {
             return;
         };
-        glib::spawn_future_local(async move {
-            let Some(read) = downloads.await else { return };
-            // The downloads go into the result each item shows now when it is the same row.
-            for (index, read) in read {
-                let item = &shown[index].0;
-                let Some(current) = item.value::<Arc<SearchItem>>() else {
-                    continue;
-                };
-                let mut merged = SearchItem::clone(&current);
-                if merged.show_downloads(read) {
-                    item.replace(Arc::new(merged), true);
-                }
-            }
-        });
-    }
-
-    /// Shows `items` as the results. A category that shows the same results in the same order
-    /// updates its rows in place, so their selection stays.
-    fn show_items(&self, items: [Vec<SearchItem>; 3]) {
-        for (model, items) in self.models.iter().zip(items) {
-            let shown = (0..model.n_items())
-                .filter_map(|position| model.item(position).and_downcast::<RowItem>())
-                .collect::<Vec<_>>();
-            let same = shown.len() == items.len()
-                && shown.iter().zip(&items).all(|(item, row)| {
-                    item.value::<Arc<SearchItem>>()
-                        .is_some_and(|shown| shown.uri() == row.uri())
-                });
-            if same {
-                for (item, row) in shown.iter().zip(items) {
-                    if item
-                        .value::<Arc<SearchItem>>()
-                        .is_none_or(|shown| *shown != row)
-                    {
-                        item.replace(Arc::new(row), true);
-                    }
-                }
-                continue;
-            }
-            let items = items
-                .into_iter()
-                .map(|row| RowItem::new(Arc::new(row), true))
-                .collect::<Vec<_>>();
-            model.splice(0, model.n_items(), &items);
+        let rows = &self.rows[category as usize];
+        let len = listed(&view, category);
+        if rows.len() == len {
+            return;
+        }
+        let emptied = rows.is_empty() != (len == 0);
+        rows.replace(len, 0, Vec::new(), true);
+        if emptied {
+            self.revision.set(self.revision.get().wrapping_add(1));
+            self.notify();
         }
     }
 
-    /// The result at `index` of `category`.
+    /// The read result at `index` of `category`.
     fn item(&self, category: CollectionCategory, index: usize) -> Option<Arc<SearchItem>> {
-        self.models[category as usize]
-            .item(u32::try_from(index).ok()?)
-            .and_downcast::<RowItem>()?
-            .value::<Arc<SearchItem>>()
+        self.rows[category as usize].ready(index)
     }
 
-    pub fn new(source: rufin_core::runtime::SourceHandle, runtime: tokio::runtime::Handle) -> Self {
-        Self {
-            source,
-            runtime,
-            view: RefCell::new(None),
-            searched_in: RefCell::new(None),
-            query: RefCell::new(String::new()),
-            mode: Cell::new(library::SearchMode::Title),
-            models: CollectionCategory::ALL.map(|_| gio::ListStore::new::<RowItem>()),
-            changes: Default::default(),
-            status: Cell::new("initial"),
-            revision: Cell::new(0),
-            generation: Cell::new(0),
-            debounce: RefCell::new(None),
-            cancellation: RefCell::new(None),
-            observers: RefCell::new(Vec::new()),
-            category: Cell::new(CollectionCategory::default()),
-        }
+    pub fn new(
+        source: rufin_core::runtime::SourceHandle,
+        runtime: tokio::runtime::Handle,
+    ) -> Rc<Self> {
+        let view = Rc::new(RefCell::new(None::<Arc<rufin_core::view::View>>));
+        let rows = CollectionCategory::ALL.map(|category| {
+            let view = Rc::clone(&view);
+            Rows::paged(
+                runtime.clone(),
+                0,
+                Rc::new(move |range, cancel| {
+                    let view = view.borrow().clone();
+                    Box::pin(async move {
+                        let Some(view) = view else {
+                            return Ok(Vec::new());
+                        };
+                        view.search_rows(category, range, &cancel)
+                            .await
+                            .map(search_items)
+                            .map_err(|error| error.to_string())
+                    })
+                }),
+            )
+        });
+        Rc::new_cyclic(|session: &Weak<Self>| {
+            for (category, rows) in CollectionCategory::ALL.into_iter().zip(&rows) {
+                let session = session.clone();
+                rows.on_read(Rc::new(move || {
+                    if let Some(session) = session.upgrade() {
+                        session.take_len(category);
+                    }
+                }));
+            }
+            Self {
+                source,
+                runtime,
+                view,
+                searched_in: RefCell::new(None),
+                query: RefCell::new(String::new()),
+                mode: Cell::new(library::SearchMode::Title),
+                rows,
+                previewed: Default::default(),
+                status: Cell::new("initial"),
+                revision: Cell::new(0),
+                generation: Cell::new(0),
+                debounce: RefCell::new(None),
+                cancellation: RefCell::new(None),
+                observers: RefCell::new(Vec::new()),
+                category: Cell::new(CollectionCategory::default()),
+            }
+        })
     }
 }
 
@@ -271,9 +297,8 @@ impl SearchSession {
 
     fn schedule(self: &Rc<Self>) {
         self.cancel();
-        self.view.replace(None);
         self.searched_in.replace(self.source.selected_library());
-        self.show_items(Default::default());
+        self.show_found(None, Default::default());
         self.revision.set(self.revision.get().wrapping_add(1));
         if self.query.borrow().is_empty()
             || (rufin_core::route::Route::Search.requires_selected_source(self.mode())
@@ -327,7 +352,7 @@ impl SearchSession {
         let reading = self.source.reading();
         let selected = self.source.selected_library();
         let task = self.runtime.spawn(async move {
-            source
+            let opened = source
                 .open(
                     Route::Search,
                     selected,
@@ -336,18 +361,22 @@ impl SearchSession {
                     true,
                     &cancellation,
                 )
-                .await
+                .await?;
+            found(opened.view, &cancellation).await
         });
         self.show(task, reading, generation);
     }
 
     /// Handles a committed change as the Search page that found the results says: shows it
-    /// in them, searches again keeping them shown, or searches again in the library selected
-    /// now. A search still running hears of the change from its own read.
+    /// in them, reads them again keeping them shown, or searches again in the library
+    /// selected now. A search still running hears of the change from its own read.
     pub fn apply_changed(self: &Rc<Self>, changed: &rufin_core::source::feed::Changed) {
-        self.show_changes(changed);
+        let view = self.view.borrow().clone();
+        for rows in &self.rows {
+            rows.show_changes(&self.source, changed, view.as_deref());
+        }
         let current = self.source.selected_library();
-        let Some(view) = self.view.borrow().clone() else {
+        let Some(view) = view else {
             // A search that found nothing yet, such as one waiting for a source, runs again
             // when core says the Search page opens again.
             let searched_in = self.searched_in.borrow().clone();
@@ -377,12 +406,14 @@ impl SearchSession {
         self.cancellation.replace(Some(cancellation.clone()));
         let reading = self.source.reading();
         let task = self.runtime.spawn(async move {
-            view.reread(
-                view.options().clone(),
-                library::RouteSeedWindow::top(),
-                &cancellation,
-            )
-            .await
+            let opened = view
+                .reread(
+                    view.options().clone(),
+                    library::RouteSeedWindow::top(),
+                    &cancellation,
+                )
+                .await?;
+            found(opened.view, &cancellation).await
         });
         self.show(task, reading, generation);
     }
@@ -391,7 +422,7 @@ impl SearchSession {
     /// changed while it read.
     fn show(
         self: &Rc<Self>,
-        task: tokio::task::JoinHandle<library::LibraryResult<rufin_core::view::Opened>>,
+        task: tokio::task::JoinHandle<library::LibraryResult<Found>>,
         reading: rufin_core::shown::Reading,
         generation: u64,
     ) {
@@ -400,7 +431,7 @@ impl SearchSession {
             let result = task
                 .await
                 .map_err(|error| error.to_string())
-                .and_then(|opened| opened.map_err(|error| error.to_string()));
+                .and_then(|found| found.map_err(|error| error.to_string()));
             let Some(session) = weak.upgrade() else {
                 return;
             };
@@ -409,11 +440,8 @@ impl SearchSession {
             }
             session.cancellation.borrow_mut().take();
             match result {
-                Ok(opened) => {
-                    session.show_items(cached_items(
-                        opened.view.search_results().cloned().unwrap_or_default(),
-                    ));
-                    session.view.replace(Some(opened.view));
+                Ok((view, seeds)) => {
+                    session.show_found(Some(view), seeds);
                     session.status.set("results");
                     // What committed while it searched reaches the results as any other change.
                     if let Some(missed) = reading.missed() {
@@ -431,7 +459,12 @@ impl SearchSession {
     }
 
     pub fn previews(&self) -> [Vec<SearchPreview>; 3] {
-        let lengths = self.models.each_ref().map(|model| model.n_items() as usize);
+        // The rows read from the top; the one that stands for a next page is not one.
+        let lengths = self.rows.each_ref().map(|rows| {
+            (0..SEARCH_PREVIEW_LIMIT)
+                .take_while(|position| rows.ready(*position).is_some())
+                .count()
+        });
         let mut counts = [0; 3];
         let mut total = 0;
         while total < SEARCH_PREVIEW_LIMIT {

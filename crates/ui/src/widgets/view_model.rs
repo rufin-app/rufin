@@ -18,7 +18,8 @@ use gtk::{gio, glib};
 use library::{ReadCancellation, Row};
 use rufin_core::view::{OpenOptions, Opened, Reread, View};
 
-const WINDOW: usize = 64;
+/// How many rows a list reads at a time.
+pub const WINDOW: usize = 64;
 const PENDING_CAP: usize = 8;
 const READY_CAP: usize = 3;
 
@@ -458,6 +459,8 @@ mod imp {
         pub(super) missed: RefCell<Option<Rc<dyn Fn(&rufin_core::source::feed::Changed)>>>,
         /// Shows the current track again where each new order places it.
         pub(super) playing: RefCell<Option<Rc<dyn Fn()>>>,
+        /// Hears of each window read, taken or not: a list whose reads find its length.
+        pub(super) read: RefCell<Option<Rc<dyn Fn()>>>,
     }
 
     #[glib::object_subclass]
@@ -490,6 +493,7 @@ mod imp {
             }
             self.start.borrow_mut().take();
             self.playing.borrow_mut().take();
+            self.read.borrow_mut().take();
             self.collection_selection.borrow_mut().take();
         }
     }
@@ -781,6 +785,13 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Rows<T> {
         self.list.imp().missed.replace(Some(handler));
     }
 
+    /// Tells `handler` of each window read, taken or not, before the next one starts: a list
+    /// whose reads find its length takes the new one there with [`Rows::replace`].
+    pub fn on_read(&self, handler: Rc<dyn Fn()>) {
+        use glib::subclass::prelude::ObjectSubclassIsExt;
+        self.list.imp().read.replace(Some(handler));
+    }
+
     /// Updates the read rows `matches` accepts, and the items that show them.
     pub fn update(&self, matches: impl Fn(&T) -> bool, update: impl Fn(&mut T)) {
         let changed = self.with(|state| {
@@ -999,7 +1010,53 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Rows<T> {
                     list.show_missed(&missed);
                 }
             }
+            let read = list.imp().read.borrow().clone();
+            if let Some(read) = read {
+                read();
+            }
             this.start();
+        });
+    }
+}
+
+impl<T: library::ShowsState + Clone + PartialEq + Send + Sync + 'static> Rows<T> {
+    /// Shows a committed change in the rows read so far of the page `view`, through core's
+    /// [`rufin_core::shown::ShownChanges`]: favorites and ratings at once, downloads once read.
+    pub fn show_changes(
+        &self,
+        owner: &rufin_core::source::SourceOwner,
+        changed: &rufin_core::source::feed::Changed,
+        view: Option<&View>,
+    ) {
+        use glib::subclass::prelude::ObjectSubclassIsExt;
+        let (read, shown) = self.with(|state| {
+            let read = state.ready.keys().copied().collect::<Vec<_>>();
+            let rows = state.ready.values().map(Arc::as_ref).collect::<Vec<_>>();
+            let shown = self.list.imp().shown.show(owner, &rows, changed, view);
+            (read, shown)
+        });
+        for (index, row) in shown.states {
+            self.set_ready(read[index], row);
+        }
+        let Some(downloads) = shown.downloads else {
+            return;
+        };
+        let list = self.list.downgrade();
+        glib::spawn_future_local(async move {
+            let Some(rows) = downloads.await else { return };
+            let Some(list) = list.upgrade() else { return };
+            let shown = Self::from_list(&list);
+            // The downloads go into the row now at each position when it is the same row.
+            for (index, downloads) in rows {
+                let position = read[index];
+                let Some(current) = shown.ready(position) else {
+                    continue;
+                };
+                let mut merged = T::clone(&current);
+                if merged.show_downloads(downloads) {
+                    shown.set_ready(position, merged);
+                }
+            }
         });
     }
 }
@@ -1303,51 +1360,6 @@ impl Rows<Row> {
                 apply,
             );
         }
-    }
-
-    /// Shows a committed change in the rows read so far, through core's
-    /// [`rufin_core::shown::ShownChanges`]: favorites and ratings at once, downloads once read.
-    pub fn show_changes(
-        &self,
-        owner: &rufin_core::source::SourceOwner,
-        changed: &rufin_core::source::feed::Changed,
-    ) {
-        use glib::subclass::prelude::ObjectSubclassIsExt;
-        use library::ShowsState;
-        let view = self.view();
-        let (read, shown) = self.with(|state| {
-            let read = state.ready.keys().copied().collect::<Vec<_>>();
-            let rows = state.ready.values().map(Arc::as_ref).collect::<Vec<_>>();
-            let shown = self
-                .list
-                .imp()
-                .shown
-                .show(owner, &rows, changed, view.as_deref());
-            (read, shown)
-        });
-        for (index, row) in shown.states {
-            self.set_ready(read[index], row);
-        }
-        let Some(downloads) = shown.downloads else {
-            return;
-        };
-        let list = self.list.downgrade();
-        glib::spawn_future_local(async move {
-            let Some(rows) = downloads.await else { return };
-            let Some(list) = list.upgrade() else { return };
-            let shown = Self::from_list(&list);
-            // The downloads go into the row now at each position when it is the same row.
-            for (index, downloads) in rows {
-                let position = read[index];
-                let Some(current) = shown.ready(position) else {
-                    continue;
-                };
-                let mut merged = Row::clone(&current);
-                if merged.show_downloads(downloads) {
-                    shown.set_ready(position, merged);
-                }
-            }
-        });
     }
 
     /// The tracks at `positions`, for selections; a folder's child folders come first.

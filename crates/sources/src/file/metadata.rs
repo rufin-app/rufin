@@ -1207,7 +1207,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(
-            result.tracks.len(),
+            result.keys[0].len(),
             1,
             "sidecars are searchable after scanning"
         );
@@ -1224,7 +1224,7 @@ mod tests {
                 )
                 .await
                 .unwrap()
-                .tracks
+                .keys[0]
                 .len(),
             1
         );
@@ -1237,7 +1237,7 @@ mod tests {
                 )
                 .await
                 .unwrap()
-                .tracks
+                .keys[0]
                 .is_empty()
         );
         fs::remove_file(path.with_extension("lrc")).unwrap();
@@ -1259,7 +1259,7 @@ mod tests {
                 )
                 .await
                 .unwrap()
-                .tracks
+                .keys[0]
                 .is_empty()
         );
         fs::write(path.with_extension("lrc"), "[00:03.000]Returned").unwrap();
@@ -1281,7 +1281,7 @@ mod tests {
                 )
                 .await
                 .unwrap()
-                .tracks
+                .keys[0]
                 .len(),
             1
         );

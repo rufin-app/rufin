@@ -272,8 +272,8 @@ fn apply_changed(shell: &Rc<Shell>, changed: &Changed) {
         let Some(rows) = rows.upgrade() else {
             return false;
         };
-        crate::widgets::view_model::Rows::<library::Row>::of(&rows)
-            .show_changes(&shell.products.source, changed);
+        let rows = crate::widgets::view_model::Rows::<library::Row>::of(&rows);
+        rows.show_changes(&shell.products.source, changed, rows.view().as_deref());
         true
     });
     super::navigation::show_pin_changes(shell, changed);

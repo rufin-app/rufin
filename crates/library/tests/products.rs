@@ -3456,36 +3456,51 @@ async fn home_search_and_radio_results_stay_bounded() {
     let cancel = ReadCancellation::new();
     let search = fixture
         .catalog
-        .search(
-            fixture.source,
-            None,
-            false,
-            &SearchRequest::with_limit("note", 2),
-            &cancel,
-        )
+        .search(fixture.source, None, &SearchRequest::new("note"), &cancel)
         .await
         .expect("cached Search");
-    assert_eq!(search.tracks.len(), 2);
-    assert!(!search.tracks[0].links.artists.is_empty());
-    assert!(search.albums.is_empty());
-    let object_ids = search
-        .tracks
+    assert!(search.keys[0].len() >= 2);
+    assert!(search.keys[1].is_empty());
+    let tracks = |keys: Vec<i64>| {
+        let catalog = &fixture.catalog;
+        let cancel = &cancel;
+        async move {
+            catalog
+                .search_rows(0, &keys, None, false, cancel)
+                .await
+                .expect("Search rows")
+                .into_iter()
+                .filter_map(|row| match row {
+                    library::Row::Track(track) => Some(track),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        }
+    };
+    // A window of the results reads its rows in their order.
+    let window = tracks(search.keys[0][..2].to_vec()).await;
+    assert_eq!(
+        window
+            .iter()
+            .map(|track| track.track_key.raw())
+            .collect::<Vec<_>>(),
+        search.keys[0][..2]
+    );
+    assert!(!window[0].links.artists.is_empty());
+    let object_ids = window
         .iter()
         .rev()
         .map(|track| track.object_id.clone().expect("indexed track object"))
         .collect::<Vec<_>>();
     let resolved = fixture
         .catalog
-        .search_rows_by_objects(fixture.source, None, false, &object_ids, &[], &[], &cancel)
+        .search_keys_by_objects(fixture.source, None, &object_ids, &[], &[], &cancel)
         .await
-        .expect("live Search identity rows");
+        .expect("live Search identity keys");
     assert_eq!(
-        resolved
-            .tracks
-            .iter()
-            .map(|track| track.object_id.as_deref().expect("indexed track object"))
-            .collect::<Vec<_>>(),
-        object_ids.iter().map(String::as_str).collect::<Vec<_>>()
+        resolved[0],
+        [search.keys[0][1], search.keys[0][0]],
+        "a server's results keep the server's order"
     );
     assert!(
         uris(
