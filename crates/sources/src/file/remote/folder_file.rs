@@ -91,24 +91,44 @@ impl FileSource {
                 let mut offset = 0;
                 loop {
                     let uri = entry.uri.clone();
-                    let page =
-                        tokio::task::spawn_blocking(move || crate::list_documents(&uri, offset))
-                            .await
-                            .map_err(error)??;
-                    for child in page.entries {
-                        if !child.directory && child.name.ends_with(suffix) {
-                            visit((
-                                crate::file::documents::document_relative(
-                                    &format!("{}/{}", relative.trim_end_matches('/'), child.name),
-                                    &child.native_id,
-                                    &child.uri,
-                                ),
-                                child.revision,
-                            ))
-                            .await?;
+                    let wanted = suffix.to_owned();
+                    let (found, next) = tokio::task::spawn_blocking(move || {
+                        let page = crate::list_documents(&uri, offset)?;
+                        let mut found = page
+                            .entries
+                            .into_iter()
+                            .filter(|child| !child.directory && child.name.ends_with(&wanted))
+                            .collect::<Vec<_>>();
+                        let provisional = found
+                            .iter()
+                            .filter(|child| child.provisional)
+                            .map(|child| child.uri.clone())
+                            .collect::<Vec<_>>();
+                        let identities =
+                            crate::file::documents::document_identities(&uri, &provisional)?;
+                        for (child, identity) in found
+                            .iter_mut()
+                            .filter(|child| child.provisional)
+                            .zip(identities)
+                        {
+                            child.native_id = identity;
                         }
+                        Ok::<_, SourceError>((found, page.next))
+                    })
+                    .await
+                    .map_err(error)??;
+                    for child in found {
+                        visit((
+                            crate::file::documents::document_relative(
+                                &format!("{}/{}", relative.trim_end_matches('/'), child.name),
+                                &child.native_id,
+                                &child.uri,
+                            ),
+                            child.revision,
+                        ))
+                        .await?;
                     }
-                    match page.next {
+                    match next {
                         Some(next) => offset = next,
                         None => break,
                     }

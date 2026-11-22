@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use library::{LocalFileKind, LocalFileState, LocalFileWrite};
@@ -189,7 +189,7 @@ impl FileSource {
         &self,
         file: &mut LocalFileWrite,
         worker: Arc<Mutex<media::Worker>>,
-        siblings: Option<&BTreeSet<String>>,
+        siblings: Option<&BTreeMap<String, String>>,
     ) -> SourceResult<media::MediaRead> {
         let relative = self.relative(&file.path)?;
         if media::excluded_from_audio_scan(std::path::Path::new(&file.relative_path)) {
@@ -404,10 +404,15 @@ impl walk::FileSource for FileSource {
                             .await
                             .map_err(|error| SourceError::Other(error.to_string()))??;
                     for entry in page.entries {
+                        let name = match entry.folder.as_deref() {
+                            Some(folder) if !folder.is_empty() => {
+                                format!("{folder}/{}", entry.name)
+                            }
+                            _ => entry.name,
+                        };
                         let native = if entry.directory {
                             format!(
-                                "{}\u{1f}{}",
-                                entry.name,
+                                "{name}\u{1f}{}",
                                 percent_encoding::utf8_percent_encode(
                                     &entry.uri,
                                     percent_encoding::NON_ALPHANUMERIC
@@ -415,17 +420,18 @@ impl walk::FileSource for FileSource {
                             )
                         } else {
                             crate::file::documents::document_relative(
-                                &entry.name,
+                                &name,
                                 &entry.native_id,
                                 &entry.uri,
                             )
                         };
                         entries.push(Entry {
-                            name: entry.name,
+                            name,
                             native,
                             directory: entry.directory,
                             size: entry.size.and_then(|size| i64::try_from(size).ok()),
-                            native_id: Some(entry.native_id),
+                            // `identify` gives a provisionally named file its identity.
+                            native_id: (!entry.provisional).then_some(entry.native_id),
                             revision: entry.revision,
                             ..Entry::default()
                         });
@@ -518,7 +524,7 @@ impl walk::FileSource for FileSource {
         file: &mut LocalFileWrite,
         _native: &str,
         worker: Arc<Mutex<media::Worker>>,
-        siblings: Option<&BTreeSet<String>>,
+        siblings: Option<&BTreeMap<String, String>>,
     ) -> SourceResult<walk::CueRead> {
         let relative = self.relative(&file.path)?;
         let input = self.input().await?;
@@ -587,6 +593,71 @@ impl walk::FileSource for FileSource {
         Ok(walk::CueRead::Accepted { inputs, tracks })
     }
 
+    /// A listed document is named by its provider. The identity it shares with the device's
+    /// media collection costs a lookup each, which the row that holds it for the same document
+    /// and revision spares.
+    async fn identify(
+        &self,
+        files: &mut [(Entry, Option<library::StoredFile>)],
+        resync: bool,
+    ) -> SourceResult<()> {
+        let Some(access) = self.document_access() else {
+            return Ok(());
+        };
+        let mut lookups = Vec::new();
+        for (index, (entry, stored)) in files.iter_mut().enumerate() {
+            if entry.native_id.is_some() {
+                continue;
+            }
+            let (name, fragment) = crate::file::documents::relative_parts(&entry.native);
+            let Some((listed, uri)) = fragment.and_then(library::document_fragment_parts) else {
+                continue;
+            };
+            let known = stored
+                .as_ref()
+                .map(|stored| &stored.file)
+                .filter(|stored| {
+                    !resync
+                        && stored.revision == entry.revision
+                        && stored.size_bytes == entry.size
+                        // A row with the provider's name was not in the media collection yet.
+                        && stored.native_id.as_deref() != Some(listed.as_str())
+                        && library::document_locator_parts(&stored.path)
+                            .is_some_and(|(_, stored)| stored == uri)
+                })
+                .and_then(|stored| stored.native_id.clone());
+            match known {
+                Some(identity) => {
+                    let native = crate::file::documents::document_relative(name, &identity, &uri);
+                    entry.native = native;
+                    entry.native_id = Some(identity);
+                }
+                None => lookups.push((index, uri)),
+            }
+        }
+        if lookups.is_empty() {
+            return Ok(());
+        }
+        let root = access.root.uri.clone();
+        let uris = lookups
+            .iter()
+            .map(|(_, uri)| uri.clone())
+            .collect::<Vec<_>>();
+        let identities = tokio::task::spawn_blocking(move || {
+            crate::file::documents::document_identities(&root, &uris)
+        })
+        .await
+        .map_err(|error| SourceError::Other(error.to_string()))??;
+        for ((index, uri), identity) in lookups.into_iter().zip(identities) {
+            let entry = &mut files[index].0;
+            let name = crate::file::documents::relative_parts(&entry.native).0;
+            let native = crate::file::documents::document_relative(name, &identity, &uri);
+            entry.native = native;
+            entry.native_id = Some(identity);
+        }
+        Ok(())
+    }
+
     async fn stat(&self, _root: &str, native: &str) -> SourceResult<Entry> {
         let input = self.input().await?;
         let (mut entry, _) = self.stat_entry(&input, native).await?;
@@ -599,7 +670,7 @@ impl walk::FileSource for FileSource {
         file: &mut LocalFileWrite,
         _native: &str,
         worker: Arc<Mutex<media::Worker>>,
-        siblings: Option<&BTreeSet<String>>,
+        siblings: Option<&BTreeMap<String, String>>,
     ) -> SourceResult<media::MediaRead> {
         let mut read = self.read_audio(file, worker, siblings).await?;
         if let media::MediaRead::Accepted(track) = &mut read {

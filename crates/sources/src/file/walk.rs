@@ -1,7 +1,7 @@
 //! One walker for file sources. It merge-joins each name-sorted directory listing with the
 //! source's stored rows, read in walk order, and stages only new, changed and vanished files.
 
-use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -74,20 +74,30 @@ pub(crate) trait FileSource: Sync {
         native: &str,
     ) -> impl Future<Output = SourceResult<Vec<Entry>>> + Send;
     fn stat(&self, root: &str, native: &str) -> impl Future<Output = SourceResult<Entry>> + Send;
-    /// `siblings` are the names in the file's directory, when the walk listed it.
+    /// Identifies the listed files of one directory whose listing left that to a lookup. Each
+    /// comes with the row the Store holds in its place; a `resync` looks every one up again.
+    fn identify(
+        &self,
+        _files: &mut [(Entry, Option<StoredFile>)],
+        _resync: bool,
+    ) -> impl Future<Output = SourceResult<()>> + Send {
+        async { Ok(()) }
+    }
+    /// `siblings` are the files in the file's directory, each name with the segment the
+    /// source locates it by, when the walk listed it.
     fn read_media(
         &self,
         file: &mut LocalFileWrite,
         native: &str,
         worker: Arc<Mutex<Worker>>,
-        siblings: Option<&BTreeSet<String>>,
+        siblings: Option<&BTreeMap<String, String>>,
     ) -> impl Future<Output = SourceResult<MediaRead>> + Send;
     fn read_cue(
         &self,
         file: &mut LocalFileWrite,
         native: &str,
         worker: Arc<Mutex<Worker>>,
-        siblings: Option<&BTreeSet<String>>,
+        siblings: Option<&BTreeMap<String, String>>,
     ) -> impl Future<Output = SourceResult<CueRead>> + Send;
     /// Who reads the folder artwork of the walked files.
     fn artwork(&self) -> crate::file::artwork::ArtworkFiles<'_>;
@@ -206,7 +216,7 @@ struct Staged {
     row: LocalFileWrite,
     stored: Option<LocalFileWrite>,
     native: String,
-    siblings: Option<Arc<BTreeSet<String>>>,
+    siblings: Option<Arc<BTreeMap<String, String>>>,
 }
 
 struct Walker<'w, 'o, F: FileSource> {
@@ -438,7 +448,7 @@ impl<F: FileSource> Walker<'_, '_, F> {
                 self.gone.insert(id, file.path.clone());
             }
         }
-        let lyrics = crate::file::lyrics::is_sidecar(&file.path);
+        let lyrics = crate::file::lyrics::is_sidecar(&file.relative_path);
         self.batch.removed.push(file);
         lyrics
     }
@@ -483,7 +493,7 @@ impl<F: FileSource> Walker<'_, '_, F> {
         stored: Option<StoredFile>,
         mut row: LocalFileWrite,
         native: String,
-        siblings: Option<Arc<BTreeSet<String>>>,
+        siblings: Option<Arc<BTreeMap<String, String>>>,
         new: bool,
     ) {
         if new
@@ -694,7 +704,7 @@ impl<F: FileSource> Walker<'_, '_, F> {
         relative: &'s str,
         native: &'s str,
         entry: Entry,
-        siblings: Option<Arc<BTreeSet<String>>>,
+        siblings: Option<Arc<BTreeMap<String, String>>>,
     ) -> Pin<Box<dyn Future<Output = SourceResult<()>> + Send + 's>> {
         Box::pin(async move {
             self.check()?;
@@ -748,31 +758,49 @@ impl<F: FileSource> Walker<'_, '_, F> {
                 .into_iter()
                 .filter(|entry| !self.skipped(root, &join(relative, &entry.name)))
                 .collect::<Vec<_>>();
-            entries.sort_by(|a, b| a.name.cmp(&b.name));
+            // In walk order, which a listing that names files by their path has too.
+            entries.sort_by_cached_key(|entry| walk_key(&entry.name));
             entries.dedup_by(|later, earlier| later.name == earlier.name);
             let siblings = Arc::new(
                 entries
                     .iter()
                     .filter(|entry| !entry.directory)
-                    .map(|entry| entry.name.clone())
-                    .collect::<BTreeSet<_>>(),
+                    .map(|entry| (entry.name.clone(), entry.native.clone()))
+                    .collect::<BTreeMap<_, _>>(),
             );
             let mut lyrics = false;
             // Unchanged files are kept for a read only when a listed sidecar can change.
             let sidecars = siblings
-                .iter()
+                .keys()
                 .any(|name| crate::file::lyrics::is_sidecar(name));
             let mut kept = Vec::new();
+            let mut files = Vec::new();
             for entry in entries {
                 let child = join(relative, &entry.name);
-                let child_native = join(native, &entry.native);
                 let child_key = walk_key(&child);
                 lyrics |= self.vanish_before(root, &key, &child_key).await?;
                 if entry.directory {
+                    let child_native = join(native, &entry.native);
                     self.visit(root, &child, &child_native, entry, None).await?;
                     continue;
                 }
-                let stored = self.take(root, &child_key).await?;
+                files.push((entry, self.take(root, &child_key).await?));
+            }
+            lyrics |= self.vanish_subtree(root, &key).await?;
+            match self.files.identify(&mut files, self.resync).await {
+                Ok(()) => {}
+                Err(SourceError::Cancelled) => return Err(SourceError::Cancelled),
+                Err(error) => {
+                    // The files keep their rows, as those of a directory that fails to list.
+                    self.fail(format!(
+                        "Could not identify the files of {relative}: {error}"
+                    ));
+                    return Ok(());
+                }
+            }
+            for (entry, stored) in files {
+                let child = join(relative, &entry.name);
+                let child_native = join(native, &entry.native);
                 let row = self.files.row(root, &child, &child_native, &entry)?;
                 if self.unchanged(stored.as_ref(), &row) {
                     if parseable(row.kind) {
@@ -791,7 +819,7 @@ impl<F: FileSource> Walker<'_, '_, F> {
                 }
                 // A sidecar read again with the same facts (a resync, a parser change) changed
                 // no lyrics.
-                lyrics |= crate::file::lyrics::is_sidecar(&row.path)
+                lyrics |= crate::file::lyrics::is_sidecar(&row.relative_path)
                     && stored.as_ref().is_none_or(|stored| {
                         (
                             stored.file.size_bytes,
@@ -801,7 +829,6 @@ impl<F: FileSource> Walker<'_, '_, F> {
                     });
                 self.stage(stored, row, child_native, Some(Arc::clone(&siblings)), true);
             }
-            lyrics |= self.vanish_subtree(root, &key).await?;
             // A changed lyrics sidecar reads its directory's media again. Without a listed
             // sidecar the last one went, and the directory is listed again at the end.
             if lyrics && sidecars {
@@ -1101,17 +1128,22 @@ impl<F: FileSource> Walker<'_, '_, F> {
                 entries
                     .iter()
                     .filter(|entry| !entry.directory)
-                    .map(|entry| entry.name.clone())
-                    .collect::<BTreeSet<_>>(),
+                    .map(|entry| (entry.name.clone(), entry.native.clone()))
+                    .collect::<BTreeMap<_, _>>(),
             );
-            for entry in entries.iter().filter(|entry| !entry.directory) {
+            let mut files = entries
+                .into_iter()
+                .filter(|entry| {
+                    !entry.directory && !self.skipped(&root, &join(&relative, &entry.name))
+                })
+                .map(|entry| (entry, None))
+                .collect::<Vec<_>>();
+            self.files.identify(&mut files, true).await?;
+            for (entry, _) in files {
                 let child = join(&relative, &entry.name);
-                if self.skipped(&root, &child) {
-                    continue;
-                }
                 let child_native = join(&native, &entry.native);
-                let row = self.files.row(&root, &child, &child_native, entry)?;
-                if parseable(row.kind) && !crate::file::lyrics::is_sidecar(&row.path) {
+                let row = self.files.row(&root, &child, &child_native, &entry)?;
+                if parseable(row.kind) && !crate::file::lyrics::is_sidecar(&row.relative_path) {
                     self.stage(None, row, child_native, Some(Arc::clone(&siblings)), false);
                 }
             }

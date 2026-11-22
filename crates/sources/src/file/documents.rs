@@ -33,7 +33,13 @@ impl DocumentRoot {
 pub struct DocumentEntry {
     pub uri: String,
     pub native_id: String,
+    /// A folder's listing names its files without the lookup `document_identities` makes.
+    #[serde(default)]
+    pub provisional: bool,
     pub name: String,
+    /// The folder of a file in the device's media collection, whose listing is flat.
+    #[serde(default)]
+    pub folder: Option<String>,
     pub directory: bool,
     pub mime_type: String,
     pub size: Option<u64>,
@@ -107,6 +113,16 @@ pub fn document_identity(uri: &str) -> SourceResult<String> {
         .map(|identity| identity.native_id)
 }
 
+/// The identities of files a listing under `root` named provisionally, in their order.
+pub(crate) fn document_identities(root: &str, uris: &[String]) -> SourceResult<Vec<String>> {
+    #[derive(Deserialize)]
+    struct Identities {
+        native_ids: Vec<String>,
+    }
+    request::<Identities>(serde_json::json!({"op":"identities", "uri":root, "documents":uris}))
+        .map(|identities| identities.native_ids)
+}
+
 pub fn read_document_prefix(uri: &str, length: u32) -> SourceResult<Vec<u8>> {
     use base64::Engine;
     #[derive(Deserialize)]
@@ -128,17 +144,12 @@ pub fn list_documents(uri: &str, offset: u64) -> SourceResult<DocumentPage> {
 }
 
 pub fn find_document_child(parent: &str, name: &str) -> SourceResult<Option<DocumentEntry>> {
-    let mut offset = 0;
-    loop {
-        let page = list_documents(parent, offset)?;
-        if let Some(entry) = page.entries.into_iter().find(|entry| entry.name == name) {
-            return Ok(Some(entry));
-        }
-        match page.next {
-            Some(next) => offset = next,
-            None => return Ok(None),
-        }
+    #[derive(Deserialize)]
+    struct Child {
+        entry: Option<DocumentEntry>,
     }
+    request::<Child>(serde_json::json!({"op":"child", "uri":parent, "name":name}))
+        .map(|child| child.entry)
 }
 
 pub fn find_document(root: &str, components: &[String]) -> SourceResult<Option<DocumentEntry>> {
