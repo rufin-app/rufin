@@ -277,7 +277,7 @@ button.release-note-update:hover {
 
 .release-note-heading {
   color: color-mix(in srgb, var(--window-fg-color) 94%, transparent);
-  font-size: 17px;
+  font-size: 12.75pt;
   font-weight: 800;
   margin-top: 10px;
 }
@@ -308,7 +308,7 @@ button.release-note-update:hover {
 
 .release-note-item {
   color: color-mix(in srgb, var(--window-fg-color) 86%, transparent);
-  font-size: 15px;
+  font-size: 11.25pt;
   line-height: 1.35;
 }
 
@@ -328,7 +328,7 @@ button.preference-selection-button,
 }
 
 .preference-selection-button label {
-  font-size: 13px;
+  font-size: 9.75pt;
 }
 
 .wide-sidebar-slot,
@@ -670,7 +670,7 @@ headerbar.shared-topbar button.close image {
 }
 
 .player-action-buttons .favorite-toggle {
-  font-size: 16px;
+  font-size: 12pt;
 }
 
 entry.search {
@@ -1092,7 +1092,7 @@ gridview.album-grid {
 }
 
 .route-title {
-  font-size: 21px;
+  font-size: 15.75pt;
   font-weight: 700;
   min-height: 30px;
   padding: 2px 0 0;
@@ -1106,7 +1106,7 @@ gridview.album-grid {
 }
 
 .section-heading {
-  font-size: 21px;
+  font-size: 15.75pt;
 }
 
 .nav-button {
@@ -1123,12 +1123,12 @@ gridview.album-grid {
 }
 
 .sidebar-entry-label {
-  font-size: 11px;
+  font-size: 8.25pt;
   font-weight: 475;
 }
 
 .nav-button:not(.rail-button) .sidebar-entry-label {
-  font-size: 12px;
+  font-size: 9pt;
   margin-bottom: 1px;
 }
 
@@ -1167,7 +1167,7 @@ gridview.album-grid {
 
 .sidebar-pins-heading {
   margin: 12px 18px 2px;
-  font-size: 12px;
+  font-size: 9pt;
   font-weight: 475;
 }
 
@@ -1215,7 +1215,7 @@ gridview.album-grid {
 }
 
 .sidebar-pin-title {
-  font-size: 13px;
+  font-size: 9.75pt;
   font-weight: 475;
 }
 
@@ -1232,7 +1232,7 @@ gridview.album-grid {
 }
 
 .sidebar-pin-metadata-label {
-  font-size: 11px;
+  font-size: 8.25pt;
   font-weight: 400;
   opacity: 0.72;
 }
@@ -1316,7 +1316,7 @@ button.suggested-action:disabled {
 }
 
 .context-playlist-title {
-  font-size: 15px;
+  font-size: 11.25pt;
 }
 
 .context-playlist-meta {
@@ -1484,7 +1484,7 @@ headerbar.preferences-header:backdrop,
 }
 
 .preferences-category-label {
-  font-size: 13px;
+  font-size: 9.75pt;
   font-weight: 475;
 }
 
@@ -1538,11 +1538,11 @@ dialog.alert.playlist-delete-dialog .message-area {
 }
 
 .home-row-title {
-  font-size: 15px;
+  font-size: 11.25pt;
 }
 
 .home-row-subtitle {
-  font-size: 13px;
+  font-size: 9.75pt;
 }
 
 .home-row:hover,
@@ -1562,7 +1562,7 @@ dialog.alert.playlist-delete-dialog .message-area {
 }
 
 .home-section .section-heading {
-  font-size: 19px;
+  font-size: 14.25pt;
 }
 
 .home-section-pages > button {
@@ -1698,7 +1698,7 @@ button.quick-mix-chip-button {
 }
 
 .quick-mix-heading {
-  font-size: 13px;
+  font-size: 9.75pt;
   font-weight: 600;
   color: color-mix(in srgb, var(--window-fg-color) 62%, transparent);
 }
@@ -2055,7 +2055,7 @@ button.favorite-heart.pop image.favorite-burst-6 {
 
 
 .favorite-toggle {
-  font-size: 17px;
+  font-size: 12.75pt;
   font-weight: 700;
 }
 
@@ -2151,7 +2151,7 @@ button.favorite-heart.pop image.favorite-burst-6 {
 }
 
 .player-progress-row label {
-  font-size: 12px;
+  font-size: 9pt;
 }
 
 .player-timestamp,
@@ -2256,7 +2256,7 @@ scale.playback-setting-scale.horizontal > marks.bottom {
 }
 
 scale.playback-setting-scale.horizontal > marks label {
-  font-size: 11px;
+  font-size: 8.25pt;
 }
 
 popover.slider-value-popover > contents {
@@ -2270,11 +2270,11 @@ popover.slider-value-popover > contents {
 
 popover.slider-value-popover label {
   color: white;
-  font-size: 11px;
+  font-size: 8.25pt;
 }
 
 popover.player-slider-preview label {
-  font-size: 14px;
+  font-size: 10.5pt;
 }
 
 .volume-slider-slot:dir(ltr) {
@@ -2401,7 +2401,7 @@ scale.volume-slider.vertical trough fill {
 
 .lyrics-search-helper {
   color: color-mix(in srgb, var(--window-fg-color) 68%, var(--window-bg-color));
-  font-size: 12px;
+  font-size: 9pt;
 }
 
 .error-text {
@@ -2434,7 +2434,7 @@ scale.volume-slider.vertical trough fill {
 .lyrics-line,
 .lyrics-instrumental {
   color: var(--window-fg-color);
-  font-size: 19px;
+  font-size: 14.25pt;
   font-weight: 650;
   opacity: 0.34;
   transform: scale(0.96);
@@ -2588,32 +2588,32 @@ button.download-queue-pause image {
 }
 
 .detail-showcase-large .detail-title {
-  font-size: 40px;
+  font-size: 30pt;
 }
 
 .detail-showcase-medium .detail-title {
-  font-size: 32px;
+  font-size: 24pt;
 }
 
 .detail-showcase-small .detail-title {
-  font-size: 26px;
+  font-size: 19.5pt;
 }
 
 /* The header as a strip, above the list of a page that scrolled it away. */
 .detail-strip .detail-title {
-  font-size: 20px;
+  font-size: 15pt;
 }
 
 .detail-showcase-large .detail-artist {
-  font-size: 17px;
+  font-size: 12.75pt;
 }
 
 .detail-showcase-medium .detail-artist {
-  font-size: 16px;
+  font-size: 12pt;
 }
 
 .detail-showcase-small .detail-artist {
-  font-size: 15px;
+  font-size: 11.25pt;
 }
 
 /* The band is always dark (it is drawn from the cover's colours), so text on it is white. */
@@ -2674,7 +2674,7 @@ button.download-queue-pause image {
 }
 
 .detail-summary-row {
-  font-size: 13px;
+  font-size: 9.75pt;
   color: color-mix(in srgb, var(--window-fg-color) 78%, transparent);
 }
 
@@ -2691,7 +2691,7 @@ button.download-queue-pause image {
 
 .detail-pill {
   padding: 0 16px 0 12px;
-  font-size: 14px;
+  font-size: 10.5pt;
   font-weight: 650;
 }
 
@@ -2761,7 +2761,7 @@ menubutton.detail-genre-chip > button {
   min-width: 0;
   padding: 0 11px;
   border-radius: 999px;
-  font-size: 12.5px;
+  font-size: 9.375pt;
   font-weight: 600;
   color: color-mix(in srgb, var(--window-fg-color) 88%, transparent);
   background: color-mix(in srgb, var(--window-fg-color) 9%, transparent);
@@ -2977,7 +2977,7 @@ listview.queue-list row {
 
 .lyrics-romanization {
   margin-top: 2px;
-  font-size: 15px;
+  font-size: 11.25pt;
 }
 
 .lyrics-highlight-swatch {
@@ -3083,17 +3083,17 @@ entry.lyrics-offset-value.flat:focus-within {
 
 .fullscreen-player-title {
   color: var(--window-fg-color);
-  font-size: 22px;
+  font-size: 16.5pt;
   font-weight: 800;
 }
 
 .fullscreen-player-artist {
-  font-size: 16px;
+  font-size: 12pt;
   font-weight: 500;
 }
 
 .fullscreen-player-album {
-  font-size: 14px;
+  font-size: 10.5pt;
 }
 
 .fullscreen-player-meta-row {
@@ -3101,16 +3101,16 @@ entry.lyrics-offset-value.flat:focus-within {
 }
 
 .fullscreen-player-meta-pill {
-  font-size: 12px;
+  font-size: 9pt;
 }
 
-.fullscreen-player.display-compact .fullscreen-player-title { font-size: 19px; }
-.fullscreen-player.display-compact .fullscreen-player-artist { font-size: 14px; }
-.fullscreen-player.display-compact .fullscreen-player-album { font-size: 12px; }
-.fullscreen-player.display-large .fullscreen-player-title { font-size: 28px; }
-.fullscreen-player.display-large .fullscreen-player-artist { font-size: 20px; }
-.fullscreen-player.display-large .fullscreen-player-album { font-size: 18px; }
-.fullscreen-player.display-large .fullscreen-player-meta-pill { font-size: 15px; }
+.fullscreen-player.display-compact .fullscreen-player-title { font-size: 14.25pt; }
+.fullscreen-player.display-compact .fullscreen-player-artist { font-size: 10.5pt; }
+.fullscreen-player.display-compact .fullscreen-player-album { font-size: 9pt; }
+.fullscreen-player.display-large .fullscreen-player-title { font-size: 21pt; }
+.fullscreen-player.display-large .fullscreen-player-artist { font-size: 15pt; }
+.fullscreen-player.display-large .fullscreen-player-album { font-size: 13.5pt; }
+.fullscreen-player.display-large .fullscreen-player-meta-pill { font-size: 11.25pt; }
 
 .fullscreen-player-pane {
   margin: 0 0 12px 12px;
@@ -3165,11 +3165,11 @@ entry.lyrics-offset-value.flat:focus-within {
   border: 0;
   background: transparent;
   box-shadow: none;
-  font-size: 11px;
+  font-size: 8.25pt;
   color: var(--accent-color);
 }
 .equalizer-band entry:focus-within { box-shadow: inset 0 -1px var(--accent-color); }
-.equalizer-band label { font-size: 11px; }
+.equalizer-band label { font-size: 8.25pt; }
 .equalizer-band scale.equalizer-surface-scale { padding: 0; }
 scale.equalizer-surface-scale { min-width: 0; min-height: 0; padding: 0; }
 scale.equalizer-surface-scale > trough {
@@ -3503,36 +3503,36 @@ button.menu-preview-entry:not(.menu-preview-shown) label {
 .radio-channel-badge {
   padding: 3px 11px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 9.75pt;
   font-weight: 600;
   background: color-mix(in srgb, currentColor 16%, transparent);
 }
 
 /* The card of the station on air is drawn in its picture's colours, which are always dark. */
 .radio-on-air .detail-title {
-  font-size: 22px;
+  font-size: 16.5pt;
 }
 
 .radio-on-air.radio-on-air-wide .detail-title {
-  font-size: 32px;
+  font-size: 24pt;
 }
 
 .radio-on-air-song {
-  font-size: 16px;
+  font-size: 12pt;
   font-weight: 650;
 }
 
 .radio-on-air-artist {
-  font-size: 14px;
+  font-size: 10.5pt;
   opacity: 0.84;
 }
 
 .radio-on-air-wide .radio-on-air-song {
-  font-size: 18px;
+  font-size: 13.5pt;
 }
 
 .radio-on-air-wide .radio-on-air-artist {
-  font-size: 15px;
+  font-size: 11.25pt;
 }
 
 .radio-on-air .detail-round {
@@ -3569,23 +3569,23 @@ button.menu-preview-entry:not(.menu-preview-shown) label {
 }
 
 .radio-heard-caption {
-  font-size: 12px;
+  font-size: 9pt;
   color: rgba(255, 255, 255, 0.7);
 }
 
 .radio-heard-time {
-  font-size: 12px;
+  font-size: 9pt;
   color: rgba(255, 255, 255, 0.6);
 }
 
 .radio-heard-title {
-  font-size: 14px;
+  font-size: 10.5pt;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.86);
 }
 
 .radio-heard-artist {
-  font-size: 14px;
+  font-size: 10.5pt;
   color: rgba(255, 255, 255, 0.62);
 }
 
@@ -3610,17 +3610,17 @@ button.menu-preview-entry:not(.menu-preview-shown) label {
 }
 
 .station-card-name {
-  font-size: 15px;
+  font-size: 11.25pt;
   font-weight: 600;
 }
 
 .station-card-genres {
-  font-size: 12.5px;
+  font-size: 9.375pt;
   color: color-mix(in srgb, var(--window-fg-color) 62%, transparent);
 }
 
 .station-card-description {
-  font-size: 13px;
+  font-size: 9.75pt;
   color: color-mix(in srgb, var(--window-fg-color) 84%, transparent);
 }
 

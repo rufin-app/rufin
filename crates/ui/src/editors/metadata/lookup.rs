@@ -79,6 +79,7 @@ pub(super) fn present(
         review_content: gtk::Box,
     });
     crate::widgets::controls::configure_dialog_header(&header);
+    dialog.set_content_width(crate::widgets::layout::text_scaled_width(1040));
     let scope = review.scope_title();
     scope_title.set_label(scope.as_deref().unwrap_or_default());
     scope_title.set_visible(scope.is_some());

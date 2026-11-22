@@ -1,7 +1,9 @@
 mod activity;
 pub mod backup;
 use crate::shell::shell::Shell;
-use crate::widgets::layout::{LARGE_POPUP_BASE_HEIGHT, large_popup_content_height};
+use crate::widgets::layout::{
+    LARGE_POPUP_BASE_HEIGHT, large_popup_content_height, text_scaled_width,
+};
 use crate::widgets::popup::present_light_dismiss_dialog;
 use adw::prelude::*;
 use localization::{language_option_index, language_options, tr};
@@ -291,7 +293,7 @@ fn present_preferences_dialog_with_page(
     let dialog = shell.preferences.active_dialog().unwrap_or_else(|| {
         let dialog = adw::Dialog::builder()
             .title(tr("Preferences"))
-            .content_width(900)
+            .content_width(text_scaled_width(900))
             .content_height(large_popup_content_height(
                 shell.chrome.window.height(),
                 LARGE_POPUP_BASE_HEIGHT,

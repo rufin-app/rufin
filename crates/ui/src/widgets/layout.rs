@@ -236,6 +236,12 @@ pub fn large_popup_content_width(base_width: i32) -> i32 {
         / LARGE_POPUP_WIDTH_DENOMINATOR
 }
 
+/// `width` in the text-scaled unit that dialog breakpoints use, in pixels. A dialog sized in plain
+/// pixels falls under its own breakpoint once text is scaled and pixels are not.
+pub fn text_scaled_width(width: i32) -> i32 {
+    adw::LengthUnit::Sp.to_px(f64::from(width), None).round() as i32
+}
+
 pub fn configure_fill_width_clip(scroller: &gtk::ScrolledWindow, vertical_policy: gtk::PolicyType) {
     scroller.set_policy(gtk::PolicyType::External, vertical_policy);
     scroller.set_overflow(gtk::Overflow::Hidden);

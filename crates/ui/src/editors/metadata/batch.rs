@@ -62,6 +62,7 @@ pub fn build_batch_dialog(
         scope_button: gtk::ToggleButton, scope_name: gtk::Label, select_all: gtk::ToggleButton, edit_selected: gtk::Button, show_tracks: gtk::Button,
     });
     crate::widgets::controls::configure_dialog_header(&header);
+    batch_dialog.set_content_width(crate::widgets::layout::text_scaled_width(1040));
     let breakpoint = adw::Breakpoint::new(
         adw::BreakpointCondition::parse("max-width: 760sp").expect("metadata breakpoint"),
     );

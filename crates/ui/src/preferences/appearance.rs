@@ -271,8 +271,10 @@ fn appearance_override_css(settings: &Settings, themes: &[Theme]) -> String {
             css.push_str("', sans-serif; }\n");
         }
         if let Some(size) = size {
+            // The setting is in pixels at the default text scale; points follow the text scale.
+            let points = f64::from(size) * 0.75;
             css.push_str(&format!(
-                "{scope} .lyrics-line, {scope} .lyrics-instrumental {{ font-size: {size}px; }}\n"
+                "{scope} .lyrics-line, {scope} .lyrics-instrumental {{ font-size: {points}pt; }}\n"
             ));
         }
     }

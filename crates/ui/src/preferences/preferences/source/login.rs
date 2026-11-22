@@ -324,6 +324,7 @@ impl Shell {
         crate::objects!(builder, resource, {
             dialog: adw::Dialog, toolbar: adw::ToolbarView,
         });
+        dialog.set_content_width(crate::widgets::layout::text_scaled_width(700));
         let flow = self
             .source
             .add_server

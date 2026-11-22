@@ -4,7 +4,6 @@
   <requires lib="libadwaita" version="1.9" />
   <object class="AdwDialog" id="dialog">
     <property name="title" translatable="yes">Lookup</property>
-    <property name="content-width">1040</property>
     <property name="content-height">1140</property>
     <style>
       <class name="preferences" />
