@@ -388,6 +388,9 @@ debug *args:
             install -Dm0644 \
                 resources/icons/hicolor/scalable/apps/app.rufin.rufin.svg \
                 "$data_home/icons/hicolor/scalable/apps/app.rufin.rufin.Devel.svg"; \
+            install -Dm0644 \
+                resources/icons/hicolor/symbolic/apps/app.rufin.rufin-symbolic.svg \
+                "$data_home/icons/hicolor/symbolic/apps/app.rufin.rufin-symbolic.svg"; \
             if command -v update-desktop-database >/dev/null 2>&1; then \
                 update-desktop-database "$data_home/applications"; \
             fi; \

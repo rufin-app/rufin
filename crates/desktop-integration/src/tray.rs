@@ -573,7 +573,7 @@ mod windows {
             Ok(winsafe::RegistryValue::Dword(1))
         );
         let color = if light_taskbar { "#000000" } else { "#ffffff" };
-        let svg = SYMBOLIC_ICON_SVG.replacen("<svg ", &format!("<svg fill=\"{color}\" "), 1);
+        let svg = SYMBOLIC_ICON_SVG.replacen("<svg ", &format!("<svg color=\"{color}\" "), 1);
         let tree = usvg::Tree::from_str(&svg, &usvg::Options::default())
             .map_err(|error| format!("failed to parse the symbolic tray icon: {error}"))?;
         let mut pixmap = tiny_skia::Pixmap::new(32, 32)
