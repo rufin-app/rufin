@@ -352,11 +352,18 @@ impl Artwork {
         self.pipeline.load(request)
     }
 
-    pub async fn cache_source(&self, binding: &[u8]) -> Result<bool, ArtworkError> {
+    /// Keeps the picture as its source has it, looked up as `external` allows when the
+    /// source has none. Returns whether there is one.
+    pub async fn cache_source(
+        &self,
+        binding: &[u8],
+        external: ExternalPolicy,
+    ) -> Result<bool, ArtworkError> {
         match self
             .pipeline
             .cache_image(
-                ArtworkRequest::original(ArtworkBinding::opaque(binding), 512),
+                ArtworkRequest::original(ArtworkBinding::opaque(binding), 512)
+                    .with_external(external),
                 true,
             )
             .await
@@ -387,6 +394,12 @@ impl Artwork {
 
     pub fn retry_external(&self) -> Result<(), ArtworkError> {
         self.pipeline.retry_external()
+    }
+
+    /// Asks a source's server again for the pictures it said it does not have: a server
+    /// that was starting or behind a proxy may have said so by mistake.
+    pub fn retry_source(&self, source_id: &SourceId) -> Result<(), ArtworkError> {
+        self.pipeline.retry_source(source_id)
     }
 
     pub fn invalidate_source(&self, source_id: &SourceId) -> Result<(), ArtworkError> {
@@ -939,7 +952,12 @@ mod tests {
                 .rgba(),
             preview.image.rgba()
         );
-        assert!(artwork.cache_source(&encoded).await.unwrap());
+        assert!(
+            artwork
+                .cache_source(&encoded, ExternalPolicy::default())
+                .await
+                .unwrap()
+        );
         std::fs::remove_file(&image).unwrap();
         let offline = ArtworkRequest::new(ArtworkBinding::opaque(&encoded), 512).cache_only();
         assert!(artwork.cache_only_file(&offline).is_some());

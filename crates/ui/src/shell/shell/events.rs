@@ -64,10 +64,11 @@ pub(crate) fn install_product_event_receivers(shell: &Rc<Shell>, receivers: Prod
         }
     });
 
-    // Joining or leaving a network lets each server check its local address again.
+    // Joining a network lets each server check its local address again; with none left, no
+    // server answers.
     let source = shell.products.source.clone();
     gtk::gio::NetworkMonitor::default()
-        .connect_network_changed(move |_, _| source.network_changed());
+        .connect_network_changed(move |_, available| source.network_changed(available));
 
     let event_shell = Rc::clone(shell);
     let mut operation = shell.products.source.operation();
@@ -170,7 +171,12 @@ pub(crate) fn install_product_event_receivers(shell: &Rc<Shell>, receivers: Prod
 /// picker read a new source or music folder, or none, from the change that follows it
 /// (`Changed::scope`), the startup selection's included.
 fn apply_source_configuration(shell: &Rc<Shell>) {
-    *shell.source.configured.borrow_mut() = shell.products.source.list_sources();
+    let configured = shell.products.source.list_sources();
+    let unreachable = configured.sources.iter().any(|source| {
+        Some(&source.id) == configured.selected_source_id.as_ref() && source.unreachable
+    });
+    shell.chrome.topbar.set_source_unreachable(unreachable);
+    *shell.source.configured.borrow_mut() = configured;
     // The first run's dialog moves to its last page once a source exists.
     shell.update_add_server_dialog();
     shell.products.lyrics.refresh_write_access();

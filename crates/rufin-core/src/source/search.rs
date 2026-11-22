@@ -8,7 +8,8 @@ const SEARCH_LIMIT: usize = 60;
 
 /// What `query` finds in the selected source and music folder: titles, from its server when it
 /// searches live and `live` asks, else from the Catalog; or lyrics, in every source, the
-/// selected one in its music folder.
+/// selected one in its music folder. While the server does not answer, the Catalog finds only
+/// the tracks with a copy on this device: a found track plays alone, with nothing to pass on to.
 pub(crate) async fn search(
     owner: &super::SourceOwner,
     selected: Option<&SelectedLibrary>,
@@ -39,16 +40,36 @@ pub(crate) async fn search(
             result = live => result,
             () = cancel.cancelled() => return Err(LibraryError::ReadCancelled),
         };
-        if let Ok(rows) = result {
-            return Ok(rows);
+        match result {
+            Ok(rows) => return Ok(rows),
+            // The Catalog answers instead. A server that does not connect shows as unreachable.
+            Err(sources::SourceError::Network(error)) => {
+                tracing::debug!(%error, "the server did not answer a search");
+            }
+            Err(error) => tracing::warn!(%error, "the server could not search"),
         }
     }
+    // A server with a folder mapping plays its tracks from this device.
+    let on_device = owner
+        .cached_client(&selected.source_id)
+        .is_some_and(|source| source.is_unreachable())
+        && !owner
+            .shared
+            .settings
+            .load()
+            .sources
+            .configured
+            .iter()
+            .any(|configured| {
+                configured.configuration.source_id == selected.source_id
+                    && configured.local_access.is_some()
+            });
     catalog
         .search(
             selected.source_key,
             selected.music_folder_key,
             false,
-            &request,
+            &request.on_device(on_device),
             cancel,
         )
         .await

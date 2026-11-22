@@ -55,6 +55,21 @@ impl Topbar {
         }
     }
 
+    /// Marks the source button while the selected source's server does not answer.
+    pub fn set_source_unreachable(&self, unreachable: bool) {
+        if unreachable {
+            self.source.add_css_class("source-unreachable");
+        } else {
+            self.source.remove_css_class("source-unreachable");
+        }
+        let tooltip = if unreachable {
+            localization::tr("Server is unreachable")
+        } else {
+            localization::tr("Select Source")
+        };
+        self.source.set_tooltip_text(Some(&tooltip));
+    }
+
     pub fn refresh_lyrics_cache_prompt(&self) {
         if let Some(popup) = self.search_popup.borrow().as_ref() {
             popup.refresh_cache_prompt();

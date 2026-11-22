@@ -40,6 +40,7 @@ pub struct LyricsSnippetPart {
 pub struct SearchRequest {
     query: String,
     limit: usize,
+    on_device: bool,
 }
 
 impl SearchRequest {
@@ -55,7 +56,15 @@ impl SearchRequest {
         Self {
             query,
             limit: limit.clamp(1, SEARCH_LIMIT),
+            on_device: false,
         }
+    }
+
+    /// Finds only the tracks with a copy on this device, as a search does while their server
+    /// does not answer. Albums and artists are found as before.
+    pub fn on_device(mut self, on_device: bool) -> Self {
+        self.on_device = on_device;
+        self
     }
 
     pub fn query(&self) -> &str {
@@ -263,6 +272,7 @@ impl Catalog {
             .collect::<Vec<_>>();
         let tracks = MemberRead {
             folder,
+            downloaded_only: request.on_device,
             ..MemberRead::new(Collection::Source(source))
         };
         let tracks = self.order(&Read::Members(tracks), cancellation).await?;

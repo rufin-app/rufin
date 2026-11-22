@@ -1186,32 +1186,7 @@ pub(super) async fn subsonic_json(
         .map(Value::take)
         .unwrap_or_default();
     if body["status"].as_str() != Some("ok") {
-        let error = &body["error"];
-        let code = json::field::<u16>(error, "code");
-        let message = json::field::<String>(error, "message")
-            .filter(|value| !value.trim().is_empty())
-            .unwrap_or_else(|| {
-                code.map_or_else(
-                    || "Subsonic request failed".to_string(),
-                    |code| format!("Subsonic error {code}"),
-                )
-            });
-        let message = match json::field::<String>(error, "helpUrl")
-            .filter(|value| !value.trim().is_empty())
-        {
-            Some(url) => format!("{message} ({url})"),
-            None => message,
-        };
-        return Err(if matches!(code, Some(40..=44)) {
-            SourceError::Auth(message)
-        } else if code == Some(70) {
-            SourceError::NotFound
-        } else {
-            SourceError::Server {
-                status: 200,
-                message,
-            }
-        });
+        return Err(failure(&body));
     }
     Ok(SubsonicApiResponse {
         server_type: json::field(&body, "type"),
@@ -1238,8 +1213,39 @@ pub(super) async fn answers_subsonic(client: &Client, base: &Url) -> bool {
     .await
     .is_ok_and(|envelope| envelope["subsonic-response"]["status"].is_string())
 }
+/// What a response that did not go well says went wrong.
+fn failure(body: &Value) -> SourceError {
+    let error = &body["error"];
+    let code = json::field::<u16>(error, "code");
+    let message = json::field::<String>(error, "message")
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| {
+            code.map_or_else(
+                || "Subsonic request failed".to_string(),
+                |code| format!("Subsonic error {code}"),
+            )
+        });
+    let message =
+        match json::field::<String>(error, "helpUrl").filter(|value| !value.trim().is_empty()) {
+            Some(url) => format!("{message} ({url})"),
+            None => message,
+        };
+    if matches!(code, Some(40..=44)) {
+        SourceError::Auth(message)
+    } else if code == Some(70) {
+        SourceError::NotFound
+    } else {
+        SourceError::Server {
+            status: 200,
+            message,
+        }
+    }
+}
+
+/// An image, which a server that has none or cannot send it answers with a response saying
+/// why. Only "not found" says there is no image.
 pub(super) async fn subsonic_bytes(request: reqwest::RequestBuilder) -> SourceResult<ImageBytes> {
-    remote_http::bytes(
+    let answer = remote_http::bytes_or_body(
         request,
         SUBSONIC_HTTP,
         BodyLimit {
@@ -1247,7 +1253,11 @@ pub(super) async fn subsonic_bytes(request: reqwest::RequestBuilder) -> SourceRe
             context: "Subsonic image response",
         },
     )
-    .await
+    .await?;
+    answer.map_err(|body| {
+        let envelope = serde_json::from_slice::<Value>(&body).unwrap_or_default();
+        failure(&envelope["subsonic-response"])
+    })
 }
 pub(super) fn build_client(trust_invalid_cert: bool) -> SourceResult<Client> {
     build_client_with_timeouts(

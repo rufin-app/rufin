@@ -264,6 +264,18 @@ impl Pipeline {
         Ok(())
     }
 
+    pub(crate) fn retry_source(&self, source_id: &SourceId) -> Result<(), ArtworkError> {
+        let commit = lock_cache_commit(&self.shared);
+        self.shared.cache.retry_source(source_id)?;
+        let mut state = lock_state(&self.shared);
+        let epoch = state.source_epochs.entry(source_id.clone()).or_default();
+        *epoch = epoch.wrapping_add(1);
+        drop(state);
+        drop(commit);
+        self.shared.wake.notify_all();
+        Ok(())
+    }
+
     pub(crate) fn invalidate_source(&self, source_id: &SourceId) -> Result<(), ArtworkError> {
         self.invalidate_source_images(source_id, None)
     }

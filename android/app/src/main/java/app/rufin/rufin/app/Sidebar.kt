@@ -151,9 +151,10 @@ private fun SourceButton(source: SourceSummary, selected: Boolean, onClick: () -
 }
 
 /** The picked source as the list's title, its server library under the name; tapped, the source's libraries open
- *  under it and move the routes down. With no source the title is the app's name. */
+ *  under it and move the routes down. With no source the title is the app's name. A dot after the name says its
+ *  server does not answer. */
 @Composable
-private fun LibraryTitle(source: String?, titles: List<String>, picked: Int, pick: (Int) -> Unit) {
+private fun LibraryTitle(source: String?, unreachable: Boolean, titles: List<String>, picked: Int, pick: (Int) -> Unit) {
     var open by remember(source) { mutableStateOf(false) }
     val scheme = MaterialTheme.colorScheme
     val duration = if (LocalReduceMotion.current) 0 else 180
@@ -163,8 +164,14 @@ private fun LibraryTitle(source: String?, titles: List<String>, picked: Int, pic
             .clickable(enabled = titles.isNotEmpty(), role = Role.Button) { open = !open }
             .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(source ?: "Rufin", maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(source ?: "Rufin", Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    if (unreachable) {
+                        val label = translate("Server is unreachable")
+                        Box(Modifier.size(8.dp).background(scheme.error, CircleShape).semantics { contentDescription = label })
+                    }
+                }
                 titles.getOrNull(picked)?.let {
                     Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
                 }
@@ -221,7 +228,7 @@ private fun SidebarList(model: RufinConnection, browse: BrowseConnection, player
         item {
             val choices = folders?.choices.orEmpty().takeIf { list -> list.any { it.id != null } }.orEmpty()
             val source = sources?.sources?.firstOrNull { it.id == selectedId }
-            LibraryTitle(source?.name, choices.map { it.title }, choices.indexOfFirst { it.id == folders?.selectedId }) { index ->
+            LibraryTitle(source?.name, source?.unreachable == true, choices.map { it.title }, choices.indexOfFirst { it.id == folders?.selectedId }) { index ->
                 model.runAction { browse.library?.setMusicFolder(choices[index].id) }
             }
         }

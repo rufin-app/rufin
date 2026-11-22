@@ -879,9 +879,9 @@ fn confirm_remove_download_rule(
 pub(super) fn download_rule_subtitle(rule: DownloadRule) -> &'static str {
     match rule {
         DownloadRule::EntireLibrary => msgid("Everything, including new tracks"),
-        DownloadRule::Favorites => {
-            msgid("Favorite tracks, plus tracks from favorite albums and artists")
-        }
+        DownloadRule::Favorites => msgid("Tracks you marked as favorite"),
+        DownloadRule::FavoriteAlbums => msgid("Every track of your favorite albums"),
+        DownloadRule::FavoriteArtists => msgid("Every track of your favorite artists"),
         DownloadRule::AllPlaylists => msgid("Tracks from every playlist"),
         DownloadRule::LatestFiveAlbums => msgid("Tracks from your five latest albums"),
     }
@@ -891,6 +891,8 @@ fn download_rule_action_name(rule: DownloadRule) -> &'static str {
     match rule {
         DownloadRule::EntireLibrary => "add-entire-library",
         DownloadRule::Favorites => "add-favorites",
+        DownloadRule::FavoriteAlbums => "add-favorite-albums",
+        DownloadRule::FavoriteArtists => "add-favorite-artists",
         DownloadRule::AllPlaylists => "add-all-playlists",
         DownloadRule::LatestFiveAlbums => "add-latest-five-albums",
     }

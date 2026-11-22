@@ -490,6 +490,27 @@ impl PlaybackOwner {
             .try_send(PlaybackStoreWork::Activity(key, activity));
     }
 
+    /// Whether to say that the server of `source` did not connect: nobody said so since it
+    /// last answered.
+    fn tell_unreachable(&self, source: &sources::SourceId) -> bool {
+        self.source
+            .cached_client(source)
+            .is_none_or(|client| client.tell_unreachable())
+    }
+
+    /// Playback opened a stream of `source`'s server, or found no server at its address,
+    /// which is then chosen again.
+    fn source_answered(&self, source: &sources::SourceId, answered: bool) {
+        let Some(client) = self.source.cached_client(source) else {
+            return;
+        };
+        client.answered(answered);
+        if !answered {
+            self.runtime
+                .spawn(async move { client.select_address().await });
+        }
+    }
+
     fn report_source(&self, report: playback::SourceReportFact) {
         if external_source_reporting_enabled(self.settings.load().ui.application.private_mode)
             && let Some((source_id, kind, _)) = library::source_entity_parts(&report.media_uri)
@@ -1369,9 +1390,6 @@ where
             .await
             .map_err(failure)?
             .with_content_type(content_type));
-    }
-    if request.local_only {
-        return Err(unreachable());
     }
     let source_id = playable
         .source_id

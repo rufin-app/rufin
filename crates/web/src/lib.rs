@@ -1220,6 +1220,7 @@ async fn events(
     let receivers = (
         products.playback.updates.subscribe(),
         products.source.operation(),
+        products.source.configuration_changes(),
         products.lyrics.current(),
         products.appearance.subscribe(),
         products.settings.changes(),
@@ -1235,6 +1236,7 @@ async fn events(
         |(
             mut playback,
             mut source,
+            mut sources,
             mut lyrics,
             mut appearance,
             mut sidebar,
@@ -1271,6 +1273,8 @@ async fn events(
                         vec![value]
                     },
                     changed = source.changed() => { changed.ok()?; vec![json!({"source":*source.borrow_and_update()})] },
+                    // The sources, with whether each one's server answers.
+                    changed = sources.changed() => { changed.ok()?; vec![json!({"sources_changed":true})] },
                     changed = lyrics.changed() => { changed.ok()?; vec![json!({"lyrics":media::lyrics_json(&lyrics.borrow_and_update(), &products.settings.load().lyrics)})] },
                     changed = appearance.changed() => { changed.ok()?; vec![json!({"appearance":*appearance.borrow_and_update()})] },
                     // The pins, and the page when it reads in the saved order or lists, or shows which
@@ -1294,8 +1298,8 @@ async fn events(
             Some((
                 values,
                 (
-                    playback, source, lyrics, appearance, sidebar, catalog, products, false,
-                    previous, pins, stream,
+                    playback, source, sources, lyrics, appearance, sidebar, catalog, products,
+                    false, previous, pins, stream,
                 ),
             ))
         },

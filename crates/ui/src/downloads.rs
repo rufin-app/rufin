@@ -204,6 +204,12 @@ pub fn download_rule_artwork(
             rufin_core::downloads::DownloadRule::Favorites => {
                 library::RepresentativeArtworkScope::FavoriteTracks
             }
+            rufin_core::downloads::DownloadRule::FavoriteAlbums => {
+                library::RepresentativeArtworkScope::FavoriteAlbums
+            }
+            rufin_core::downloads::DownloadRule::FavoriteArtists => {
+                library::RepresentativeArtworkScope::FavoriteArtists
+            }
             rufin_core::downloads::DownloadRule::AllPlaylists => {
                 library::RepresentativeArtworkScope::PlaylistTracks
             }

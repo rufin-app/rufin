@@ -41,6 +41,9 @@ pub struct SourceSummary {
     /// Whether lyrics can be kept beside the music files: a Local source, or a Navidrome or
     /// Subsonic server with a folder mapping.
     pub stores_lyrics_locally: bool,
+    /// Whether its server last failed to connect and has not answered since. Tracks with a
+    /// copy on this device still play.
+    pub unreachable: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

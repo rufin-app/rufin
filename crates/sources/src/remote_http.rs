@@ -214,13 +214,24 @@ pub async fn unit_with_header(
         .map(str::to_string))
 }
 
-pub async fn bytes(
+/// The image a server answers with, or the body of an answer that is not one, where a server
+/// may say what went wrong.
+pub(crate) async fn bytes_or_body(
     request: reqwest::RequestBuilder,
     policy: RemoteHttpPolicy,
     limit: BodyLimit,
-) -> SourceResult<ImageBytes> {
+) -> SourceResult<Result<ImageBytes, Vec<u8>>> {
     let checked = checked_response(request, policy).await?;
     image_response(checked, policy, limit).await
+}
+
+/// An answer that is not an image is not the server saying it has none: a proxy, a sign-in
+/// page or a server that is starting sends one too.
+fn not_an_image(_: Vec<u8>) -> SourceError {
+    SourceError::Server {
+        status: StatusCode::OK.as_u16(),
+        message: "the answer is not an image".into(),
+    }
 }
 
 pub(crate) async fn media_bytes(
@@ -231,14 +242,18 @@ pub(crate) async fn media_bytes(
     limit: BodyLimit,
 ) -> SourceResult<ImageBytes> {
     let checked = checked_response_with_media(request, policy, Some((anonymous, timeout))).await?;
-    image_response(checked, policy, limit).await
+    image_response(checked, policy, limit)
+        .await?
+        .map_err(not_an_image)
 }
 
+/// The image a server answered with, or the body of an answer that is not one. An empty
+/// answer says the server has no image.
 async fn image_response(
     checked: CheckedResponse,
     policy: RemoteHttpPolicy,
     limit: BodyLimit,
-) -> SourceResult<ImageBytes> {
+) -> SourceResult<Result<ImageBytes, Vec<u8>>> {
     let content_type = checked
         .response
         .headers()
@@ -255,14 +270,16 @@ async fn image_response(
         .iter()
         .copied()
         .find(|byte| !byte.is_ascii_whitespace());
-    if bytes.is_empty() || !declared_image || matches!(first, Some(b'{') | Some(b'[') | Some(b'<'))
-    {
+    if bytes.is_empty() {
         return Err(SourceError::NotFound);
     }
-    Ok(ImageBytes {
+    if !declared_image || matches!(first, Some(b'{') | Some(b'[') | Some(b'<')) {
+        return Ok(Err(bytes));
+    }
+    Ok(Ok(ImageBytes {
         bytes,
         content_type,
-    })
+    }))
 }
 
 pub fn map_reqwest_error(mut error: reqwest::Error, policy: RemoteHttpPolicy) -> SourceError {
@@ -743,21 +760,22 @@ mod tests {
             .await;
 
         let client = Client::new();
-        let image = bytes(
+        let image = bytes_or_body(
             client.get(format!("{}/image", server.uri())),
             POLICY,
             SMALL_BODY,
         )
         .await
+        .expect("answer")
         .expect("image");
-        let large = bytes(
+        let large = bytes_or_body(
             client.get(format!("{}/large", server.uri())),
             POLICY,
             SMALL_BODY,
         )
         .await
         .expect_err("oversized body");
-        let not_image = bytes(
+        let not_image = bytes_or_body(
             client.get(format!("{}/not-image", server.uri())),
             POLICY,
             BodyLimit {
@@ -766,12 +784,14 @@ mod tests {
             },
         )
         .await
+        .expect("answer")
+        .map_err(not_an_image)
         .expect_err("non-image success body");
 
         assert_eq!(image.bytes, vec![1, 2, 3]);
         assert_eq!(image.content_type.as_deref(), Some("image/jpeg"));
         assert!(large.to_string().contains("test response exceeded"));
-        assert!(matches!(not_image, SourceError::NotFound));
+        assert!(matches!(not_image, SourceError::Server { status: 200, .. }));
     }
 
     #[tokio::test]

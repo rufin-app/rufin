@@ -3119,6 +3119,37 @@ impl Catalog {
             .collect()
     }
 
+    /// Where the pictures the rows of these tracks show come from: each track's own, its
+    /// album's and its artists', once each.
+    pub(crate) fn track_arts(&self, tracks: impl IntoIterator<Item = i64>) -> Vec<Art> {
+        let snapshot = self.snapshot();
+        let context = Context::new(&snapshot);
+        let derived = self.derived(&context, None);
+        let mut arts = Vec::new();
+        let mut seen = HashSet::new();
+        for record in tracks
+            .into_iter()
+            .filter_map(|key| snapshot.tracks.get(key))
+        {
+            let album = context
+                .album_of(record)
+                .map(|album| context.album_art(&derived, album));
+            let artists = snapshot.track_runs(record)[0]
+                .iter()
+                .chain(context.album_artists(record))
+                .map(|artist| context.artist_art(&derived, *artist));
+            for art in std::iter::once(context.track_art(&derived, record))
+                .chain(album)
+                .chain(artists)
+            {
+                if art != Art::None && seen.insert(art) {
+                    arts.push(art);
+                }
+            }
+        }
+        arts
+    }
+
     /// The tracks of each of these genres and moods in Title order, as their pages list them,
     /// from one pass over the tracks.
     pub(crate) fn tag_members(&self, tags: &[i64]) -> HashMap<i64, Vec<crate::TrackKey>> {

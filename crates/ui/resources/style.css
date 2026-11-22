@@ -665,6 +665,10 @@ headerbar.shared-topbar windowcontrols > button image,
   -gtk-icon-size: 16px;
 }
 
+headerbar.shared-topbar menubutton.topbar-button.source-unreachable image {
+  color: var(--error-color);
+}
+
 headerbar.shared-topbar button.close image {
   margin: 4px;
 }

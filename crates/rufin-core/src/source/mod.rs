@@ -14,7 +14,7 @@ pub use integrations::FileIntegration;
 pub use pins::Pinned;
 
 use crate::string_error;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -159,6 +159,14 @@ impl Shared {
         &self,
         selected: Option<&SelectedLibrary>,
     ) -> ConfiguredSources {
+        let unreachable = self
+            .clients
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .iter()
+            .filter(|(_, cached)| cached.source.is_unreachable())
+            .map(|(source_id, _)| source_id.clone())
+            .collect();
         configured_sources(
             &self.settings.load(),
             selected,
@@ -166,6 +174,7 @@ impl Shared {
                 .catalog_counts
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()),
+            &unreachable,
         )
     }
 
@@ -1343,8 +1352,22 @@ impl SourceOwner {
         source
     }
 
-    /// Lets a newly cached client choose between its server's local and public addresses.
+    /// Lets a newly cached client choose between its server's local and public addresses, and
+    /// publishes the sources again each time its server becomes unreachable or answers again.
     fn select_address(&self, source: &Arc<Source>) {
+        let mut reachability = source.reachability();
+        let shared = Arc::downgrade(&self.shared);
+        // Ends with the client, which holds the other end.
+        self.shared.runtime.spawn(async move {
+            while reachability.changed().await.is_ok() {
+                let Some(shared) = shared.upgrade() else {
+                    return;
+                };
+                let unreachable = reachability.borrow_and_update().is_some();
+                info!(unreachable, "source reachability changed");
+                shared.configured();
+            }
+        });
         let source = Arc::clone(source);
         self.shared
             .runtime
@@ -2034,9 +2057,9 @@ impl SourceOwner {
 
 #[cfg_attr(feature = "bindings", uniffi::export)]
 impl SourceOwner {
-    /// The device joined or left a network: each open server may answer again, and checks
-    /// whether it answers at its local address.
-    pub fn network_changed(&self) {
+    /// The device joined a network, where each open server may answer again and checks whether
+    /// it answers at its local address, or left its last one, where no server answers.
+    pub fn network_changed(&self, available: bool) {
         let clients = self
             .shared
             .clients
@@ -2048,7 +2071,7 @@ impl SourceOwner {
         for source in clients {
             self.shared
                 .runtime
-                .spawn(async move { source.network_changed().await });
+                .spawn(async move { source.network_changed(available).await });
         }
     }
 
@@ -2478,15 +2501,23 @@ impl SourceOwner {
         // Clients call this outside the runtime, which opening a client needs.
         self.reply(move |owner, _| async move {
             let source = owner.open_client(source_id.clone()).await?;
-            // A manual refresh also reads rejected files again.
+            // A manual refresh also reads rejected files again, and asks again for the
+            // pictures the server said it does not have.
             let refresh = if automatic {
                 sources::Refresh::Changed
             } else {
+                if let Err(error) = owner.shared.artwork.retry_source(&source_id) {
+                    owner.shared.warn_nonfatal(&error.to_string());
+                }
                 sources::Refresh::Resync
             };
-            owner
+            let refreshed = owner
                 .refresh_now(&source_id, &source, automatic, refresh)
-                .await
+                .await;
+            if !automatic && refreshed.is_ok() {
+                owner.shared.downloads.keep_pictures(source_id);
+            }
+            refreshed
         })
         .recv()
         .await
@@ -3279,6 +3310,7 @@ fn source_summary(configured: &ConfiguredSource) -> SourceSummary {
             kind == library::SourceKind::Local
                 || kind.subsonic() && configured.local_access.is_some()
         }),
+        unreachable: false,
     }
 }
 
@@ -3286,12 +3318,16 @@ fn configured_sources(
     stored: &StoredSettings,
     selected: Option<&SelectedLibrary>,
     counts: &HashMap<SourceId, (usize, usize)>,
+    unreachable: &HashSet<SourceId>,
 ) -> ConfiguredSources {
     let sources = stored
         .sources
         .configured
         .iter()
-        .map(source_summary)
+        .map(|configured| SourceSummary {
+            unreachable: unreachable.contains(&configured.configuration.source_id),
+            ..source_summary(configured)
+        })
         .collect::<Vec<_>>();
     let local_folders = stored
         .sources

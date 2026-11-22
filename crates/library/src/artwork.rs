@@ -631,6 +631,10 @@ pub(crate) async fn playlist_artwork_choices_on(
 pub enum RepresentativeArtworkScope {
     AllTracks,
     FavoriteTracks,
+    /// The tracks of favorite albums.
+    FavoriteAlbums,
+    /// The tracks of favorite artists.
+    FavoriteArtists,
     PlaylistTracks,
     LatestAlbums(usize),
 }
@@ -652,9 +656,7 @@ impl ArtworkCacheRetention<'_> {
         let page = self
             .tracks
             .split_off(self.tracks.len().saturating_sub(ARTWORK_PAGE_LIMIT));
-        let arts = self
-            .catalog
-            .arts(page.into_iter().rev().map(|key| Some(Owner::Track(key))));
+        let arts = self.catalog.track_arts(page.into_iter().rev());
         Ok(Some(
             crate::catalog::fetch::bindings(&mut self.connection, &arts)
                 .await?
@@ -878,6 +880,30 @@ impl Catalog {
             .collect())
     }
 
+    /// The pictures the rows of a track show: its own, its album's and its artists'. A
+    /// download keeps them with the track.
+    pub async fn track_row_artwork_bindings(
+        &self,
+        media_uri: &str,
+        cancellation: &ReadCancellation,
+    ) -> LibraryResult<Vec<Vec<u8>>> {
+        let mut connection = tokio::select! {
+            result = self.acquire_reader() => result?,
+            () = cancellation.cancelled() => return Err(LibraryError::ReadCancelled),
+        };
+        let key: Option<i64> =
+            sqlx::query_scalar("SELECT track_key FROM tracks WHERE media_uri=?1")
+                .bind(media_uri)
+                .fetch_optional(&mut *connection)
+                .await?;
+        let arts = self.track_arts(key);
+        Ok(crate::catalog::fetch::bindings(&mut connection, &arts)
+            .await?
+            .into_iter()
+            .flatten()
+            .collect())
+    }
+
     /// Distinct pictures of a source's tracks in a scope, in track sort order.
     pub async fn representative_artwork_page(
         &self,
@@ -947,6 +973,17 @@ impl Catalog {
                             RepresentativeArtworkScope::AllTracks => true,
                             RepresentativeArtworkScope::FavoriteTracks => {
                                 crate::catalog::views::favorite(record.flags)
+                            }
+                            RepresentativeArtworkScope::FavoriteAlbums => snapshot
+                                .albums
+                                .live(record.album)
+                                .is_some_and(|album| crate::catalog::views::favorite(album.flags)),
+                            RepresentativeArtworkScope::FavoriteArtists => {
+                                snapshot.track_runs(record)[0].iter().any(|artist| {
+                                    snapshot.artists.live(*artist).is_some_and(|artist| {
+                                        crate::catalog::views::favorite(artist.flags)
+                                    })
+                                })
                             }
                             RepresentativeArtworkScope::PlaylistTracks => held.contains(slot),
                             RepresentativeArtworkScope::LatestAlbums(_) => latest

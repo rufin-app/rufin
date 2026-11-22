@@ -802,8 +802,11 @@ pub struct Source {
     /// The albums and artists, by URI, that a live search admitted while the Catalog held
     /// none of them: it holds only what the search found of them until they are fetched whole.
     partial: Mutex<HashSet<String>>,
-    /// When the server last failed to connect, while that stands.
-    unreachable: Mutex<Option<std::time::Instant>>,
+    /// When the server last failed to connect, while that stands. Its watchers hear it become
+    /// unreachable and answer again.
+    unreachable: tokio::sync::watch::Sender<Option<std::time::Instant>>,
+    /// Someone said that the server does not answer, since it last answered.
+    told_unreachable: AtomicBool,
     /// How many times the server's address was chosen.
     chosen: AtomicU64,
     /// Held while a failed request chooses the address again, once for those failing together.
@@ -935,7 +938,8 @@ impl Source {
             source_id,
             retired: AtomicBool::new(false),
             partial: Mutex::default(),
-            unreachable: Mutex::default(),
+            unreachable: tokio::sync::watch::Sender::default(),
+            told_unreachable: AtomicBool::new(false),
             chosen: AtomicU64::new(0),
             choosing: tokio::sync::Mutex::default(),
             implementation,
@@ -944,25 +948,35 @@ impl Source {
 
     /// Runs a request that has a cached answer or a report to drop. While the server is
     /// unreachable it fails at once, and one request every `UNREACHABLE_RETRY` tries it again.
+    /// An answer says the server is reachable.
     async fn reach<T>(&self, request: impl Future<Output = SourceResult<T>>) -> SourceResult<T> {
-        {
-            let mut unreachable = self
-                .unreachable
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            if let Some(since) = *unreachable {
+        let result = self.attempt(request).await;
+        if result.is_ok() {
+            self.set_unreachable(None);
+        }
+        result
+    }
+
+    /// As [`Self::reach`], for a request that can end well without the server answering.
+    async fn attempt<T>(&self, request: impl Future<Output = SourceResult<T>>) -> SourceResult<T> {
+        let mut passed = true;
+        self.unreachable.send_if_modified(|unreachable| {
+            if let Some(since) = unreachable {
                 if since.elapsed() < UNREACHABLE_RETRY {
-                    return Err(SourceError::Network("The server is unreachable".into()));
+                    passed = false;
+                } else {
+                    *since = std::time::Instant::now();
                 }
-                *unreachable = Some(std::time::Instant::now());
             }
+            false
+        });
+        if !passed {
+            return Err(SourceError::Network("The server is unreachable".into()));
         }
         let chosen = self.chosen.load(Ordering::SeqCst);
         let result = request.await;
-        match &result {
-            Ok(_) => self.set_unreachable(None),
-            Err(SourceError::Network(_)) => self.failed(chosen).await,
-            Err(_) => {}
+        if let Err(SourceError::Network(_)) = &result {
+            self.failed(chosen).await;
         }
         result
     }
@@ -981,16 +995,47 @@ impl Source {
     }
 
     fn set_unreachable(&self, since: Option<std::time::Instant>) {
-        *self
-            .unreachable
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = since;
+        if since.is_none() {
+            self.told_unreachable.store(false, Ordering::SeqCst);
+        }
+        self.unreachable.send_if_modified(|unreachable| {
+            let changed = unreachable.is_some() != since.is_some();
+            *unreachable = since;
+            changed
+        });
     }
 
-    /// The device joined or left a network: the server may answer again, at another address.
-    pub async fn network_changed(&self) {
-        self.set_unreachable(None);
-        self.select_address().await;
+    /// Whether the server last failed to connect and has not answered since.
+    pub fn is_unreachable(&self) -> bool {
+        self.unreachable.borrow().is_some()
+    }
+
+    /// Whether nobody said yet that the server does not answer, since it last answered. The
+    /// one who asks says so: a single notice goes with the mark the sources carry.
+    pub fn tell_unreachable(&self) -> bool {
+        !self.told_unreachable.swap(true, Ordering::SeqCst)
+    }
+
+    /// Wakes when the server becomes unreachable or answers again.
+    pub fn reachability(&self) -> tokio::sync::watch::Receiver<Option<std::time::Instant>> {
+        self.unreachable.subscribe()
+    }
+
+    /// What playback found behind a stream address this client made: the server, or nothing.
+    /// A server that moved answers once its address is chosen again.
+    pub fn answered(&self, answered: bool) {
+        self.set_unreachable((!answered).then(std::time::Instant::now));
+    }
+
+    /// The device joined a network, where the server may answer again and at another address,
+    /// or left its last one, where no server answers.
+    pub async fn network_changed(&self, available: bool) {
+        if available {
+            self.set_unreachable(None);
+            self.select_address().await;
+        } else if !matches!(self.implementation, Implementation::Local(_)) {
+            self.set_unreachable(Some(std::time::Instant::now()));
+        }
     }
 
     pub async fn connect(
@@ -1255,9 +1300,33 @@ impl Source {
         if cancelled.load(Ordering::Acquire) || self.is_retired() {
             return Err(SourceError::Cancelled);
         }
+        // A refresh asks the server, and what it finds says whether the server answers. A
+        // check that cannot ask what changed lists nothing of some sources and still ends well.
+        let chosen = self.chosen.load(Ordering::SeqCst);
+        let freshness = self.freshness().await;
+        let unanswered = matches!(freshness, Err(SourceError::Network(_)));
+        let freshness = freshness.ok().flatten();
+        let result = self
+            .acquire(catalog, progress, cancelled, refresh, freshness)
+            .await;
+        match &result {
+            Ok(_) if !unanswered => self.set_unreachable(None),
+            Ok(_) | Err(SourceError::Network(_)) => self.failed(chosen).await,
+            Err(_) => {}
+        }
+        result
+    }
+
+    async fn acquire(
+        &self,
+        catalog: &Catalog,
+        progress: &(dyn Fn(SourceProgress) + Send + Sync),
+        cancelled: Arc<AtomicBool>,
+        refresh: Refresh,
+        freshness: Option<Freshness>,
+    ) -> SourceResult<bool> {
         let check = refresh == Refresh::Check;
         let source_id = self.source_id.as_str();
-        let freshness = self.freshness().await.ok().flatten();
         let cancelled_fn = || cancelled.load(Ordering::Acquire) || self.is_retired();
         if self.is_retired() || (&cancelled_fn)() {
             return Err(SourceError::Cancelled);
@@ -1402,7 +1471,8 @@ impl Source {
     ) -> SourceResult<ResolvedStream> {
         let encoding = playable.stream_encoding(request.quality);
         let session = request.session_identifier.as_deref();
-        self.reach(async {
+        // Most servers' streams are an address made here: playback says whether one answered.
+        self.attempt(async {
             match &self.implementation {
                 Implementation::Plex(source) => {
                     source

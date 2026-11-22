@@ -259,9 +259,9 @@ class RufinService : MediaSessionService() {
                 } finally { status.destroy(); connect.destroy() }
             }
             launch {
-                // Each server checks its local address again on another network. While the
-                // network is metered, as mobile data is, rule downloads wait and streams take
-                // the quality chosen for it.
+                // Each server checks its local address again on another network, and none answers
+                // with no network. While the network is metered, as mobile data is, rule downloads
+                // wait and streams take the quality chosen for it.
                 val source = started.source()
                 val downloads = started.downloads()
                 val connectivity = getSystemService(ConnectivityManager::class.java)
@@ -277,10 +277,8 @@ class RufinService : MediaSessionService() {
                         awaitClose { connectivity.unregisterNetworkCallback(callback) }
                     }.distinctUntilChanged().collect { (network, metered) ->
                         downloads.setMetered(metered)
-                        if (network != null) {
-                            playbackOwner?.setMetered(metered)
-                            source.networkChanged()
-                        }
+                        if (network != null) playbackOwner?.setMetered(metered)
+                        source.networkChanged(network != null)
                     }
                 } finally { source.destroy(); downloads.destroy() }
             }

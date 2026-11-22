@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, Weak};
 use std::task::Poll;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use async_channel::{Receiver, Sender};
 use audio_processing::ResolvedStream;
@@ -38,6 +38,9 @@ const QUEUE_VERSION: u32 = 3;
 const QUEUE_FILE: &str = "queue.json";
 const QUEUE_PART_FILE: &str = "queue.json.part";
 const RETRY_INTERVAL: Duration = Duration::from_secs(30);
+/// How long a rule keeps the copy of a track that left it, so a favorite or a playlist entry
+/// removed by mistake comes back without its download.
+const RULE_GRACE: Duration = Duration::from_secs(10 * 60);
 const MAX_ACTIVE_DOWNLOADS: usize = 3;
 
 #[derive(Clone)]
@@ -72,6 +75,7 @@ enum Command {
     },
     /// The Changes the download rules heard, or None when everything may have changed.
     LibraryChanged(Option<Vec<Arc<Change>>>),
+    KeepPictures(SourceId),
     Remove {
         media_uris: Vec<String>,
         notify: bool,
@@ -536,22 +540,55 @@ struct ActiveDownload {
 #[cfg_attr(feature = "bindings", derive(uniffi::Enum))]
 pub enum DownloadRule {
     EntireLibrary,
+    /// The favorite tracks.
     Favorites,
+    /// Every track of the favorite albums.
+    FavoriteAlbums,
+    /// Every track of the favorite artists.
+    FavoriteArtists,
     AllPlaylists,
     LatestFiveAlbums,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(from = "SavedRules")]
 #[cfg_attr(feature = "bindings", derive(uniffi::Record))]
 pub struct DownloadRules {
-    #[serde(default)]
     pub entire_library: bool,
-    #[serde(default)]
     pub favorites: bool,
-    #[serde(default)]
+    pub favorite_albums: bool,
+    pub favorite_artists: bool,
     pub all_playlists: bool,
-    #[serde(default)]
     pub latest_five_albums: bool,
+}
+
+/// The rules as settings hold them. Favorites took the favorite albums and artists whole
+/// before those had rules of their own, so settings saved then turn all three on.
+#[derive(Deserialize)]
+struct SavedRules {
+    #[serde(default)]
+    entire_library: bool,
+    #[serde(default)]
+    favorites: bool,
+    favorite_albums: Option<bool>,
+    favorite_artists: Option<bool>,
+    #[serde(default)]
+    all_playlists: bool,
+    #[serde(default)]
+    latest_five_albums: bool,
+}
+
+impl From<SavedRules> for DownloadRules {
+    fn from(saved: SavedRules) -> Self {
+        Self {
+            entire_library: saved.entire_library,
+            favorites: saved.favorites,
+            favorite_albums: saved.favorite_albums.unwrap_or(saved.favorites),
+            favorite_artists: saved.favorite_artists.unwrap_or(saved.favorites),
+            all_playlists: saved.all_playlists,
+            latest_five_albums: saved.latest_five_albums,
+        }
+    }
 }
 
 /// Whether `rule` is on in `rules`.
@@ -562,13 +599,15 @@ pub fn download_rules_contain(rules: DownloadRules, rule: DownloadRule) -> bool 
 
 impl DownloadRules {
     pub fn is_empty(self) -> bool {
-        !self.entire_library && !self.favorites && !self.all_playlists && !self.latest_five_albums
+        self.active().next().is_none()
     }
 
     pub fn contains(self, rule: DownloadRule) -> bool {
         match rule {
             DownloadRule::EntireLibrary => self.entire_library,
             DownloadRule::Favorites => self.favorites,
+            DownloadRule::FavoriteAlbums => self.favorite_albums,
+            DownloadRule::FavoriteArtists => self.favorite_artists,
             DownloadRule::AllPlaylists => self.all_playlists,
             DownloadRule::LatestFiveAlbums => self.latest_five_albums,
         }
@@ -578,6 +617,8 @@ impl DownloadRules {
         match rule {
             DownloadRule::EntireLibrary => self.entire_library = active,
             DownloadRule::Favorites => self.favorites = active,
+            DownloadRule::FavoriteAlbums => self.favorite_albums = active,
+            DownloadRule::FavoriteArtists => self.favorite_artists = active,
             DownloadRule::AllPlaylists => self.all_playlists = active,
             DownloadRule::LatestFiveAlbums => self.latest_five_albums = active,
         }
@@ -591,9 +632,11 @@ impl DownloadRules {
 }
 
 impl DownloadRule {
-    pub const ALL: [Self; 4] = [
+    pub const ALL: [Self; 6] = [
         Self::EntireLibrary,
         Self::Favorites,
+        Self::FavoriteAlbums,
+        Self::FavoriteArtists,
         Self::AllPlaylists,
         Self::LatestFiveAlbums,
     ];
@@ -635,12 +678,23 @@ async fn rule_media_uris(
     let cancellation = library::ReadCancellation::new();
     match rule {
         DownloadRule::EntireLibrary | DownloadRule::Favorites => {
-            let favorites = matches!(rule, DownloadRule::Favorites);
             let mut query = library::MemberRead::new(library::Collection::Source(source));
             query.folder = folder;
-            query.favorites_only = favorites;
-            // Favorites also take the tracks of favorite albums and artists, whole.
-            let favorite = |kind| library::MemberSelection::Parents {
+            query.favorites_only = matches!(rule, DownloadRule::Favorites);
+            catalog
+                .selected_track_uris(&query.selection(), None, &cancellation)
+                .await
+        }
+        // The tracks of the favorite albums or artists, whole.
+        DownloadRule::FavoriteAlbums | DownloadRule::FavoriteArtists => {
+            let kind = if rule == DownloadRule::FavoriteAlbums {
+                library::ListKind::Albums
+            } else {
+                library::ListKind::Artists {
+                    album_artist: false,
+                }
+            };
+            let selection = library::MemberSelection::Parents {
                 read: library::ListRead {
                     folder,
                     favorites_only: true,
@@ -652,14 +706,6 @@ async fn rule_media_uris(
                 ))),
                 smart: None,
             };
-            let mut selections = vec![query.selection()];
-            if favorites {
-                selections.push(favorite(library::ListKind::Albums));
-                selections.push(favorite(library::ListKind::Artists {
-                    album_artist: false,
-                }));
-            }
-            let selection = library::MemberSelection::Concat(selections);
             catalog
                 .selected_track_uris(&selection, None, &cancellation)
                 .await
@@ -824,7 +870,9 @@ pub fn download_subject_title(subject: &DownloadSubject) -> String {
 pub fn download_rule_title(rule: DownloadRule) -> String {
     localization::tr(match rule {
         DownloadRule::EntireLibrary => localization::msgid("Entire Library"),
-        DownloadRule::Favorites => localization::msgid("Favorites"),
+        DownloadRule::Favorites => localization::msgid("Favorite Tracks"),
+        DownloadRule::FavoriteAlbums => localization::msgid("Favorite Albums"),
+        DownloadRule::FavoriteArtists => localization::msgid("Favorite Artists"),
         DownloadRule::AllPlaylists => localization::msgid("All Playlists"),
         DownloadRule::LatestFiveAlbums => localization::msgid("5 Latest Albums"),
     })
@@ -908,6 +956,8 @@ struct Actor {
     running_rules: Option<(SourceId, RuleIntent)>,
     pending_rules: BTreeMap<SourceId, RuleIntent>,
     jobs: HashMap<Option<SourceId>, Vec<DownloadJob>>,
+    /// When each track left a rule of a source that still owns its copy.
+    leaving: HashMap<(SourceId, DownloadRule, String), Instant>,
     paused: bool,
     metered: bool,
     next_job: u64,
@@ -997,6 +1047,7 @@ impl Downloads {
                 jobs: HashMap::new(),
                 paused: false,
                 metered: false,
+                leaving: HashMap::new(),
                 next_job: 0,
             },
             receiver,
@@ -1099,6 +1150,12 @@ impl Downloads {
         self.send(Command::Clear { source_id, notify });
     }
 
+    /// Keeps the pictures of a source's downloads that are not kept yet: ones its server
+    /// could not send when their tracks were downloaded, or changed since.
+    pub(crate) fn keep_pictures(&self, source_id: SourceId) {
+        self.send(Command::KeepPictures(source_id));
+    }
+
     fn send(&self, command: Command) {
         if self.commands.try_send(command).is_err() {
             warn!("download operation lane is unavailable");
@@ -1153,7 +1210,10 @@ async fn run(mut actor: Actor, receiver: Receiver<Command>, rule_results: Receiv
                 }
                 previous = current;
             }
-            _ = retry.tick() => actor.retry_waiting(),
+            _ = retry.tick() => {
+                actor.retry_waiting();
+                actor.release_left();
+            }
         }
     }
 }
@@ -1329,6 +1389,29 @@ impl Actor {
             } => {
                 self.move_job(&source_id, &job_id, movement).await;
             }
+            Command::KeepPictures(source_id) => {
+                let (catalog, artwork) = (self.catalog.clone(), self.artwork.clone());
+                let external = self.settings.load().ui.artwork_policy();
+                tokio::spawn(async move {
+                    let mut after = String::new();
+                    let mut failed = 0;
+                    while let Ok(files) = catalog
+                        .download_files_page(Some(source_id.as_str()), &after, None)
+                        .await
+                        && let Some(last) = files.last()
+                    {
+                        after = last.media_uri.clone();
+                        for file in &files {
+                            let kept =
+                                keep_track_pictures(&catalog, &artwork, &external, &file.media_uri);
+                            failed += usize::from(kept.await.is_err());
+                        }
+                    }
+                    if failed > 0 {
+                        warn!(%source_id, failed, "could not keep the pictures of some downloads");
+                    }
+                });
+            }
             Command::Clear { source_id, notify } => {
                 self.schedule_rules(&source_id, DownloadRules::default());
                 self.abort_matching(active, false, |download| {
@@ -1392,7 +1475,7 @@ impl Actor {
     }
 
     /// Reconciles the rules of the sources Changes touched: their tracks for every rule,
-    /// favorites for the favorites rule and playlists for the playlists rule.
+    /// favorites for the favorite rules and playlists for the playlists rule.
     fn library_changed(&mut self, changes: Option<&[Arc<Change>]>) {
         // A favorite or rating counts for the source of what it names.
         let stated = changes.map_or_else(Default::default, |changes| {
@@ -1409,9 +1492,15 @@ impl Actor {
             self.catalog.state_sources(&items)
         });
         // Each source reconciles the rules a change concerns: every rule for its tracks, the
-        // Favorites rule for favorites and the playlists rule for playlists.
+        // favorite rules for favorites and the playlists rule for playlists.
         let mut favorites = DownloadRules::default();
-        favorites.set(DownloadRule::Favorites, true);
+        for rule in [
+            DownloadRule::Favorites,
+            DownloadRule::FavoriteAlbums,
+            DownloadRule::FavoriteArtists,
+        ] {
+            favorites.set(rule, true);
+        }
         let mut playlists = DownloadRules::default();
         playlists.set(DownloadRule::AllPlaylists, true);
         let sources = self
@@ -1869,6 +1958,10 @@ impl Actor {
             })
             .map(|download| download.job_id.clone());
         let owner = DownloadOwner::Subject(subject.clone());
+        // A track back in the rule did not leave it.
+        self.leaving.retain(|(source, left, media_uri), _| {
+            !(*source == source_id && *left == rule && desired.contains(media_uri))
+        });
 
         let owner_key = serde_json::to_string(&owner).expect("download ownership can be stored");
         let encoding = library::media_encoding_key(quality.encoding());
@@ -1897,6 +1990,18 @@ impl Actor {
                     }
                     continue;
                 }
+                // The rule keeps the copy of a track that left it for a while.
+                let left = (source_id.clone(), rule, record.media_uri.clone());
+                if self
+                    .leaving
+                    .entry(left.clone())
+                    .or_insert_with(Instant::now)
+                    .elapsed()
+                    < RULE_GRACE
+                {
+                    continue;
+                }
+                self.leaving.remove(&left);
                 let Ok(mut owners) = download_owners(&record) else {
                     continue;
                 };
@@ -2082,6 +2187,7 @@ impl Actor {
             let uri = media_uri.clone();
             let catalog = self.catalog.clone();
             let artwork = self.artwork.clone();
+            let external = self.settings.load().ui.artwork_policy();
             let task_source_id = source_id.clone();
             // The transfer resolves its stream, so commands never wait for a server.
             let task = tokio::spawn(async move {
@@ -2201,7 +2307,7 @@ impl Actor {
                 // Companion failures do not discard successfully downloaded audio.
                 tokio::select! {
                     _ = &mut cancelled => {},
-                    _ = cache_track_assets(&catalog, &artwork, source.as_deref(), &uri) => {},
+                    _ = cache_track_assets(&catalog, &artwork, &external, source.as_deref(), &uri) => {},
                 }
                 Ok(task_paths.audio)
             });
@@ -2626,6 +2732,29 @@ impl Actor {
     }
 
     /// Lets the first waiting job of each queue try again; starting it asks for the source.
+    /// Reconciles the rules whose tracks left them longer ago than a rule keeps their copies.
+    fn release_left(&mut self) {
+        self.leaving.retain(|(source_id, rule, _), _| {
+            self.attached.contains_key(source_id)
+                && self
+                    .settings
+                    .load()
+                    .ui
+                    .download_settings(source_id)
+                    .rules
+                    .contains(*rule)
+        });
+        let mut due = HashMap::<SourceId, DownloadRules>::new();
+        for ((source_id, rule, _), left) in &self.leaving {
+            if left.elapsed() >= RULE_GRACE {
+                due.entry(source_id.clone()).or_default().set(*rule, true);
+            }
+        }
+        for (source_id, rules) in due {
+            self.schedule_rules(&source_id, rules);
+        }
+    }
+
     fn retry_waiting(&mut self) {
         for jobs in self.jobs.values_mut() {
             if let Some(first) = jobs.first_mut()
@@ -3038,25 +3167,35 @@ async fn playable(catalog: &Catalog, media_uri: &str) -> Result<library::Playabl
         .ok_or(SourceError::NotFound)
 }
 
+/// Keeps the pictures the rows of a downloaded track show: its own, its album's and its
+/// artists'. One that fails leaves the others to be kept.
+async fn keep_track_pictures(
+    catalog: &Catalog,
+    artwork: &artwork::Artwork,
+    external: &artwork::ExternalPolicy,
+    media_uri: &str,
+) -> Result<(), String> {
+    let bindings = catalog
+        .track_row_artwork_bindings(media_uri, &library::ReadCancellation::new())
+        .await
+        .map_err(|error| error.to_string())?;
+    let mut result = Ok(());
+    for binding in bindings {
+        if let Err(error) = artwork.cache_source(&binding, external.clone()).await {
+            result = Err(error.to_string());
+        }
+    }
+    result
+}
+
 async fn cache_track_assets(
     catalog: &Catalog,
     artwork: &artwork::Artwork,
+    external: &artwork::ExternalPolicy,
     source: Option<&Source>,
     media_uri: &str,
 ) {
-    let images = async {
-        let bindings = catalog
-            .track_artwork_bindings(&[media_uri.to_owned()], &library::ReadCancellation::new())
-            .await
-            .map_err(|error| error.to_string())?;
-        for binding in bindings {
-            artwork
-                .cache_source(&binding)
-                .await
-                .map_err(|error| error.to_string())?;
-        }
-        Ok::<_, String>(())
-    };
+    let images = keep_track_pictures(catalog, artwork, external, media_uri);
     let lyrics = async {
         if let Some(source) = source {
             source
@@ -3758,6 +3897,7 @@ mod tests {
             jobs: HashMap::new(),
             paused: false,
             metered: false,
+            leaving: HashMap::new(),
             next_job: 0,
         }
     }

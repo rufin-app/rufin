@@ -66,6 +66,9 @@
   width: 16px;
   height: 16px;
 }
+#topbar .icon-button.source-unreachable .icon {
+  color: var(--red, #e01b24);
+}
 #back[aria-disabled="true"] {
   opacity: 0.4;
   pointer-events: none;

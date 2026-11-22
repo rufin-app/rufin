@@ -142,7 +142,7 @@ impl SourceOwner {
                 for binding in page {
                     self.shared
                         .artwork
-                        .cache_source(&binding)
+                        .cache_source(&binding, artwork::ExternalPolicy::default())
                         .await
                         .map_err(crate::string_error)?;
                     completed += 1;

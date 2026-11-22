@@ -209,6 +209,10 @@ struct RunContext {
     resolving_again: bool,
     /// When and in which period the continued listen started, for the start of this run.
     continued_start: Option<(i64, String)>,
+    /// The queue moved on to this run by itself, after a track that ended or one that could
+    /// not play. Nobody picked it, so it is passed over quietly when its server is already
+    /// said not to answer.
+    advanced: bool,
 }
 
 impl SongClock {
@@ -265,6 +269,7 @@ impl RunContext {
             failed_local: None,
             resolving_again: false,
             continued_start: None,
+            advanced: false,
         }
     }
 
@@ -408,9 +413,6 @@ pub(super) struct Player {
     /// What each station's server sends ahead on connecting, by its address, as its song
     /// changes measured it: a later run of the station is that far behind from its start.
     stream_leads: HashMap<String, i64>,
-    /// The server failed to connect: the skips that follow play only copies on this device,
-    /// until a track starts or ends.
-    offline: bool,
     sleep_timer: Option<SleepTimer>,
 }
 
@@ -473,7 +475,6 @@ impl Player {
             live_rejoins: 0,
             announced_changed: false,
             stream_leads: HashMap::new(),
-            offline: false,
             sleep_timer: None,
         }
     }
@@ -1194,11 +1195,11 @@ impl Player {
             .filter(|current| current.id == run)
         {
             let desired_playing = current.desired_playing;
+            let told = self.tells(&error, &current.row.track.media_uri, current.advanced);
             self.dirty = true;
             self.finish_current(RunEndReason::Failed, sample);
             self.buffering_percent = None;
-            // The skips past an unreachable server say so once.
-            if !(self.offline && error.kind() == FailureKind::Connection) {
+            if told {
                 self.report_error(error.message().to_string());
             }
             if !self.skip_unplayable(error.kind(), desired_playing) {
@@ -1366,6 +1367,7 @@ impl Player {
                     _ => None,
                 };
                 let retry = failed.is_some();
+                let media_uri = plan.request.media_uri.clone();
                 if retry {
                     plan.resolution = NextResolution::Resolving;
                     plan.failed_local = failed.clone();
@@ -1380,7 +1382,16 @@ impl Player {
                 }
                 match failed {
                     Some(failed) => self.resolve_next_plan_candidate(failed),
-                    None => self.report_error(error.message().to_string()),
+                    None => {
+                        if error.kind() == FailureKind::Connection
+                            && let Some((source, _, _)) = library::source_entity_parts(&media_uri)
+                        {
+                            self.owner().source_answered(&source, false);
+                        }
+                        if self.tells(&error, &media_uri, true) {
+                            self.report_error(error.message().to_string());
+                        }
+                    }
                 }
             }
             BackendEvent::ProcessingApplied {
@@ -1459,9 +1470,17 @@ impl Player {
                 let failed = FailedRun {
                     desired_playing: current.desired_playing,
                 };
+                if error.kind() == FailureKind::Connection
+                    && let Some(source) = streamed_source(current)
+                {
+                    self.owner().source_answered(&source, false);
+                }
+                let told = self.tells(&error, &current.row.track.media_uri, current.advanced);
                 self.dirty = true;
                 self.finish_current(RunEndReason::Failed, sample);
-                self.report_error(error.message().to_string());
+                if told {
+                    self.report_error(error.message().to_string());
+                }
                 if !self.skip_unplayable(error.kind(), failed.desired_playing) {
                     self.failed_run = Some(failed);
                     self.last_error = Some(error.message().to_string());
@@ -2402,8 +2421,11 @@ impl Player {
             return;
         };
         self.consecutive_skips = 0;
-        self.offline = false;
         current.backend_loaded = true;
+        // The stream that started came from its server, which answers.
+        if let (Some(source), Some(owner)) = (streamed_source(current), self.owner.upgrade()) {
+            owner.source_answered(&source, true);
+        }
         if current.started_at_unix_seconds.is_some() {
             if current.status != TransportStatus::Buffering {
                 return;
@@ -2533,6 +2555,7 @@ impl Player {
             self.next_plan =
                 reserved.filter(|plan| Some(plan.occurrence) == self.sequence.id_at(next));
             self.promote_or_begin(next, desired_playing && !sleep);
+            self.advanced();
         } else {
             self.auto_dj_waiting_for_continuation = true;
             self.maybe_request_auto_dj();
@@ -2652,6 +2675,7 @@ impl Player {
             current.resolved_stream = transitioned_stream;
             current.backend_loaded = true;
         }
+        self.advanced();
         self.mark_started(sample);
         if !desired_playing {
             self.send_backend(BackendCommand::Pause { run: new_run });
@@ -2710,17 +2734,37 @@ impl Player {
         }
     }
 
+    /// The queue moved on to the current run by itself: after a track that ended or one that
+    /// could not play.
+    fn advanced(&mut self) {
+        if let Some(current) = self.current_run.as_mut() {
+            current.advanced = true;
+        }
+    }
+
+    /// Whether a failure of the track `media_uri` is said. A server that does not connect is
+    /// said once until it answers again, and again for each track someone picked: the queue
+    /// passes quietly over the other tracks it moves on to (`advanced`).
+    fn tells(&self, error: &BackendFailure, media_uri: &str, advanced: bool) -> bool {
+        if error.kind() != FailureKind::Connection {
+            return true;
+        }
+        let first = library::source_entity_parts(media_uri)
+            .is_none_or(|(source, _, _)| self.owner().tell_unreachable(&source));
+        first || !advanced
+    }
+
     /// Moves past a track that cannot play. Returns false when playback should stop.
     /// An unreachable server passes on to the next track with a copy on this device, at most
     /// once around the queue.
     fn skip_unplayable(&mut self, failure: FailureKind, desired_playing: bool) -> bool {
-        let offline = failure == FailureKind::Connection;
-        let limit = if offline {
+        let unreachable = failure == FailureKind::Connection;
+        let limit = if unreachable {
             self.sequence.total()
         } else {
             MAX_CONSECUTIVE_SKIPS
         };
-        if !(failure.skippable() || offline)
+        if !(failure.skippable() || unreachable)
             || !self.settings.skip_unplayable_tracks
             || self.sequence.repeat_mode() == QueueRepeatMode::One
             || self.consecutive_skips >= limit
@@ -2731,8 +2775,8 @@ impl Player {
             return false;
         };
         self.consecutive_skips += 1;
-        self.offline |= offline;
         self.promote_or_begin(position, desired_playing);
+        self.advanced();
         true
     }
 
@@ -2977,7 +3021,6 @@ impl Player {
         self.failed_run = None;
         if reason != RunEndReason::Failed {
             self.consecutive_skips = 0;
-            self.offline = false;
         }
         let Some(current) = self.current_run.as_mut() else {
             self.next_plan = None;
@@ -3105,6 +3148,19 @@ impl Player {
         self.next_run_number = self.next_run_number.wrapping_add(1).max(1);
         run
     }
+}
+
+/// The server a run streams from. None for a run that plays a copy on this device, and for a
+/// radio station.
+fn streamed_source(current: &RunContext) -> Option<sources::SourceId> {
+    let local = current.resolved_stream.as_ref().is_some_and(|stream| {
+        let uri = stream.uri();
+        uri.starts_with("file:") || uri.starts_with("content:")
+    });
+    if local {
+        return None;
+    }
+    library::source_entity_parts(&current.row.track.media_uri).map(|(source, _, _)| source)
 }
 
 /// The local copy a stream opened, when its failure means the next copy may play.
@@ -3429,8 +3485,7 @@ impl Player {
         }
     }
 
-    fn resolve_stream(&mut self, run: RunId, row: Arc<QueueRow>, mut request: StreamRequest) {
-        request.local_only = self.offline;
+    fn resolve_stream(&mut self, run: RunId, row: Arc<QueueRow>, request: StreamRequest) {
         let task = self
             .owner()
             .resolve_stream(self.playback.clone(), run, row, request);

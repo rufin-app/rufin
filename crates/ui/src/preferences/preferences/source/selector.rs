@@ -311,6 +311,7 @@ mod tests {
             file_library: false,
             offers_half_star_setting: false,
             stores_lyrics_locally: false,
+            unreachable: false,
         }
     }
 
@@ -389,6 +390,7 @@ mod tests {
             file_library: true,
             offers_half_star_setting: true,
             stores_lyrics_locally: true,
+            unreachable: false,
         };
 
         assert_eq!(source_menu_label(&local), "Local");

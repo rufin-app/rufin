@@ -16,6 +16,15 @@ function updateSources(configured) {
     state.source = configured.selected || sources[0]?.id || "";
   libraries = configured.libraries || [];
   state.selectedLibrary = configured.library || null;
+  markSource();
+}
+
+// Marks the source button while the server of the page's source does not answer.
+function markSource() {
+  const unreachable = sources.some((item) => item.id === state.source && item.unreachable);
+  const button = $("source-menu-button");
+  button.classList.toggle("source-unreachable", unreachable);
+  button.title = unreachable ? tr("Server is unreachable") : tr("Select Source");
 }
 
 function sourceIcon(kind) {

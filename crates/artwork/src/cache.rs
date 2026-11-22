@@ -335,6 +335,16 @@ impl FilesystemCache {
         self.remove_dir_budgeted(&self.root.join("missing/external"))
     }
 
+    /// Forgets which of a source's pictures its server said it does not have.
+    pub(crate) fn retry_source(&self, source_id: &SourceId) -> io::Result<()> {
+        remove_dir_if_present(
+            &self
+                .root
+                .join("missing/native")
+                .join(digest(source_id.as_str())),
+        )
+    }
+
     pub(crate) fn invalidate_source(&self, source_id: &SourceId) -> io::Result<()> {
         let source = digest(source_id.as_str());
         remove_dir_if_present(&self.root.join("missing/native").join(&source))?;

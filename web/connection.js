@@ -166,7 +166,8 @@ async function connect() {
       if (value.lyrics) showLyrics(value.lyrics);
       if (value.appearance) applyColors(value.appearance);
       if (value.pins_changed) run(refreshPins);
-      if (value.catalog_acquired) run(async () => updateSources(await api("/sources")));
+      if (value.catalog_acquired || value.sources_changed)
+        run(async () => updateSources(await api("/sources")));
       showChanged(value);
     },
     session.signal,
