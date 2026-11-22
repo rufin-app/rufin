@@ -493,7 +493,14 @@ _build-flatpak:
     work_bundle_path="${work_root}/${bundle_name}"
     manifest="${repo_root}/packaging/flatpak/app.rufin.rufin.json"
     runtime_repo_url=https://flathub.org/repo/flathub.flatpakrepo
+    declare -a builder=(flatpak-builder)
     declare -a builder_args=()
+
+    # The Builder app carries its own appstreamcli; a host one under a hardened
+    # allocator fails to read the app icon.
+    if flatpak info org.flatpak.Builder >/dev/null 2>&1; then
+        builder=(flatpak run org.flatpak.Builder)
+    fi
 
     if [[ "${RUFIN_CONTAINER:-0}" == "1" ]]; then
         if [[ "${RUFIN_CONTAINER_NESTED_SANDBOX:-0}" != "1" ]]; then
@@ -513,7 +520,7 @@ _build-flatpak:
     rm -f "$temporary_bundle_path" "$work_bundle_path"
 
     flatpak remote-add --user --if-not-exists flathub "$runtime_repo_url"
-    flatpak-builder \
+    "${builder[@]}" \
         "${builder_args[@]}" \
         --user \
         --install-deps-from=flathub \
