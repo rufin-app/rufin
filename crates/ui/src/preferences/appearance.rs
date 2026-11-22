@@ -27,6 +27,35 @@ impl ApplicationAppearance {
             return appearance;
         };
 
+        // libadwaita leaves its stylesheet out under a forced GTK_THEME, and with it the colors
+        // style.css reads. The built-in Light and Dark palettes stand in below every provider.
+        let fallback_provider = gtk::CssProvider::new();
+        gtk::style_context_add_provider_for_display(
+            &display,
+            &fallback_provider,
+            gtk::STYLE_PROVIDER_PRIORITY_FALLBACK,
+        );
+        let palettes = {
+            let themes = appearance.themes.borrow();
+            [Mode::Light, Mode::Dark].map(|mode| {
+                format!(
+                    ":root {{\n{}}}\n",
+                    palette_css(
+                        &themes,
+                        &themes[usize::from(mode == Mode::Dark)],
+                        None,
+                        AccentPreference::Blue,
+                    )
+                )
+            })
+        };
+        let apply_fallback = move |style: &adw::StyleManager| {
+            fallback_provider.load_from_string(&palettes[usize::from(style.is_dark())]);
+        };
+        let style = adw::StyleManager::default();
+        apply_fallback(&style);
+        style.connect_dark_notify(apply_fallback);
+
         let base_provider = gtk::CssProvider::new();
         base_provider.load_from_resource("/app/rufin/rufin/ui/style.css");
         gtk::style_context_add_provider_for_display(
