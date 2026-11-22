@@ -6,8 +6,6 @@ fn main() -> ExitCode {
         return result;
     }
     #[cfg(unix)]
-    if let Some(result) = playback_gstreamer::restart_with_http1() {
-        return result;
-    }
+    playback_gstreamer::force_http1();
     rufin_controller::run(std::env::args_os().skip(1))
 }
