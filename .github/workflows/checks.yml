@@ -160,7 +160,10 @@ jobs:
                 Cargo.lock|Cargo.toml|*/Cargo.toml)
                   add_jobs "${workspace_jobs[@]}" cargo-deny
                   ;;
-                crates/ui/*|crates/rufin/*)
+                crates/ui/*)
+                  # Other pull requests' workspace runs cover the UI tests.
+                  ;;
+                crates/rufin/*)
                   add_jobs workspace
                   ;;
                 CMakeLists.txt|CMakePresets.json|cmake/*)
