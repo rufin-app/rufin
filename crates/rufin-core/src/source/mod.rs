@@ -124,6 +124,9 @@ pub(crate) struct Shared {
     discovery: tokio::sync::watch::Sender<Option<DiscoveryUpdate>>,
     selected: Mutex<Option<SelectedLibrary>>,
     catalog_counts: Mutex<HashMap<SourceId, (usize, usize)>>,
+    /// What the last look at each Local folder found: its place on the host, and whether it
+    /// could not be read.
+    local_folders: Mutex<HashMap<String, (String, bool)>>,
     selection_intent: Mutex<Weak<AtomicBool>>,
     connection: Mutex<Option<tokio::task::AbortHandle>>,
     album_release: Mutex<Option<tokio::task::AbortHandle>>,
@@ -175,6 +178,10 @@ impl Shared {
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()),
             &unreachable,
+            &self
+                .local_folders
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
         )
     }
 
@@ -463,6 +470,7 @@ impl SourceOwner {
                 discovery: tokio::sync::watch::channel(None).0,
                 selected: Mutex::new(None),
                 catalog_counts: Mutex::new(HashMap::new()),
+                local_folders: Mutex::new(HashMap::new()),
                 selection_intent: Mutex::new(Weak::new()),
                 connection: Mutex::new(None),
                 album_release: Mutex::new(None),
@@ -1063,8 +1071,9 @@ impl SourceOwner {
             };
             let owner = Self { shared };
             // Live changes apply while a refresh runs; a check or a whole listing waits for
-            // it, and finishing it wakes this loop. A listing that did not run is retried on
-            // the next tick.
+            // it, and finishing it wakes this loop. A listing that ran and failed is not asked
+            // for again: its own end would wake this loop to repeat it without a pause, and
+            // the feed asks once its folders or server are back.
             if !event && !observer.pending_listing() {
                 if !owner.shared.is_refreshing(&source_id) {
                     owner.check_remote_freshness(&source_id, &source).await;
@@ -1072,11 +1081,11 @@ impl SourceOwner {
                 continue;
             }
             let list = async |refresh| {
-                !owner.shared.is_refreshing(&source_id)
-                    && owner
-                        .refresh_now(&source_id, &source, true, refresh)
-                        .await
-                        .is_ok()
+                if owner.shared.is_refreshing(&source_id) {
+                    return false;
+                }
+                let _ = owner.refresh_now(&source_id, &source, true, refresh).await;
+                true
             };
             if let Err(error) = observer.apply_pending(&owner.shared.catalog, list).await {
                 if source_error_is_cancelled(&error) {
@@ -1134,6 +1143,12 @@ impl SourceOwner {
             }
         }
         let result = result.map(drop);
+        if self
+            .configuration(source_id)
+            .is_some_and(|source| source.is_local())
+        {
+            self.check_local_folders().await;
+        }
         {
             let mut clients = self
                 .shared
@@ -3319,6 +3334,7 @@ fn configured_sources(
     selected: Option<&SelectedLibrary>,
     counts: &HashMap<SourceId, (usize, usize)>,
     unreachable: &HashSet<SourceId>,
+    folders: &HashMap<String, (String, bool)>,
 ) -> ConfiguredSources {
     let sources = stored
         .sources
@@ -3334,8 +3350,17 @@ fn configured_sources(
         .configured
         .iter()
         .flat_map(|configured| local_roots(&configured.configuration).unwrap_or_default())
-        .map(|path| LocalFolder {
-            path: path.to_string_lossy().into_owned(),
+        .map(|path| {
+            let path = path.to_string_lossy().into_owned();
+            let (location, unavailable) = folders
+                .get(&path)
+                .cloned()
+                .unwrap_or_else(|| (path.clone(), false));
+            LocalFolder {
+                path,
+                location,
+                unavailable,
+            }
         })
         .collect::<Vec<_>>();
     let local_access = stored

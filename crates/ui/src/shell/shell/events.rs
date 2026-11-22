@@ -14,7 +14,7 @@ use crate::shell::player::{
     now_playing_notification_can_send, now_playing_notification_should_withdraw,
 };
 use rufin_core::runtime::source::source_progress_text;
-use rufin_core::runtime::source::{DiscoveryStatus, DiscoveryUpdate, SourceOperation};
+use rufin_core::runtime::source::{DiscoveryStatus, DiscoveryUpdate, LocalFolder, SourceOperation};
 use rufin_core::runtime::{ProductReceivers, SourceEvent, WaveformProjection};
 use rufin_core::source::feed::Changed;
 use sources::SourceProgress;
@@ -176,7 +176,39 @@ fn apply_source_configuration(shell: &Rc<Shell>) {
         Some(&source.id) == configured.selected_source_id.as_ref() && source.unreachable
     });
     shell.chrome.topbar.set_source_unreachable(unreachable);
+    let lost = |folders: &[LocalFolder], path: &str| {
+        folders
+            .iter()
+            .any(|folder| folder.unavailable && folder.path == path)
+    };
+    let newly_lost = configured
+        .local_folders
+        .iter()
+        .filter(|folder| {
+            folder.unavailable
+                && !lost(
+                    &shell.source.configured.borrow().local_folders,
+                    &folder.path,
+                )
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    // Dismissing a toast takes it out of the map, so none is dismissed under the borrow.
+    let found = shell
+        .source
+        .folder_recovery
+        .borrow()
+        .iter()
+        .filter(|(path, _)| !lost(&configured.local_folders, path))
+        .map(|(_, toast)| toast.clone())
+        .collect::<Vec<_>>();
     *shell.source.configured.borrow_mut() = configured;
+    for toast in found {
+        toast.dismiss();
+    }
+    for folder in newly_lost {
+        show_local_folder_recovery(shell, folder);
+    }
     // The first run's dialog moves to its last page once a source exists.
     shell.update_add_server_dialog();
     shell.products.lyrics.refresh_write_access();
@@ -658,15 +690,51 @@ fn show_playback_failure(shell: &Rc<Shell>, next: &playback::PlaybackView, error
     });
 }
 
-fn show_local_folder_recovery(shell: &Rc<Shell>, folder: String) {
-    let toast = adw::Toast::new(&tr("Local music folder is unavailable"));
+/// Says which Local folder cannot be read and offers to choose it again, once while the
+/// folder stays that way.
+fn show_local_folder_recovery(shell: &Rc<Shell>, folder: LocalFolder) {
+    if shell
+        .source
+        .folder_recovery
+        .borrow()
+        .contains_key(&folder.path)
+    {
+        return;
+    }
+    let location = desktop_integration::display_path(std::path::Path::new(&folder.location));
+    let toast = adw::Toast::new(&tr_with(
+        "Music folder is unavailable: {folder}",
+        &[("folder", &location)],
+    ));
+    toast.set_use_markup(false);
     toast.set_button_label(Some(&tr("Locate Folder")));
     toast.set_timeout(0);
-    let recovery_shell = Rc::clone(shell);
+    let path = folder.path.clone();
+    let recovery_shell = Rc::downgrade(shell);
     toast.connect_button_clicked(move |toast| {
         toast.dismiss();
-        crate::preferences::preferences::locate_local_folder(&recovery_shell, folder.clone());
+        if let Some(shell) = recovery_shell.upgrade() {
+            crate::preferences::preferences::locate_local_folder(&shell, folder.clone());
+        }
     });
+    let dismissed_shell = Rc::downgrade(shell);
+    let dismissed_path = path.clone();
+    toast.connect_dismissed(move |_| {
+        if let Some(shell) = dismissed_shell.upgrade() {
+            // The removed toast is dropped after the borrow ends.
+            let toast = shell
+                .source
+                .folder_recovery
+                .borrow_mut()
+                .remove(&dismissed_path);
+            drop(toast);
+        }
+    });
+    shell
+        .source
+        .folder_recovery
+        .borrow_mut()
+        .insert(path, toast.clone());
     shell.chrome.toast_overlay.add_toast(toast);
 }
 

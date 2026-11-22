@@ -103,6 +103,27 @@ impl Catalog {
             .bind(source_id).bind(artist).bind(after).fetch_all(&mut *connection).await?)
     }
 
+    /// The folder a Local root is on the host, from the tracks read under it. A sandbox's
+    /// folder grant has a path of its own and names the folder only while the grant holds.
+    pub async fn local_root_location(
+        &self,
+        source_id: &str,
+        root: &str,
+    ) -> LibraryResult<Option<std::path::PathBuf>> {
+        let mut connection = self.acquire_reader().await?;
+        let tracks: Vec<(String, String)> = sqlx::query_as("SELECT track.media_uri,file.relative_path FROM files file CROSS JOIN track_details details ON details.source_path=file.path AND details.cue_path IS NULL CROSS JOIN tracks track ON track.track_key=details.track_key AND track.source_key=file.source_key WHERE file.source_key=(SELECT source_key FROM sources WHERE object_id=?1) AND file.root=?2 AND file.kind='media' LIMIT 16")
+            .bind(source_id).bind(root).fetch_all(&mut *connection).await?;
+        // A track under a followed link is elsewhere on the host.
+        Ok(tracks.into_iter().find_map(|(uri, relative)| {
+            let path = crate::file_media_path(&uri)?;
+            let relative = std::path::Path::new(&relative);
+            path.ends_with(relative)
+                .then(|| path.ancestors().nth(relative.components().count()))
+                .flatten()
+                .map(std::path::Path::to_path_buf)
+        }))
+    }
+
     pub async fn source_artwork_directory_is_single_album(
         &self,
         source_id: &str,

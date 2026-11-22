@@ -170,6 +170,7 @@ pub async fn build(
         finding_servers: Cell::new(false),
         add_server: RefCell::new(None),
         refresh_feedback_generation: Rc::new(Cell::new(0)),
+        folder_recovery: RefCell::new(std::collections::HashMap::new()),
     });
     let startup = StartupState {
         route_revealed: Cell::new(!defer_initial_route),

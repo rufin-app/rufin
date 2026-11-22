@@ -26,6 +26,8 @@ pub struct SourceState {
     pub finding_servers: Cell<bool>,
     pub add_server: RefCell<Option<login::SourceSetupViewHandle>>,
     pub refresh_feedback_generation: Rc<Cell<u64>>,
+    /// The toast up for each Local folder that cannot be read, by the folder's path.
+    pub folder_recovery: RefCell<std::collections::HashMap<String, adw::Toast>>,
 }
 
 pub(super) fn preference_source_choices(

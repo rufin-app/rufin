@@ -10,8 +10,15 @@ let sources = [];
 
 let libraries = [];
 
+let unavailableFolders = [];
+
 function updateSources(configured) {
   sources = configured.sources;
+  // Says once which Local folder cannot be read; the host's own window chooses it again.
+  const lost = configured.unavailable_folders || [];
+  for (const folder of lost)
+    if (!unavailableFolders.includes(folder)) notice(tr("Music folder is unavailable: {folder}", { folder }));
+  unavailableFolders = lost;
   if (!sources.some((item) => item.id === state.source))
     state.source = configured.selected || sources[0]?.id || "";
   libraries = configured.libraries || [];

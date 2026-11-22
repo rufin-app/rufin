@@ -7,13 +7,13 @@ use adw::prelude::*;
 use gtk::gio;
 use rufin_core::downloads::{DownloadQueueState, DownloadRule};
 
-use localization::{msgid, tr};
+use localization::{msgid, tr, tr_with};
 use tracing::warn;
 
 use super::{PreferencesNavigationControls, source::half_stars_row};
 use crate::shell::shell::Shell;
 use crate::widgets::source_labels::{configured_source_display_name, configured_source_icon_name};
-use rufin_core::runtime::source::{SourceSummary, source_row_subtitle};
+use rufin_core::runtime::source::{LocalFolder, SourceSummary, source_row_subtitle};
 
 const SERVER_PROVIDER_ICON_SIZE: i32 = 28;
 const DOWNLOAD_JOB_DRAG_PREFIX: &str = "rufin-download-job:";
@@ -168,7 +168,7 @@ fn library_sources_page(
                 None,
                 count as u64,
             ),
-            None => localization::tr_with(
+            None => tr_with(
                 "Configured items: {count}",
                 &[("count", &count.to_string())],
             ),
@@ -495,11 +495,30 @@ pub fn local_sources_page(shell: &Rc<Shell>, dialog: &adw::Dialog) -> adw::Prefe
         local_group.add(&empty_local_row);
     } else {
         for folder in configured.local_folders.iter() {
+            let location = desktop_integration::display_path(Path::new(&folder.location));
             let row = adw::ActionRow::builder()
-                .title(local_folder_title(&folder.path))
-                .subtitle(desktop_integration::display_path(Path::new(&folder.path)))
+                .title(local_folder_title(&folder.location))
+                .subtitle(location)
+                .use_markup(false)
                 .build();
             row.add_prefix(&gtk::Image::from_icon_name("rufin-library-music-symbolic"));
+            if folder.unavailable {
+                let unavailable = gtk::Label::new(Some(&tr("Unavailable")));
+                unavailable.add_css_class("warning");
+                row.add_suffix(&unavailable);
+                let locate = gtk::Button::with_label(&tr("Locate Folder"));
+                locate.set_valign(gtk::Align::Center);
+                row.add_suffix(&locate);
+                let locate_shell = Rc::clone(shell);
+                let locate_dialog = dialog.downgrade();
+                let folder = folder.clone();
+                locate.connect_clicked(move |_| {
+                    if let Some(dialog) = locate_dialog.upgrade() {
+                        dialog.close();
+                    }
+                    locate_local_folder(&locate_shell, folder.clone());
+                });
+            }
             let remove = gtk::Button::from_icon_name("rufin-window-close-symbolic");
             remove.set_tooltip_text(Some(&tr("Remove")));
             remove.add_css_class("flat");
@@ -1255,25 +1274,30 @@ fn confirm_remove_local_folder(shell: &Rc<Shell>, path: String, row: adw::Action
     );
 }
 
-pub fn locate_local_folder(shell: &Rc<Shell>, current: String) {
+/// Chooses a Local folder that cannot be read again, starting where it is on the host.
+pub fn locate_local_folder(shell: &Rc<Shell>, folder: LocalFolder) {
     let shell = Rc::clone(shell);
     gtk::glib::spawn_future_local(async move {
         let chooser = gtk::FileDialog::builder()
             .title(tr("Select Music Folder"))
             .build();
-        let Ok(folder) = chooser
+        // A sandbox cannot see the folder, which its chooser opens all the same.
+        if std::env::var_os("FLATPAK_ID").is_some() || Path::new(&folder.location).exists() {
+            chooser.set_initial_folder(Some(&gio::File::for_path(&folder.location)));
+        }
+        let Ok(chosen) = chooser
             .select_folder_future(Some(&shell.chrome.window))
             .await
         else {
             return;
         };
-        let Some(replacement) = folder.path() else {
+        let Some(replacement) = chosen.path() else {
             return;
         };
         shell
             .products
             .source
-            .replace_local_folder(current, replacement);
+            .replace_local_folder(folder.path, replacement);
     });
 }
 

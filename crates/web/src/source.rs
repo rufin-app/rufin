@@ -231,6 +231,7 @@ async fn list(State(products): State<ProductHandles>) -> Result<Response<Body>, 
             "selected": configured.selected_source_id,
             "library": selected.as_ref().and_then(|source|source.music_folder_object_id.clone()),
             "libraries": selected.as_ref().map(|source|source.music_folders.iter().map(|folder|json!({"id":folder.object_id,"name":folder.name})).collect::<Vec<_>>()).unwrap_or_default(),
+            "unavailable_folders": configured.local_folders.iter().filter(|folder|folder.unavailable).map(|folder|&folder.location).collect::<Vec<_>>(),
             "sources": configured.sources.iter().map(|s| json!({"id":s.id,"name":s.name,"kind":s.kind,"unreachable":s.unreachable,"owns_playlists":s.owns_playlists,"supports_playlist_public":s.supports_playlist_public,"quality":products.settings.download_settings(s.id.clone()).quality,"download_quality":quality_view(products.settings.download_settings(s.id.clone()).quality)})).collect::<Vec<_>>()
         }),
     ))

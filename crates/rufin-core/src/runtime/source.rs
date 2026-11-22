@@ -49,7 +49,12 @@ pub struct SourceSummary {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "bindings", derive(uniffi::Record))]
 pub struct LocalFolder {
+    /// Where the folder is read: under a sandbox, the path of its folder grant.
     pub path: String,
+    /// The folder on the host, which is the one the user chose.
+    pub location: String,
+    /// It could not be read when it was last looked at.
+    pub unavailable: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]

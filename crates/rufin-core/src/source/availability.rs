@@ -1,10 +1,12 @@
 //! Checks media locations for cleanup and playback failure recovery.
 use super::SourceOwner;
+use crate::runtime::source::LocalFolder;
 use crate::string_error;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 impl SourceOwner {
-    pub async fn unavailable_local_folder(&self, media_uri: &str) -> Option<String> {
+    /// The Local folder a track's file is in, when that folder cannot be read.
+    pub async fn unavailable_local_folder(&self, media_uri: &str) -> Option<LocalFolder> {
         let cue = library::cue_media_parts(media_uri);
         let uri = cue.as_ref().map_or(media_uri, |(_, uri, _, _)| uri);
         // A Flatpak reads the file through its folder grant, at a path other than its identity.
@@ -17,7 +19,63 @@ impl SourceOwner {
             .and_then(|playables| playables.into_iter().next())
             .and_then(|playable| playable.local_uri());
         let path = library::file_media_path(access.as_deref().unwrap_or(uri))?;
-        unavailable_local_folder_for_path(&self.list_sources().local_folders, &path).await
+        self.check_local_folders().await;
+        self.list_sources()
+            .local_folders
+            .into_iter()
+            .find(|folder| folder.unavailable && path.starts_with(&folder.path))
+    }
+
+    /// Looks at each Local folder, and publishes the sources when one stopped or started
+    /// being readable or its place on the host became known. A folder that cannot be read is
+    /// where the tracks read under it say: a sandbox's grant names it only while it holds.
+    pub(crate) async fn check_local_folders(&self) {
+        let Some(local) = self
+            .shared
+            .settings
+            .load()
+            .sources
+            .configured
+            .iter()
+            .find(|source| source.configuration.is_local())
+            .map(|source| source.configuration.clone())
+        else {
+            return;
+        };
+        let mut found = HashMap::new();
+        for root in super::local_roots(&local).unwrap_or_default() {
+            let path = root.to_string_lossy().into_owned();
+            let unavailable = tokio::fs::read_dir(&root).await.is_err();
+            let location = if unavailable {
+                self.shared
+                    .catalog
+                    .local_root_location(local.source_id.as_str(), &path)
+                    .await
+                    .ok()
+                    .flatten()
+            } else {
+                tokio::task::spawn_blocking(move || library::playlist_host_path(&root))
+                    .await
+                    .ok()
+            };
+            let location = location.map_or_else(
+                || path.clone(),
+                |location| location.to_string_lossy().into_owned(),
+            );
+            found.insert(path, (location, unavailable));
+        }
+        {
+            let mut folders = self
+                .shared
+                .local_folders
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            if *folders == found {
+                return;
+            }
+            *folders = found;
+        }
+        self.shared.configured();
     }
 
     pub(crate) async fn missing_media(&self, uris: &[String]) -> Result<HashSet<String>, String> {
@@ -111,18 +169,6 @@ impl SourceOwner {
     }
 }
 
-async fn unavailable_local_folder_for_path(
-    folders: &[crate::runtime::source::LocalFolder],
-    path: &std::path::Path,
-) -> Option<String> {
-    for folder in folders {
-        if path.starts_with(&folder.path) && tokio::fs::read_dir(&folder.path).await.is_err() {
-            return Some(folder.path.clone());
-        }
-    }
-    None
-}
-
 /// Where a file or document URI is on this device.
 fn location(uri: &str) -> Option<library::LocalMediaLocation> {
     if uri.starts_with("content:") {
@@ -138,30 +184,4 @@ fn direct_local_media(uri: &str) -> bool {
     library::file_media_path(backing).is_some()
         || library::document_media_id(backing).is_some()
         || backing.starts_with("content:")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn local_folder_recovery_requires_the_tracks_root_to_be_unavailable() {
-        let directory = tempfile::tempdir().expect("temporary local folder parent");
-        let root = directory.path().join("Music");
-        std::fs::create_dir(&root).expect("create Local root");
-        let root_text = root.to_string_lossy().into_owned();
-        let folders = [crate::runtime::source::LocalFolder {
-            path: root_text.clone(),
-        }];
-        let track = root.join("ArtistView").join("SongView.flac");
-        assert_eq!(
-            unavailable_local_folder_for_path(&folders, &track).await,
-            None
-        );
-        std::fs::remove_dir(&root).expect("make Local root unavailable");
-        assert_eq!(
-            unavailable_local_folder_for_path(&folders, &track).await,
-            Some(root_text)
-        );
-    }
 }

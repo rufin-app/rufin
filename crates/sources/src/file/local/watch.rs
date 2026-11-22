@@ -17,6 +17,8 @@ use crate::{LocalLiveChange, SourceError, SourceResult};
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 const DEBOUNCE: Duration = Duration::from_secs(2);
 const FAILED_ROOT_RETRY: Duration = Duration::from_secs(60);
+const ROOT_CHECK: Duration = Duration::from_secs(5);
+const ROOT_REMOVED: &str = "A Local music folder was removed.";
 const FEED_RETRY_MIN: Duration = Duration::from_secs(5);
 const FEED_RETRY_MAX: Duration = Duration::from_secs(60);
 
@@ -39,12 +41,26 @@ impl LocalChangeFeed {
         let mut delay = FEED_RETRY_MIN;
         let mut reconnecting = false;
         while !should_stop() {
-            let result = self.listen(reconnecting, on_ready, on_change, should_stop);
+            let mut ready = false;
+            let result = self.listen(
+                reconnecting,
+                &mut |recovered| {
+                    ready = true;
+                    on_ready(recovered)
+                },
+                on_change,
+                should_stop,
+            );
             if should_stop() {
                 return Ok(());
             }
             if let Err(error) = result {
                 warn!(%error, "Local library change feed disconnected");
+                // What ended a running feed may have taken a folder away, which reading the
+                // folders again finds.
+                if ready && !on_change(LocalLiveChange::Rescan) {
+                    return Ok(());
+                }
             }
             reconnecting = true;
             if !wait_before_retry(delay, should_stop) {
@@ -83,7 +99,7 @@ impl LocalChangeFeed {
                             | EventKind::Modify(ModifyKind::Name(RenameMode::From))
                     ) && event.paths.iter().any(|path| roots.contains(path)) =>
                 {
-                    FeedMessage::Failed("A Local music folder was removed.".to_string())
+                    FeedMessage::Failed(ROOT_REMOVED.to_string())
                 }
                 Ok(mut event) if !matches!(event.kind, EventKind::Access(_)) => {
                     if !event.paths.is_empty() {
@@ -109,18 +125,22 @@ impl LocalChangeFeed {
         })
         .map_err(feed_error)?;
 
-        let mut watched = 0;
+        // What each watch was set on, to see when something else is at its path.
+        let mut watched = Vec::new();
         let mut failed_roots = Vec::new();
         for (root, mode) in watch_targets(&self.roots) {
             match watcher.watch(&root, mode) {
-                Ok(()) => watched += 1,
+                Ok(()) => {
+                    let identity = watched_identity(&root);
+                    watched.push((root, identity));
+                }
                 Err(error) => {
                     warn!(%error, root = %root.display(), "failed to watch Local music folder");
                     failed_roots.push((root, mode));
                 }
             }
         }
-        if watched == 0 {
+        if watched.is_empty() {
             return Err(SourceError::Other(
                 "No Local music folder could be watched.".to_string(),
             ));
@@ -130,6 +150,7 @@ impl LocalChangeFeed {
         }
 
         let mut retry_failed_roots_at = Instant::now() + FAILED_ROOT_RETRY;
+        let mut check_roots_at = Instant::now() + ROOT_CHECK;
         // The folders that followed links lead to, each watched as a root is.
         let mut followed = std::collections::BTreeSet::new();
         let mut generation = None;
@@ -182,6 +203,18 @@ impl LocalChangeFeed {
                 }
             }
 
+            // A renamed parent or a new mount leaves the watch on a folder that is no longer at
+            // the root's path, and no event says so.
+            if Instant::now() >= check_roots_at {
+                if watched
+                    .iter()
+                    .any(|(root, identity)| watched_identity(root) != *identity)
+                {
+                    return Err(SourceError::Other(ROOT_REMOVED.to_string()));
+                }
+                check_roots_at = Instant::now() + ROOT_CHECK;
+            }
+
             if !failed_roots.is_empty() && Instant::now() >= retry_failed_roots_at {
                 let mut still_failed = Vec::new();
                 let mut recovered = false;
@@ -190,7 +223,11 @@ impl LocalChangeFeed {
                         return Ok(());
                     }
                     match watcher.watch(&root, mode) {
-                        Ok(()) => recovered = true,
+                        Ok(()) => {
+                            recovered = true;
+                            let identity = watched_identity(&root);
+                            watched.push((root, identity));
+                        }
                         Err(error) => {
                             warn!(%error, root = %root.display(), "failed to retry Local music folder");
                             still_failed.push((root, mode));
@@ -271,6 +308,21 @@ fn wait_for_message(
             return FeedWait::TimedOut;
         }
         std::thread::park_timeout(deadline.saturating_duration_since(now));
+    }
+}
+
+/// What is at a watched path: nothing, or on Unix which folder or file.
+fn watched_identity(path: &std::path::Path) -> Option<(u64, u64)> {
+    let metadata = std::fs::metadata(path).ok()?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        Some((metadata.dev(), metadata.ino()))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = metadata;
+        Some((0, 0))
     }
 }
 
