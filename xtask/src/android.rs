@@ -227,9 +227,21 @@ fn toolchain<'a>(root: &Path, abis: &'a str) -> Result<(Toolchain, Vec<Target<'a
         "macos" => "darwin-x86_64",
         _ => return Err("Android native builds currently require Linux or macOS.".into()),
     };
-    let gst = custom_gst
-        .clone()
-        .unwrap_or_else(|| android.join(format!(".toolchains/gstreamer-{GSTREAMER_VERSION}")));
+    // Worktrees share the main checkout's SDK; each would otherwise download its own 1 GB copy.
+    let common = command_stdout(
+        "git",
+        [
+            OsStr::new("-C"),
+            root.as_os_str(),
+            OsStr::new("rev-parse"),
+            OsStr::new("--path-format=absolute"),
+            OsStr::new("--git-common-dir"),
+        ],
+    )?;
+    let checkout = Path::new(common.trim()).parent().unwrap_or(root);
+    let gst = custom_gst.clone().unwrap_or_else(|| {
+        checkout.join(format!("android/.toolchains/gstreamer-{GSTREAMER_VERSION}"))
+    });
     let targets = abis
         .split(',')
         .map(|abi| {
