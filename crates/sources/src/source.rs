@@ -1291,7 +1291,7 @@ impl Source {
         match &self.implementation {
             Implementation::OpenSubsonic(_) => true,
             Implementation::Files(files) => !files.has_notifications(),
-            // The check walks the folders once they have gone an hour without a walk.
+            // The check walks a file source once it has gone an hour without a whole walk.
             Implementation::Local(_) => true,
             _ => false,
         }
@@ -1364,7 +1364,8 @@ impl Source {
                         daily || marker.is_some() && !accepted
                     }
                     (_, Some(_)) => !accepted,
-                    (implementation, None) => matches!(implementation, Implementation::Files(_)),
+                    (Implementation::Files(files), None) => files.rescan_due(),
+                    (_, None) => false,
                 };
                 if !full {
                     if let Implementation::OpenSubsonic(source) = &self.implementation {

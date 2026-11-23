@@ -39,7 +39,7 @@ pub struct FileBatch {
     pub tracks: Vec<TrackObservation>,
     /// A vanished media path and the new path the same file was listed at.
     pub renames: Vec<(String, String)>,
-    /// Unchanged files listed with a new device, inode or native id.
+    /// Unchanged files listed with a new device, inode or native id, or their first revision.
     pub identities: Vec<LocalFileWrite>,
 }
 
@@ -181,9 +181,18 @@ impl super::Observation<'_> {
             let rows = batch
                 .identities
                 .iter()
-                .map(|f| (&f.path, f.device_id, f.inode, f.birth_ns, &f.native_id))
+                .map(|f| {
+                    (
+                        &f.path,
+                        f.device_id,
+                        f.inode,
+                        f.birth_ns,
+                        &f.native_id,
+                        &f.revision,
+                    )
+                })
                 .collect::<Vec<_>>();
-            sqlx::query("UPDATE files SET device_id=json_extract(item.value,'$[1]'),inode=json_extract(item.value,'$[2]'),birth_ns=json_extract(item.value,'$[3]'),native_id=json_extract(item.value,'$[4]') FROM json_each(?2) item WHERE files.source_key=?1 AND files.path=json_extract(item.value,'$[0]')")
+            sqlx::query("UPDATE files SET device_id=json_extract(item.value,'$[1]'),inode=json_extract(item.value,'$[2]'),birth_ns=json_extract(item.value,'$[3]'),native_id=json_extract(item.value,'$[4]'),revision=json_extract(item.value,'$[5]') FROM json_each(?2) item WHERE files.source_key=?1 AND files.path=json_extract(item.value,'$[0]')")
                 .bind(source).bind(serde_json::to_string(&rows)?).execute(write.connection().await?).await?;
         }
         if !batch.inputs.is_empty() {

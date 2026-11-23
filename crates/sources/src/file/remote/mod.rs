@@ -221,6 +221,7 @@ pub struct FileSource {
     directory_version: i64,
     input: Mutex<Option<Arc<FileInputServer>>>,
     pub(crate) artwork: crate::file::walk::ArtworkState,
+    walked: crate::file::walk::Walked,
 }
 
 #[expect(
@@ -326,6 +327,7 @@ impl FileSource {
             directory_version: DIRECTORY_VERSION,
             input: Mutex::new(None),
             artwork: Default::default(),
+            walked: Default::default(),
         }
     }
 
@@ -425,6 +427,7 @@ impl FileSource {
             directory_version,
             input: Mutex::new(None),
             artwork: Default::default(),
+            walked: Default::default(),
         })
     }
 

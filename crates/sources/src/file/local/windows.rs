@@ -13,10 +13,10 @@ use std::path::Path;
 use windows::Win32::Foundation::{ERROR_NO_MORE_FILES, HANDLE};
 use windows::Win32::Storage::FileSystem::{
     BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_HIDDEN,
-    FILE_ATTRIBUTE_REPARSE_POINT, FILE_ATTRIBUTE_SYSTEM, FILE_FLAG_BACKUP_SEMANTICS,
-    FILE_FULL_DIR_INFO, FILE_ID_BOTH_DIR_INFO, FILE_LIST_DIRECTORY, FileFullDirectoryInfo,
-    FileIdBothDirectoryInfo, GetFileInformationByHandle, GetFileInformationByHandleEx,
-    GetVolumeInformationByHandleW,
+    FILE_ATTRIBUTE_REPARSE_POINT, FILE_ATTRIBUTE_SYSTEM, FILE_BASIC_INFO,
+    FILE_FLAG_BACKUP_SEMANTICS, FILE_FULL_DIR_INFO, FILE_ID_BOTH_DIR_INFO, FILE_LIST_DIRECTORY,
+    FileBasicInfo, FileFullDirectoryInfo, FileIdBothDirectoryInfo, GetFileInformationByHandle,
+    GetFileInformationByHandleEx, GetVolumeInformationByHandleW,
 };
 
 use crate::file::walk::Entry;
@@ -38,6 +38,7 @@ struct Listed<'a> {
     size: i64,
     written: i64,
     created: i64,
+    changed: i64,
     id: i64,
 }
 
@@ -80,6 +81,7 @@ fn entry(
     size: i64,
     written: i64,
     created: i64,
+    changed: i64,
     identity: Option<(u32, i64)>,
 ) -> Entry {
     // An ID of zero or all ones is none.
@@ -94,7 +96,9 @@ fn entry(
         inode: identity.map(|(_, id)| id),
         birth_ns: unix_ns(created),
         native_id: None,
-        revision: None,
+        // The change time moves with every write, also one that restores the size and the
+        // modification time, as a tag editor that preserves them does. FAT keeps none.
+        revision: (changed != 0).then(|| changed.to_string()),
     }
 }
 
@@ -106,6 +110,16 @@ fn file_time(time: windows::Win32::Foundation::FILETIME) -> i64 {
 pub(crate) fn stat(path: &Path) -> io::Result<Entry> {
     let file = open(path, false)?;
     let facts = facts(&file)?;
+    let mut times = FILE_BASIC_INFO::default();
+    // SAFETY: the handle is open and `times` is a valid place for a result of its size.
+    unsafe {
+        GetFileInformationByHandleEx(
+            handle(&file),
+            FileBasicInfo,
+            (&raw mut times).cast(),
+            size_of::<FILE_BASIC_INFO>() as u32,
+        )
+    }?;
     let id = (i64::from(facts.nFileIndexHigh) << 32) | i64::from(facts.nFileIndexLow);
     Ok(entry(
         path.file_name()
@@ -115,6 +129,7 @@ pub(crate) fn stat(path: &Path) -> io::Result<Entry> {
         (i64::from(facts.nFileSizeHigh) << 32) | i64::from(facts.nFileSizeLow),
         file_time(facts.ftLastWriteTime),
         file_time(facts.ftCreationTime),
+        times.ChangeTime,
         identified(&file).then_some((facts.dwVolumeSerialNumber, id)),
     ))
 }
@@ -145,6 +160,7 @@ macro_rules! listed {
                 size: $fixed.EndOfFile,
                 written: $fixed.LastWriteTime,
                 created: $fixed.CreationTime,
+                changed: $fixed.ChangeTime,
                 id: $id,
             })
         })
@@ -166,6 +182,7 @@ pub(super) fn list(folder: &Path, follow: &dyn Fn(&Path) -> bool) -> io::Result<
     let mut buffer = vec![0_u64; BUFFER_WORDS];
     let mut entries = Vec::new();
     let mut links = Vec::new();
+    let mut unnamed = 0;
     loop {
         // SAFETY: the handle is open and the buffer is writable for the size given.
         let read = unsafe {
@@ -189,6 +206,7 @@ pub(super) fn list(folder: &Path, follow: &dyn Fn(&Path) -> bool) -> io::Result<
         for listed in listed {
             // A name that is not UTF-8 cannot be stored as a path the source opens.
             let Ok(name) = String::from_utf16(listed.name) else {
+                unnamed += 1;
                 continue;
             };
             // What Windows keeps for itself: recycle bins, volume data, and the junctions it
@@ -218,6 +236,7 @@ pub(super) fn list(folder: &Path, follow: &dyn Fn(&Path) -> bool) -> io::Result<
                     listed.size,
                     listed.written,
                     listed.created,
+                    listed.changed,
                     volume.map(|volume| (volume, listed.id)),
                 ),
             });
@@ -238,5 +257,6 @@ pub(super) fn list(folder: &Path, follow: &dyn Fn(&Path) -> bool) -> io::Result<
             });
         }
     }
+    super::warn_unnamed(folder, unnamed);
     Ok(entries)
 }

@@ -19,6 +19,27 @@ const PAGE: usize = 8192;
 const BATCH: usize = 128;
 /// Identities kept per walk to follow renamed files.
 const IDENTITIES: usize = 65_536;
+/// How long a file source goes without a whole walk. Change notifications miss what a
+/// network mount, a server without them or a lost event does not report.
+pub(crate) const RESCAN_INTERVAL: Duration = Duration::from_secs(60 * 60);
+
+/// When a file source's last whole walk started.
+#[derive(Default)]
+pub(crate) struct Walked(Mutex<Option<Instant>>);
+
+impl Walked {
+    pub(crate) fn start(&self) {
+        *self.0.lock().unwrap_or_else(|error| error.into_inner()) = Some(Instant::now());
+    }
+
+    /// Whether the source has gone an hour without a whole walk.
+    pub(crate) fn due(&self) -> bool {
+        self.0
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_none_or(|walked| walked.elapsed() >= RESCAN_INTERVAL)
+    }
+}
 
 /// One listed directory entry, or a stat of one path.
 #[derive(Clone, Debug, Default)]
@@ -471,7 +492,8 @@ impl<F: FileSource> Walker<'_, '_, F> {
         let unchanged = stored.kind == row.kind
             && stored.size_bytes == row.size_bytes
             && stored.mtime_ns == row.mtime_ns
-            && stored.revision == row.revision
+            // A row stored before its source gave revisions takes its first one unread.
+            && (stored.revision.is_none() || stored.revision == row.revision)
             && stored.parse_version == row.parse_version
             && match stored.state {
                 LocalFileState::Accepted => true,
@@ -484,7 +506,14 @@ impl<F: FileSource> Walker<'_, '_, F> {
                 stored.inode,
                 stored.birth_ns,
                 &stored.native_id,
-            ) == (row.device_id, row.inode, row.birth_ns, &row.native_id)
+                &stored.revision,
+            ) == (
+                row.device_id,
+                row.inode,
+                row.birth_ns,
+                &row.native_id,
+                &row.revision,
+            )
         {
             return unchanged;
         }
@@ -493,7 +522,7 @@ impl<F: FileSource> Walker<'_, '_, F> {
             return false;
         }
         // A remount that numbers the device again changes no content: the row takes the new
-        // identity, which later renames are matched by, without a parse.
+        // identity, which later renames are matched by, and its first revision without a parse.
         self.batch.identities.push(row.clone());
         true
     }
@@ -593,7 +622,10 @@ impl<F: FileSource> Walker<'_, '_, F> {
                     self.files.stat(&root, &native).await
                 };
                 match entry {
-                    Ok(entry) => self.visit(&root, &relative, &native, entry, None).await?,
+                    Ok(entry) => {
+                        self.visit(&root, &relative, &native, entry, None, None)
+                            .await?;
+                    }
                     Err(SourceError::NotFound) => {
                         self.vanish_subtree(&root, &key).await?;
                     }
@@ -679,7 +711,8 @@ impl<F: FileSource> Walker<'_, '_, F> {
             match entry {
                 Ok(entry) => {
                     let directory = entry.directory;
-                    self.visit(&root, &relative, &native, entry, None).await?;
+                    self.visit(&root, &relative, &native, entry, None, None)
+                        .await?;
                     if !directory && crate::file::lyrics::is_sidecar(&relative) {
                         self.lyrics_directory(&root, &relative, &native);
                     }
@@ -715,6 +748,8 @@ impl<F: FileSource> Walker<'_, '_, F> {
         native: &'s str,
         entry: Entry,
         siblings: Option<Arc<BTreeMap<String, String>>>,
+        // The device of the directory above, as stored and as listed now.
+        above: Option<(Option<i64>, Option<i64>)>,
     ) -> Pin<Box<dyn Future<Output = SourceResult<()>> + Send + 's>> {
         Box::pin(async move {
             self.check()?;
@@ -753,14 +788,35 @@ impl<F: FileSource> Walker<'_, '_, F> {
                 }
             };
             // An empty root with stored rows is an unmounted mount point, as unavailable as an
-            // unplugged drive.
-            if relative.is_empty()
+            // unplugged drive. So is an empty folder that was on another device than the folder
+            // above it and is on that folder's device now.
+            let unmounted = relative.is_empty()
+                || above
+                    .zip(stored.as_ref())
+                    .is_some_and(|((before, now), stored)| {
+                        before.is_some()
+                            && stored.file.device_id.is_some()
+                            && stored.file.device_id != before
+                            && row.device_id == now
+                    });
+            if unmounted
                 && entries.is_empty()
-                && self.peek().await?.is_some_and(|row| row.file.root == root)
+                && self
+                    .peek()
+                    .await?
+                    .is_some_and(|below| within(below, root, &key))
             {
-                self.fail(format!("File source root {root} is empty"));
+                self.fail(if relative.is_empty() {
+                    format!("File source root {root} is empty")
+                } else {
+                    format!("File source folder {relative} is not mounted")
+                });
                 return self.keep_subtree(root, &key).await;
             }
+            let below = Some((
+                stored.as_ref().and_then(|stored| stored.file.device_id),
+                row.device_id,
+            ));
             if !self.unchanged(stored.as_ref(), &row) {
                 self.stage(stored, row, native.to_owned(), None, true);
             }
@@ -791,7 +847,8 @@ impl<F: FileSource> Walker<'_, '_, F> {
                 lyrics |= self.vanish_before(root, &key, &child_key).await?;
                 if entry.directory {
                     let child_native = join(native, &entry.native);
-                    self.visit(root, &child, &child_native, entry, None).await?;
+                    self.visit(root, &child, &child_native, entry, None, below)
+                        .await?;
                     continue;
                 }
                 files.push((entry, self.take(root, &child_key).await?));

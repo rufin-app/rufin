@@ -7,7 +7,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 
 use serde::Deserialize;
 
@@ -27,9 +26,6 @@ mod windows;
 pub const LOCAL_SOURCE_ID: &str = "local";
 pub const LOCAL_LIBRARY_SOURCE_ID: &str = "local:server:library";
 const SOURCE_CONFIG_VERSION: u32 = 1;
-/// How long the folders go without a whole walk. A watcher misses what a network mount or a
-/// lost event does not report.
-const RESCAN_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
 pub fn read_local_image(reference: &crate::LocalImageRef) -> SourceResult<ImageBytes> {
     let reference = match reference {
@@ -122,8 +118,7 @@ pub struct LocalSource {
     pub(crate) documents: Vec<crate::file::remote::FileSource>,
     pub(crate) artwork: walk::ArtworkState,
     links: Arc<Links>,
-    /// When the last whole walk started.
-    walked: Mutex<Option<Instant>>,
+    walked: walk::Walked,
 }
 
 /// The links the walks follow, and the real place each leads to. One link leads to a place:
@@ -269,7 +264,7 @@ impl LocalSource {
                 .collect(),
             artwork: walk::ArtworkState::default(),
             links: Arc::default(),
-            walked: Mutex::default(),
+            walked: walk::Walked::default(),
         })
     }
 
@@ -281,7 +276,7 @@ impl LocalSource {
             documents: Vec::new(),
             artwork: walk::ArtworkState::default(),
             links: Arc::default(),
-            walked: Mutex::default(),
+            walked: walk::Walked::default(),
         })
     }
 
@@ -301,10 +296,7 @@ impl LocalSource {
 
     /// Whether the folders have gone an hour without a whole walk.
     pub(crate) fn rescan_due(&self) -> bool {
-        self.walked
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .is_none_or(|walked| walked.elapsed() >= RESCAN_INTERVAL)
+        self.walked.due()
     }
 
     pub fn roots(&self) -> &[PathBuf] {
@@ -378,10 +370,7 @@ impl LocalSource {
         let (paths, renames) = match scope {
             WalkScope::Paths { paths, renames } => (Some(paths), renames),
             WalkScope::All { .. } => {
-                *self
-                    .walked
-                    .lock()
-                    .unwrap_or_else(|error| error.into_inner()) = Some(Instant::now());
+                self.walked.start();
                 (None, &[][..])
             }
         };
@@ -735,12 +724,14 @@ use self::windows::list as list_folder;
 #[cfg(not(windows))]
 fn list_folder(folder: &Path, follow: &dyn Fn(&Path) -> bool) -> std::io::Result<Vec<Entry>> {
     let mut entries = Vec::new();
+    let mut unnamed = 0;
     // In name order, so of two links to one place the same one is followed every time.
     let mut listing = fs::read_dir(folder)?.collect::<std::io::Result<Vec<_>>>()?;
     listing.sort_by_key(fs::DirEntry::file_name);
     for listed in listing {
         // A name that is not UTF-8 cannot be stored as a path the source opens.
         let Ok(name) = listed.file_name().into_string() else {
+            unnamed += 1;
             continue;
         };
         let link = listed.file_type()?.is_symlink();
@@ -759,22 +750,37 @@ fn list_folder(folder: &Path, follow: &dyn Fn(&Path) -> bool) -> std::io::Result
             entries.push(entry(name, &metadata));
         }
     }
+    warn_unnamed(folder, unnamed);
     Ok(entries)
+}
+
+/// Says that a folder holds entries the library leaves out for their names.
+fn warn_unnamed(folder: &Path, skipped: usize) {
+    if skipped > 0 {
+        tracing::warn!(
+            folder = %folder.display(),
+            skipped,
+            "Skipped entries whose names are not valid Unicode"
+        );
+    }
 }
 
 /// The facts of a listed or opened file.
 #[cfg(not(windows))]
 fn entry(name: String, metadata: &fs::Metadata) -> Entry {
     #[cfg(unix)]
-    let (device_id, inode) = {
+    let (device_id, inode, revision) = {
         use std::os::unix::fs::MetadataExt;
         (
             i64::try_from(metadata.dev()).ok(),
             i64::try_from(metadata.ino()).ok(),
+            // The change time moves with every write, also one that restores the size and the
+            // modification time, as a tag editor that preserves them does.
+            Some(format!("{}:{}", metadata.ctime(), metadata.ctime_nsec())),
         )
     };
     #[cfg(not(unix))]
-    let (device_id, inode) = (None, None);
+    let (device_id, inode, revision) = (None, None, None);
     Entry {
         native: name.clone(),
         name,
@@ -796,7 +802,7 @@ fn entry(name: String, metadata: &fs::Metadata) -> Entry {
             .and_then(|born| born.duration_since(std::time::UNIX_EPOCH).ok())
             .and_then(|duration| i64::try_from(duration.as_nanos()).ok()),
         native_id: None,
-        revision: None,
+        revision,
     }
 }
 

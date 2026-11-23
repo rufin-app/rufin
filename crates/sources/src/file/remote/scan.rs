@@ -111,6 +111,9 @@ impl FileSource {
         progress: &(dyn Fn(crate::SourceProgress) + Send + Sync),
         cancelled: &(dyn Fn() -> bool + Send + Sync),
     ) -> SourceResult<()> {
+        if matches!(scope, walk::WalkScope::All { .. }) {
+            self.walked.start();
+        }
         walk::walk(
             self,
             observation,
@@ -478,6 +481,7 @@ impl walk::FileSource for FileSource {
                         .push("");
                 }
                 let own = collection.path().trim_end_matches('/').to_string();
+                let mut unnamed = 0;
                 client
                     .list(
                         &collection,
@@ -494,10 +498,15 @@ impl walk::FileSource for FileSource {
                                     .rsplit('/')
                                     .next()
                                     .unwrap_or_default();
-                                let name = percent_encoding::percent_decode_str(encoded)
-                                    .decode_utf8()
-                                    .map_err(|_| SourceError::NotFound)?
-                                    .into_owned();
+                                // A name that is not UTF-8 cannot be stored as a path the
+                                // source opens.
+                                let Ok(name) =
+                                    percent_encoding::percent_decode_str(encoded).decode_utf8()
+                                else {
+                                    unnamed += 1;
+                                    return Ok(());
+                                };
+                                let name = name.into_owned();
                                 entries.push(Entry {
                                     native: name.clone(),
                                     name,
@@ -513,6 +522,13 @@ impl walk::FileSource for FileSource {
                         },
                     )
                     .await?;
+                if unnamed > 0 {
+                    tracing::warn!(
+                        folder = native,
+                        skipped = unnamed,
+                        "Skipped entries whose names are not valid Unicode"
+                    );
+                }
             }
         }
         Ok(entries)

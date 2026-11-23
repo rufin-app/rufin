@@ -47,6 +47,10 @@ impl FileSource {
         self.kind == "smb"
     }
 
+    pub(crate) fn rescan_due(&self) -> bool {
+        self.walked.due()
+    }
+
     pub(crate) async fn watch(&self, mut changed: impl FnMut(FileChange) -> bool) {
         let Ok((settings, _)) = self.network() else {
             return;
@@ -106,7 +110,7 @@ impl FileSource {
                     Ok(false) => {
                         // Explicit protocol limitation: retain automatic checks on this server.
                         loop {
-                            tokio::time::sleep(Duration::from_secs(300)).await;
+                            tokio::time::sleep(crate::file::walk::RESCAN_INTERVAL).await;
                             if !changed(FileChange::FullRefresh) {
                                 return;
                             }
