@@ -241,6 +241,21 @@ impl ShowcaseLayout {
     }
 }
 
+/// Places a header's `body` over its band at the band's width. GtkOverlay would measure it at its
+/// natural width, which a long title makes wider than the band, and its MetaLine would lay the
+/// genres out for that width.
+pub(crate) fn place_on_band(layers: &gtk::Overlay, body: &gtk::Box) {
+    let body = body.clone().upcast::<gtk::Widget>();
+    layers.connect_get_child_position(move |layers, child| {
+        if child != &body {
+            return None;
+        }
+        let width = layers.width();
+        let height = child.measure(gtk::Orientation::Vertical, width).1;
+        Some(gtk::gdk::Rectangle::new(0, 0, width, height))
+    });
+}
+
 /// The facts and the genres as one line. The genres that do not fit it wait behind +n (› when
 /// none fits), which opens them onto further lines; ‹ closes them again.
 pub(crate) struct MetaLine {
@@ -525,6 +540,7 @@ impl DetailShowcaseView {
         let view: Self = glib::Object::new();
         let imp = view.imp();
         crate::favorites::install_favorite_heart(&imp.favorite);
+        place_on_band(&imp.layers, &imp.body);
         crate::widgets::text_slide::install(&imp.title_slide, &imp.title_viewport, &*imp.title);
         crate::widgets::text_slide::install(&imp.detail_slide, &imp.detail_viewport, &*imp.detail);
         // The facts slide as the title does when they are wider than the room.

@@ -1212,6 +1212,9 @@ struct Radio<'a> {
     add: String,
     /// The server the stations are saved on; empty when Rufin keeps them.
     saved_on: &'a str,
+    /// What Customize display chose, as JSON for its dialog; Compact cards is applied here.
+    display: String,
+    compact: bool,
     page: String,
     title: String,
     /// What committed while the page read, as JSON; empty when nothing did.
@@ -1301,6 +1304,8 @@ pub(super) fn radio(
             None => localization::tr("Add"),
         },
         saved_on: saved_on.unwrap_or_default(),
+        display: serde_json::to_string(&page.display).map_err(internal)?,
+        compact: page.display.compact_cards,
         page: token.json(),
         title: page::title(products, token, None),
         missed: opened
@@ -1565,7 +1570,7 @@ impl Page {
             .unwrap_or_else(|| self.appearance["theme"].as_str().unwrap_or("System"))
             .to_lowercase()
     }
-    /// The classes that mark favorites' covers and show ratings, for the first paint.
+    /// The classes that mark favorites' covers, show ratings and fit covers, for the first paint.
     pub fn grid_classes(&self) -> String {
         let grids = &self.appearance["grids"];
         [
@@ -1577,6 +1582,7 @@ impl Page {
                 grids["star_ratings"].as_bool() == Some(true),
                 "grid-star-ratings",
             ),
+            (grids["fit_covers"].as_bool() == Some(true), "fit-covers"),
         ]
         .into_iter()
         .filter_map(|(on, class)| on.then_some(class))

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface domain="rufin">
+  <requires lib="gtk" version="4.20"/>
+  <requires lib="libadwaita" version="1.9"/>
+  <!-- What the Radio page shows. Rust sets the switches and saves each change. -->
+  <object class="AdwPreferencesDialog" id="dialog">
+    <property name="title" translatable="yes">Customize display</property>
+    <property name="search-enabled">false</property>
+    <child><object class="AdwPreferencesPage">
+      <child><object class="AdwPreferencesGroup">
+        <child><object class="AdwSwitchRow" id="show_suggested">
+          <property name="title" translatable="yes">Suggested stations</property>
+        </object></child>
+        <child><object class="AdwSwitchRow" id="show_heard">
+          <property name="title" translatable="yes">Recently heard songs</property>
+        </object></child>
+        <child><object class="AdwSwitchRow" id="compact_cards">
+          <property name="title" translatable="yes">Compact cards</property>
+          <property name="subtitle" translatable="yes">Without genres and descriptions</property>
+        </object></child>
+      </object></child>
+    </object></child>
+  </object>
+</interface>

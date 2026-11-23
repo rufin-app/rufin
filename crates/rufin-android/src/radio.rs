@@ -20,6 +20,7 @@ use crate::host::{AndroidError, error};
 pub struct AndroidRadio {
     source: SourceHandle,
     playback: Arc<PlaybackOwner>,
+    settings: Arc<rufin_core::settings::SettingsOwner>,
     runtime: tokio::runtime::Handle,
     /// The library the page was last read in.
     opened_with: Mutex<Option<SelectedLibrary>>,
@@ -30,6 +31,7 @@ impl AndroidRadio {
         Self {
             source: products.source.clone(),
             playback: products.playback.clone(),
+            settings: products.settings.clone(),
             runtime: products.runtime.clone(),
             opened_with: Mutex::default(),
         }
@@ -73,6 +75,14 @@ impl AndroidRadio {
             self.source.selected_library().as_ref(),
             &changed,
         )
+    }
+
+    /// Saves what Customize display chose; the next read applies it.
+    pub fn set_display(
+        &self,
+        display: rufin_core::settings::app::RadioSettings,
+    ) -> Result<(), AndroidError> {
+        self.settings.set_radio(display).map_err(error)
     }
 
     /// Reads the server's stations into the Store.

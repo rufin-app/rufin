@@ -10,12 +10,16 @@ pub(super) fn routes() -> Router<ProductHandles> {
 /// The settings the browser's Preferences show, as JSON pointers into the stored settings. The
 /// rest stay the host's: its window, tray, controller and secrets.
 const SETTINGS: &[&str] = &[
+    "/radio/show_suggested",
+    "/radio/show_heard",
+    "/radio/compact_cards",
     "/release_check_interval_hours",
     "/allow_permanent_delete",
     "/prefer_distinct_track_covers",
     "/use_sort_tags",
     "/folder_albums",
     "/split_featured_artists",
+    "/fit_covers",
     "/external_metadata_enabled",
     "/cover_providers",
     "/artist_image_providers",

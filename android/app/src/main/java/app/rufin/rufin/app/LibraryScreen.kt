@@ -548,10 +548,12 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
                             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION))
                     })
                 }
-                // The Radio page has nothing to sort or lay out: its bar ends with Select, as Saved's, and Add Station.
+                // The Radio page has nothing to sort or lay out: its bar ends with Select, as Saved's, Add Station and
+                // Customize display.
                 if (browse.section == AppSection.Browse && rootRoute?.route is Route.Radio) {
                     PlayerIconButton("rufin-document-edit-symbolic", "Select", { radio.selecting = !radio.selecting }, selected = radio.selecting)
                     PlayerIconButton("rufin-list-add-symbolic", "Add Station", { radio.adding = true })
+                    PlayerIconButton("rufin-sliders-2-symbolic", "Customize display", { radio.customizing = true })
                 }
                 // Beside an opened page the bar is still its list's.
                 else if (browse.section == AppSection.Browse) PlayerIconButton("rufin-filter-symbolic", "Customize",

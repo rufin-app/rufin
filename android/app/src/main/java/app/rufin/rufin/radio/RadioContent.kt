@@ -11,6 +11,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -27,6 +28,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +53,8 @@ import app.rufin.rufin.core.AndroidRadio
 import app.rufin.rufin.core.translate
 import app.rufin.rufin.player.LiveMark
 import app.rufin.rufin.player.PlayerConnection
+import app.rufin.rufin.settings.SettingsGroup
+import app.rufin.rufin.settings.SettingsRow
 import app.rufin.rufin.shared.library.SidebarPin
 import app.rufin.rufin.shared.rufin_core.HeardSong
 import app.rufin.rufin.shared.rufin_core.OnAir
@@ -75,6 +79,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** What the Radio page and the bar over it share: the page as core answers it, the Add sheet the bar's
  *  button opens, and Select, in which the added stations are edited, deleted and reordered. */
@@ -82,11 +88,13 @@ internal class RadioState {
     var page by mutableStateOf<RadioPage?>(null)
     var adding by mutableStateOf(false)
     var selecting by mutableStateOf(false)
+    var customizing by mutableStateOf(false)
 }
 
 /** The Radio page, the tuner: the station on air, the selected source's stations, then the ones Rufin
  *  suggests. `filter` is the bar's search, which narrows the cards of both sections by name. */
 @androidx.annotation.OptIn(UnstableApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun RadioContent(model: RufinConnection, player: PlayerConnection, state: RadioState, filter: String,
     onClearFilter: () -> Unit) {
@@ -183,7 +191,7 @@ internal fun RadioContent(model: RufinConnection, player: PlayerConnection, stat
                         place in dragTo until dragFrom -> place + 1
                         else -> place
                     }
-                    StationCard(station, player, page.savedOn, logo, Modifier.weight(1f).fillMaxHeight(), state.selecting && station.key != null, gap,
+                    StationCard(station, player, page.savedOn, page.display.compactCards, logo, Modifier.weight(1f).fillMaxHeight(), state.selecting && station.key != null, gap,
                         Offset((stand % columns - place % columns) * dragStep.x, (stand / columns - place / columns) * dragStep.y), dragFrom >= 0,
                         onSelect = { state.selecting = true },
                         onDrag = { columnsMoved, rowsMoved, step ->
@@ -241,6 +249,25 @@ internal fun RadioContent(model: RufinConnection, player: PlayerConnection, stat
     }
     if (radio != null) {
         if (state.adding) AddStationSheet(model, player, radio, page.savedOn) { state.adding = false }
+        // Customize display: each switch saves its choice and reads the page again.
+        if (state.customizing) ModalBottomSheet({ state.customizing = false }) {
+            Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                Text(translate("Customize display"), style = MaterialTheme.typography.titleLarge)
+                SettingsGroup(null) {
+                    val display = page.display
+                    listOf(
+                        Triple("Suggested stations", null, display.showSuggested) to { on: Boolean -> display.copy(showSuggested = on) },
+                        Triple("Recently heard songs", null, display.showHeard) to { on: Boolean -> display.copy(showHeard = on) },
+                        Triple("Compact cards", "Without genres and descriptions", display.compactCards) to { on: Boolean -> display.copy(compactCards = on) },
+                    ).forEach { (row, change) ->
+                        val (label, summary, checked) = row
+                        SettingsRow(translate(label), summary = summary?.let { translate(it) }, modifier = Modifier.toggleable(checked, role = Role.Switch,
+                            onValueChange = { on -> model.runAction { withContext(Dispatchers.IO) { radio.setDisplay(change(on)) }; reads.trySend(Unit) } }),
+                            trailing = { Switch(checked, null) })
+                    }
+                }
+            }
+        }
         editing?.let { station -> EditStationDialog(model, player, radio, station) { editing = null } }
         deleting?.let { station ->
             AlertDialog(onDismissRequest = { deleting = null }, title = { Text(translate("Delete Station")) },
@@ -311,13 +338,14 @@ private fun StationPin(station: Station, pin: SidebarPin, onPin: (SidebarPin, Bo
     }
 }
 
-/** A station card: its picture, name, genres, description and channels. A tap plays the station, a
+/** A station card: its picture, name, genres, description and channels; compact, without the genres and
+ *  the description. A tap plays the station, a
  *  channel's chip that channel; a suggested one ends with +. A long press on an added one opens Select,
  *  where it ends with its pin, Edit, Delete and the handle it is dragged to another's place by, as Saved's rows.
  *  `shift` is how far it stands from its place while another card is dragged past it (`dragging`). */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
-private fun StationCard(station: Station, player: PlayerConnection, savedOn: String?, logo: Dp, modifier: Modifier,
+private fun StationCard(station: Station, player: PlayerConnection, savedOn: String?, compact: Boolean, logo: Dp, modifier: Modifier,
     selecting: Boolean, gap: Dp, shift: Offset, dragging: Boolean, onSelect: () -> Unit,
     onDrag: (Int, Int, Offset) -> Unit, onDrop: (Boolean) -> Unit,
     onPlay: (String?) -> Unit, onPin: (SidebarPin, Boolean) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onAdd: () -> Unit) {
@@ -365,8 +393,8 @@ private fun StationCard(station: Station, player: PlayerConnection, savedOn: Str
                         savedOn?.let { translate("Add to {saved_on}").replace("{saved_on}", it) } ?: translate("Add"), onClick = onAdd)
                 }
                 Column(Modifier.padding(end = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    StationGenres(station.genres)
-                    if (station.description.isNotBlank()) Text(station.description, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    if (!compact) StationGenres(station.genres)
+                    if (!compact && station.description.isNotBlank()) Text(station.description, maxLines = 2, overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodyMedium, color = scheme.onSurface.copy(alpha = .86f))
                     if (station.channels.isNotEmpty()) FlowRow(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -420,14 +448,11 @@ private fun OnAirHeader(onAir: OnAir, player: PlayerConnection, modifier: Modifi
                             }
                         }
                     }
-                    onAir.title?.takeIf(String::isNotBlank)?.let { title ->
-                        Text(title, Modifier.padding(top = 2.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    }
-                    onAir.artist?.takeIf(String::isNotBlank)?.let { artist ->
-                        Text(artist, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
-                            color = OnBand.copy(alpha = .84f))
-                    }
+                    // Their lines stay while nothing is announced, so the card keeps its height on Play.
+                    Text(onAir.title.orEmpty(), Modifier.padding(top = 2.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                    Text(onAir.artist.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
+                        color = OnBand.copy(alpha = .84f))
                     // Live and the format in the facts' pill, then the genres.
                     MetaLine(station.genres, true, Modifier.padding(top = if (wide) 12.dp else 8.dp)) {
                         FactsPill(listOfNotNull(onAir.format?.takeIf(String::isNotBlank)?.let { Triple("rufin-sound-symbolic", "Format", it) })) {

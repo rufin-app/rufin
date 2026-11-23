@@ -1,5 +1,5 @@
 {% import "macros.html" as m %}
-<div class="radio-page" data-page="{{ page }}" data-title="{{ title }}" data-section="Radio" data-missed="{{ missed }}" data-saved-on="{{ saved_on }}">
+<div class="radio-page" data-page="{{ page }}" data-title="{{ title }}" data-section="Radio" data-missed="{{ missed }}" data-saved-on="{{ saved_on }}" data-display="{{ display }}">
 {% if let Some(air) = on_air %}
   <section class="radio-on-air" data-station="{{ air.station.data }}">
     <form method="post" action="{% if !air.tuned %}/api/queue/station{% else if air.playing %}/api/playback/pause{% else %}/api/playback/play{% endif %}" data-enhanced-form>
@@ -11,8 +11,8 @@
         <div class="radio-logo"><div class="cover">{% if air.station.preview != "" %}<img src="{{ air.station.preview }}" alt="" />{% else %}{% call m::icon("rufin-radio-station-symbolic") %}{% endcall %}{% endif %}</div></div>
         <div class="radio-text">
           <h2 class="radio-name"><span class="detail-title">{{ air.station.station.name }}</span>{% if let Some(channel) = air.channel %}<span class="radio-badge">{{ channel }}</span>{% endif %}</h2>
-          {% if air.title != "" %}<span class="radio-song">{{ air.title }}</span>{% endif %}
-          {% if air.artist != "" %}<span class="radio-artist">{{ air.artist }}</span>{% endif %}
+          <span class="radio-song">{{ air.title }}</span>
+          <span class="radio-artist">{{ air.artist }}</span>
           <div class="detail-meta">
             <div class="detail-facts">
               <span class="live-mark"><span class="live-dot"></span>{{ localization::tr("LIVE") }}</span>
@@ -44,6 +44,7 @@
       <input type="search" id="station-filter" placeholder="{{ localization::tr("Search stations") }}" aria-label="{{ localization::tr("Search stations") }}" autocomplete="off" hidden />
       <button type="button" class="icon-button" data-action="station-add" title="{{ localization::tr("Add Station") }}" aria-label="{{ localization::tr("Add Station") }}" aria-haspopup="dialog">{% call m::icon("rufin-list-add-symbolic") %}{% endcall %}</button>
       <button type="button" class="icon-button" data-action="station-search" title="{{ localization::tr("Search") }}" aria-label="{{ localization::tr("Search") }}" aria-controls="station-filter" aria-expanded="false">{% call m::icon("rufin-search-symbolic") %}{% endcall %}</button>
+      <button type="button" class="icon-button" data-action="station-customize" title="{{ localization::tr("Customize display") }}" aria-label="{{ localization::tr("Customize display") }}" aria-haspopup="dialog">{% call m::icon("rufin-sliders-2-symbolic") %}{% endcall %}</button>
       {% endif %}
     </div>
     {% if !cards.is_empty() %}
@@ -60,8 +61,8 @@
               {% if card.station.key.is_some() %}<div class="station-tools"><button type="button" class="station-end station-grip" data-action="station-move" title="{{ localization::tr("Drag to reorder") }}" aria-label="{{ localization::tr("Drag to reorder") }}">{% call m::icon("rufin-list-drag-handle-symbolic") %}{% endcall %}</button>{% if card.station.pin.is_some() %}<button type="button" class="station-end" data-action="station-pin" aria-pressed="{{ card.saved }}"{% if !card.channels.is_empty() %} aria-haspopup="menu"{% endif %} title="{{ card.pin }}" aria-label="{{ card.pin }}">{% if card.saved %}{% call m::icon("rufin-bookmark-filled-symbolic") %}{% endcall %}{% else %}{% call m::icon("rufin-bookmark-symbolic") %}{% endcall %}{% endif %}</button>{% endif %}<button type="button" class="station-end" data-action="station-edit" aria-haspopup="dialog" title="{{ localization::tr("Edit") }}" aria-label="{{ localization::tr("Edit") }}">{% call m::icon("rufin-document-edit-symbolic") %}{% endcall %}</button><button type="button" class="station-end" data-action="station-delete" title="{{ localization::tr("Delete") }}" aria-label="{{ localization::tr("Delete") }}">{% call m::icon("rufin-user-trash-symbolic") %}{% endcall %}</button></div>
               {% else %}<button type="submit" formaction="/api/stations/listed" name="payload" value="{{ card.add }}" class="station-end" data-action="add" title="{{ add }}" aria-label="{{ add }}">{% call m::icon("rufin-list-add-symbolic") %}{% endcall %}</button>{% endif %}
             </div>
-            {% if card.genres != "" %}<span class="station-genres">{% call m::icon("rufin-tag-outline-symbolic") %}{% endcall %}<span>{{ card.genres }}</span></span>{% endif %}
-            {% if card.station.description != "" %}<p class="station-description">{{ card.station.description }}</p>{% endif %}
+            {% if !compact && card.genres != "" %}<span class="station-genres">{% call m::icon("rufin-tag-outline-symbolic") %}{% endcall %}<span>{{ card.genres }}</span></span>{% endif %}
+            {% if !compact && card.station.description != "" %}<p class="station-description">{{ card.station.description }}</p>{% endif %}
             {% if !card.channels.is_empty() %}<div class="station-channels">{% for (name, payload, playing) in card.channels %}<button type="submit" name="payload" value="{{ payload }}" class="station-channel" data-action="channel" data-channel="{{ name }}"{% if playing %} aria-current="true"{% endif %}>{{ name }}</button>{% endfor %}</div>{% endif %}
           </div>
         </form>

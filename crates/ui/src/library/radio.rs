@@ -17,7 +17,7 @@ use tracing::warn;
 use crate::library::CatalogUi;
 use crate::library::collections::library_route_inset;
 use crate::library::detail_showcase::{
-    DetailStrip, MetaLine, band_stops, open_web_link, paint_band,
+    DetailStrip, MetaLine, band_stops, open_web_link, paint_band, place_on_band,
 };
 use crate::library::route_layout::{PRIMARY_ROUTE_HORIZONTAL_INSET, ROUTE_TOP_MARGIN};
 use crate::shell::shell::Shell;
@@ -347,11 +347,11 @@ impl OnAirHeader {
         self.channel
             .set_text(on_air.channel.as_deref().unwrap_or_default());
         self.channel.set_visible(on_air.channel.is_some());
-        for (label, text) in [(&self.song, &on_air.title), (&self.artist, &on_air.artist)] {
-            let text = text.as_deref().unwrap_or_default();
-            label.set_text(text);
-            label.set_visible(!text.is_empty());
-        }
+        // Their lines stay while nothing is announced, so the header keeps its height on Play.
+        self.song
+            .set_text(on_air.title.as_deref().unwrap_or_default());
+        self.artist
+            .set_text(on_air.artist.as_deref().unwrap_or_default());
         let format = on_air.format.as_deref().unwrap_or_default();
         self.format.set_text(format);
         self.format_fact.set_visible(!format.is_empty());
@@ -490,6 +490,7 @@ impl RadioRoute {
             filter: gtk::SearchEntry,
             add: gtk::Button,
             filter_toggle: gtk::ToggleButton,
+            customize: gtk::Button,
                     stations: gtk::FlowBox,
             suggested_heading: gtk::Label,
             suggested: gtk::FlowBox,
@@ -497,6 +498,7 @@ impl RadioRoute {
         crate::widgets::controls::configure_search_entry(&filter);
         content.set_margin_top(ROUTE_TOP_MARGIN);
 
+        place_on_band(&on_air, &on_air_body);
         let cover = ArtworkTile::new(HEADER_COVER_SIZE);
         cover.area.add_css_class("station-cover");
         cover.area.add_css_class("detail-showcase-cover");
@@ -674,6 +676,12 @@ impl RadioRoute {
                 present_add_dialog(&shell, saved_on);
             }
         });
+        let weak = Rc::downgrade(&route);
+        customize.connect_clicked(move |_| {
+            if let Some(route) = weak.upgrade() {
+                route.present_settings();
+            }
+        });
         let search = route.filter.downgrade();
         route.filter_toggle.connect_toggled(move |toggle| {
             let Some(search) = search.upgrade() else {
@@ -720,6 +728,59 @@ impl RadioRoute {
         }
     }
 
+    /// Customize display: each switch saves its choice and reads the page again.
+    fn present_settings(self: &Rc<Self>) {
+        let Some(shell) = self.shell.upgrade() else {
+            return;
+        };
+        let resource = "routes/radio_settings.ui";
+        let builder = crate::ui_resource::builder(resource);
+        crate::objects!(builder, resource, {
+            dialog: adw::PreferencesDialog,
+            show_suggested: adw::SwitchRow,
+            show_heard: adw::SwitchRow,
+            compact_cards: adw::SwitchRow,
+        });
+        let shown = self
+            .shown
+            .borrow()
+            .as_ref()
+            .map(|page| page.display.clone())
+            .unwrap_or_default();
+        let rows = [
+            (show_suggested, shown.show_suggested),
+            (show_heard, shown.show_heard),
+            (compact_cards, shown.compact_cards),
+        ];
+        for (index, (row, active)) in rows.into_iter().enumerate() {
+            row.set_active(active);
+            let route = Rc::downgrade(self);
+            row.connect_active_notify(move |row| {
+                let Some(route) = route.upgrade() else {
+                    return;
+                };
+                let Some(shell) = route.shell.upgrade() else {
+                    return;
+                };
+                let changed = shell.settings.update_app_settings("radio", |settings| {
+                    let radio = &mut settings.application.radio;
+                    let target = match index {
+                        0 => &mut radio.show_suggested,
+                        1 => &mut radio.show_heard,
+                        _ => &mut radio.compact_cards,
+                    };
+                    let changed = *target != row.is_active();
+                    *target = row.is_active();
+                    changed
+                });
+                if changed.is_some() {
+                    route.reread();
+                }
+            });
+        }
+        crate::widgets::popup::present_settings_dialog(&dialog, &shell.chrome.window);
+    }
+
     /// Reads the page again and shows it.
     fn reread(self: &Rc<Self>) {
         let Some(shell) = self.shell.upgrade() else {
@@ -753,12 +814,12 @@ impl RadioRoute {
             Some(on_air) => self.on_air.show(&shell, on_air),
             None => self.on_air.root.set_visible(false),
         }
-        // The cards name where a station is saved, so another place builds them again.
-        let moved = self
-            .shown
-            .borrow()
-            .as_ref()
-            .is_none_or(|shown| shown.saved_on != page.saved_on);
+        // The cards name where a station is saved and follow Compact cards, so another place
+        // or another choice builds them again.
+        let moved = self.shown.borrow().as_ref().is_none_or(|shown| {
+            shown.saved_on != page.saved_on
+                || shown.display.compact_cards != page.display.compact_cards
+        });
         for (grid, cards, stations) in [
             (&self.stations, &self.station_cards, &page.stations),
             (&self.suggested, &self.suggested_cards, &page.suggested),
@@ -781,7 +842,12 @@ impl RadioRoute {
             let built = stations
                 .iter()
                 .map(|station| {
-                    let card = self.card(&shell, station, page.saved_on.as_deref());
+                    let card = self.card(
+                        &shell,
+                        station,
+                        page.saved_on.as_deref(),
+                        page.display.compact_cards,
+                    );
                     grid.append(&card.child);
                     card
                 })
@@ -880,6 +946,7 @@ impl RadioRoute {
         shell: &Rc<Shell>,
         station: &Station,
         saved_on: Option<&str>,
+        compact: bool,
     ) -> StationCard {
         let view = StationCardView::new();
         let imp = view.imp();
@@ -889,9 +956,10 @@ impl RadioRoute {
         imp.name.set_text(&station.name);
         let genres = station.genres.join(", ");
         imp.genres.set_text(&genres);
-        imp.genres_row.set_visible(!genres.is_empty());
+        imp.genres_row.set_visible(!compact && !genres.is_empty());
         imp.description.set_text(&station.description);
-        imp.description.set_visible(!station.description.is_empty());
+        imp.description
+            .set_visible(!compact && !station.description.is_empty());
 
         let shown = Rc::new(RefCell::new(station.clone()));
         let chips = station

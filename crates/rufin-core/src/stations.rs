@@ -41,7 +41,7 @@ struct Channel {
     stream: String,
 }
 
-/// Rufin's list, by name. A file that does not read is left out.
+/// Rufin's list, by name after LISTEN.moe. A file that does not read is left out.
 fn listed() -> &'static [Listed] {
     static LIST: OnceLock<Vec<Listed>> = OnceLock::new();
     LIST.get_or_init(|| {
@@ -65,7 +65,8 @@ fn listed() -> &'static [Listed] {
                 }
             })
             .collect::<Vec<_>>();
-        list.sort_by_key(|station| station.name.to_lowercase());
+        // LISTEN.moe leads, so the page shows it while none is added or plays.
+        list.sort_by_key(|station| (station.id != "listen-moe", station.name.to_lowercase()));
         list
     })
 }
@@ -201,6 +202,8 @@ pub struct RadioPage {
     pub suggested: Vec<Station>,
     /// The server a station is saved on; None when Rufin keeps it.
     pub saved_on: Option<String>,
+    /// What the page shows, which it has already applied to Suggested and Heard.
+    pub display: crate::settings::app::RadioSettings,
 }
 
 /// What a person entered for a station.
@@ -454,6 +457,7 @@ pub(crate) fn format(live: &playback::LiveStream, content_type: Option<&str>) ->
 /// The Radio page: the station on air, every source's stations and the suggested ones.
 pub async fn page(owner: &SourceOwner, playback: &PlaybackOwner) -> Result<RadioPage, String> {
     let keeper = Keeper::of(owner);
+    let display = owner.shared.settings.load().ui.application.radio.clone();
     let rows = owner
         .shared
         .catalog
@@ -537,7 +541,11 @@ pub async fn page(owner: &SourceOwner, playback: &PlaybackOwner) -> Result<Radio
                         .and_then(|stream| stream.format.as_deref()),
                 )
             }),
-            heard: playback.heard(),
+            heard: if display.show_heard {
+                playback.heard()
+            } else {
+                Vec::new()
+            },
             playing: playback
                 .updates
                 .current()
@@ -561,11 +569,17 @@ pub async fn page(owner: &SourceOwner, playback: &PlaybackOwner) -> Result<Radio
     Ok(RadioPage {
         on_air,
         stations,
-        suggested,
+        // The header still offers the first of them while no station is added.
+        suggested: if display.show_suggested {
+            suggested
+        } else {
+            Vec::new()
+        },
         saved_on: match keeper {
             Keeper::Server { name, .. } => Some(name),
             Keeper::Rufin => None,
         },
+        display,
     })
 }
 

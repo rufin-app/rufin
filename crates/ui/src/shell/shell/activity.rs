@@ -220,17 +220,7 @@ impl ActivityView {
             let Some(window) = window.upgrade() else {
                 return;
             };
-            let width = crate::widgets::layout::large_popup_content_width(560);
-            let natural_height = settings_dialog
-                .child()
-                .expect("Preferences dialog content")
-                .measure(gtk::Orientation::Vertical, width)
-                .1;
-            let max_height =
-                crate::widgets::layout::large_popup_content_height(window.height(), 640);
-            settings_dialog.set_content_width(width);
-            settings_dialog.set_content_height(natural_height.min(max_height));
-            crate::widgets::popup::present_light_dismiss_dialog(&settings_dialog, &window);
+            crate::widgets::popup::present_settings_dialog(&settings_dialog, &window);
         });
         let background = FullscreenBackground::new();
         report.set_child(None::<&gtk::Widget>);

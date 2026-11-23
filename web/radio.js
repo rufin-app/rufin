@@ -3,6 +3,7 @@ import { api, fragment, session } from "./connection.js";
 import { readFile } from "./metadata.js";
 import { pinAction } from "./pins.js";
 import { showMenu } from "./menus.js";
+import { set } from "./preferences.js";
 
 // The stations filter while it is open, which a page read again keeps with its caret.
 let filter = null;
@@ -186,6 +187,7 @@ async function loadRadio(path, signal, opening) {
       if (action === "toggle")
         return api(control.closest("form").getAttribute("action").replace("/api", ""), "POST", {});
       if (action === "station-add") return openAdd();
+      if (action === "station-customize") return openCustomize(page);
       if (action === "station-search") {
         filter = filter === null ? "" : null;
         caret = 0;
@@ -362,8 +364,24 @@ async function openEdit(station) {
   $("station-edit-name").focus();
 }
 
+// Customize display shows the page's choices; each switch saves its own and reads the page again.
+function openCustomize(page) {
+  const display = JSON.parse(page.dataset.display);
+  for (const node of document.querySelectorAll("[data-radio-setting]")) node.checked = display[node.dataset.radioSetting];
+  $("station-customize-dialog").showModal();
+}
+
 function init() {
   $("station-address").addEventListener("input", look);
+  $("station-customize-dialog").addEventListener("change", (event) => {
+    const node = event.target.closest("[data-radio-setting]");
+    if (!node) return;
+    run(async () => {
+      await set(`/radio/${node.dataset.radioSetting}`, node.checked);
+      const page = $("content").querySelector(".radio-page");
+      if (page) await loadRadio(`/api/page?${new URLSearchParams({ page: page.dataset.page })}`, session?.signal);
+    });
+  });
   $("station-add-dialog").addEventListener("close", () => {
     clearTimeout(lookupTimer);
     lookup?.abort();

@@ -70,6 +70,29 @@ impl Default for ActivityOverviewSettings {
     }
 }
 
+/// What the Radio page shows.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(default)]
+#[cfg_attr(feature = "bindings", derive(uniffi::Record))]
+pub struct RadioSettings {
+    /// Rufin's stations that are not added, under the added ones.
+    pub show_suggested: bool,
+    /// The songs heard before the one that plays.
+    pub show_heard: bool,
+    /// Cards with the name and the channels, without the genres and the description.
+    pub compact_cards: bool,
+}
+
+impl Default for RadioSettings {
+    fn default() -> Self {
+        Self {
+            show_suggested: true,
+            show_heard: true,
+            compact_cards: false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "bindings", derive(uniffi::Record))]
 pub struct ExternalSiteLinkSettings {
@@ -263,6 +286,9 @@ preference_group!(#[cfg_attr(feature = "bindings", derive(uniffi::Record))] Appl
     /// Grids: the rating on a cover under the pointer.
     #[serde(default)]
     grid_star_ratings: bool = false => set_grid_star_ratings;
+    /// Covers show whole inside their square frames instead of filling them.
+    #[serde(default)]
+    fit_covers: bool = false => set_fit_covers;
     /// Android: whether rule downloads run on mobile data too.
     #[serde(default)]
     download_on_mobile_data: bool = false => set_download_on_mobile_data;
@@ -300,6 +326,8 @@ preference_group!(#[cfg_attr(feature = "bindings", derive(uniffi::Record))] Appl
     context_menu: ContextMenuSettings = ContextMenuSettings::default() => set_context_menu;
     #[serde(default)]
     activity_overview: ActivityOverviewSettings = ActivityOverviewSettings::default();
+    #[serde(default)]
+    radio: RadioSettings = RadioSettings::default() => set_radio;
     #[serde(default)]
     backup: crate::backup::BackupSettings = crate::backup::BackupSettings::default();
     #[serde(default)]

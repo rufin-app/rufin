@@ -42,3 +42,11 @@
     </div>
   </form>
 </dialog>
+<dialog id="station-customize-dialog" class="pref-dialog station-dialog" aria-labelledby="station-customize-title">
+  <header class="pref-header"><span></span><h3 id="station-customize-title">{{ localization::tr("Customize display") }}</h3><button type="button" class="icon-button" data-close="station-customize-dialog" aria-label="{{ localization::tr("Close") }}">{% call m::icon("rufin-window-close-symbolic") %}{% endcall %}</button></header>
+  <div class="pref-group">
+    <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Suggested stations") }}</span></span><input type="checkbox" role="switch" data-radio-setting="show_suggested" /></label>
+    <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Recently heard songs") }}</span></span><input type="checkbox" role="switch" data-radio-setting="show_heard" /></label>
+    <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Compact cards") }}</span><small>{{ localization::tr("Without genres and descriptions") }}</small></span><input type="checkbox" role="switch" data-radio-setting="compact_cards" /></label>
+  </div>
+</dialog>

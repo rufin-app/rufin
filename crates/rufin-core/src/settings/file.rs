@@ -90,6 +90,7 @@ pub(super) const CHOICES: &[(&str, &str)] = &[
     ("fullscreen.visualizer", "/fullscreen_visualizer_visible"),
     ("library.use_sort_tags", "/use_sort_tags"),
     ("library.folder_albums", "/folder_albums"),
+    ("library.fit_covers", "/fit_covers"),
     ("library.split_featured_artists", "/split_featured_artists"),
     (
         "library.prefer_distinct_track_covers",
@@ -212,6 +213,7 @@ pub(super) const CHOICES: &[(&str, &str)] = &[
     ("web_controller.address", "/web_controller/address"),
     ("web_controller.port", "/web_controller/port"),
     ("context_menu", "/context_menu"),
+    ("radio", "/radio"),
     ("activity_overview.tracks", "/activity_overview/tracks"),
     ("activity_overview.albums", "/activity_overview/albums"),
     ("activity_overview.artists", "/activity_overview/artists"),

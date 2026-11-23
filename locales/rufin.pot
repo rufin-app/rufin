@@ -967,6 +967,9 @@ msgstr ""
 msgid "Comment"
 msgstr ""
 
+msgid "Compact cards"
+msgstr ""
+
 msgid "Compact"
 msgstr ""
 
@@ -3367,6 +3370,9 @@ msgstr ""
 msgid "Recently added"
 msgstr ""
 
+msgid "Recently heard songs"
+msgstr ""
+
 msgid "Recently played"
 msgstr ""
 
@@ -4335,6 +4341,9 @@ msgstr ""
 msgid "Style"
 msgstr ""
 
+msgid "Suggested stations"
+msgstr ""
+
 msgid "Suggested"
 msgstr ""
 
@@ -4811,6 +4820,9 @@ msgid "Width"
 msgstr ""
 
 msgid "Window"
+msgstr ""
+
+msgid "Without genres and descriptions"
 msgstr ""
 
 msgid "Write EBU R128 tags to files"

@@ -10,6 +10,20 @@ where
     dialog.present(Some(parent));
 }
 
+/// Presents a page's Customize display dialog as tall as its rows, up to the large popup height.
+pub fn present_settings_dialog(dialog: &adw::PreferencesDialog, window: &impl IsA<gtk::Widget>) {
+    let width = crate::widgets::layout::large_popup_content_width(560);
+    let natural_height = dialog
+        .child()
+        .expect("Preferences dialog content")
+        .measure(gtk::Orientation::Vertical, width)
+        .1;
+    let max_height = crate::widgets::layout::large_popup_content_height(window.height(), 640);
+    dialog.set_content_width(width);
+    dialog.set_content_height(natural_height.min(max_height));
+    present_light_dismiss_dialog(dialog, window);
+}
+
 pub fn install_light_dismiss<D>(dialog: &D)
 where
     D: IsA<adw::Dialog> + Clone + 'static,
