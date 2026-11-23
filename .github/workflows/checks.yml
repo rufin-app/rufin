@@ -198,7 +198,7 @@ jobs:
                   add_jobs container
                   build_container_image=true
                   ;;
-                packaging/*|.github/workflows/*.yml|.github/workflows/*.yaml)
+                packaging/*|scripts/*|.github/workflows/*.yml|.github/workflows/*.yaml)
                   ;;
                 *.avif|*.gif|*.ico|*.icns|*.jpeg|*.jpg|*.png|*.po|*.pot|*.svg|*.webp)
                   ;;
