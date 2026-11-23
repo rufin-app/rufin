@@ -18,21 +18,22 @@
     <color type="primary" scheme_preference="dark">#28596b</color>
   </branding>
   <description>
-    <p>Enjoy your music library, local/remote folders or music server; with a powerful music player.</p>
+    <p>Enjoy your music collection wherever it lives: on your computer, in shared folders or on your own music server.</p>
     <ul>
-      <li>Supports Jellyfin, Navidrome/OpenSubsonic, Plex and Emby servers, local folders, WebDAV/Nextcloud and Samba shares</li>
-      <li>Rufin Connect syncs your devices, continues playback from another device and streams its local library</li>
-      <li>Gapless playback or crossfade, and loudness normalization</li>
-      <li>Graphic and parametric equalizer with presets, multichannel output and Dolby/DTS passthrough</li>
+      <li>Supports Jellyfin, Navidrome, Plex and Emby servers, local folders, Nextcloud and network shares</li>
+      <li>Internet radio stations with artwork and lyrics where available</li>
+      <li>Rufin Connect securely syncs your sources, playlists, favorites and listening history across devices, lets you continue or control playback on another device, and play your local music library on all of them</li>
+      <li>Gapless playback or crossfade, and even volume across songs</li>
+      <li>Graphic and parametric equalizer with presets, and surround sound output</li>
       <li>Next track recommendations with Auto DJ, Mix with filters and sleep timer</li>
       <li>Downloads with automatic rules and transcoding</li>
       <li>Playlists across sources, and smart playlists built on metadata and listening activity</li>
       <li>Synced lyrics with karaoke mode, Japanese readings, search/edit/automatically save lyrics</li>
-      <li>Metadata and artwork editor with bulk edits, audio fingerprint calculation &amp; lookup</li>
+      <li>Edit song details and artwork for many tracks at once, or recognize songs by their sound and fill in their details from MusicBrainz</li>
       <li>Last.fm, Libre.fm, ListenBrainz and Discord Rich Presence integrations</li>
       <li>Casting to UPnP and Chromecast, a Web UI and an HTTP API for scripts</li>
       <li>Custom themes, a mini player, fullscreen visualizer and an extensive keyboard shortcuts catalog</li>
-      <li>Broad codec support including separable CUE tracks</li>
+      <li>Plays nearly every audio format, including albums split by cue sheets</li>
     </ul>
   </description>
   <screenshots>
@@ -49,12 +50,20 @@
       <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/artists.png</image>
     </screenshot>
     <screenshot>
-      <caption>Use the compact sidebar</caption>
+      <caption>View an album with the compact sidebar</caption>
       <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/compact_sidebar.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Listen to internet radio</caption>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/radio.png</image>
     </screenshot>
     <screenshot>
       <caption>Use the fullscreen player</caption>
       <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/fullscreen_player.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Browse playlists in a custom theme</caption>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/custom_theme.png</image>
     </screenshot>
     <screenshot>
       <caption>Create smart playlists</caption>
@@ -73,24 +82,24 @@
       <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/edit_metadata_lookup.png</image>
     </screenshot>
     <screenshot>
+      <caption>Find and replace artwork</caption>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/edit_metadata_artwork.png</image>
+    </screenshot>
+    <screenshot>
       <caption>Find and sync lyrics</caption>
       <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/edit_metadata_lyrics.png</image>
     </screenshot>
     <screenshot>
+      <caption>Adjust preferences</caption>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/settings.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Tune Auto DJ and radio picks</caption>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/auto_dj.png</image>
+    </screenshot>
+    <screenshot>
       <caption>Tune the equalizer</caption>
       <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/equalizer_settings.png</image>
-    </screenshot>
-    <screenshot>
-      <caption>Customize how lists look</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/customize_display.png</image>
-    </screenshot>
-    <screenshot>
-      <caption>Rearrange the sidebar and the visualizer, queue and lyrics panes</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/reorder_sidebar.png</image>
-    </screenshot>
-    <screenshot>
-      <caption>Configure integrations</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/integrations.png</image>
     </screenshot>
   </screenshots>
   <launchable type="desktop-id">app.rufin.rufin.desktop</launchable>
