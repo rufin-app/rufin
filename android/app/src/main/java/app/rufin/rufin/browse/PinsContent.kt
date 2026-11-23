@@ -90,7 +90,7 @@ internal fun PinsContent(model: RufinConnection, browse: BrowseConnection, playe
                 // A station has no page: a tap plays it, and no swipe acts on it.
                 else BrowseSwipeActions(item, item.row.station == null) {
                     ListItem(headlineContent = { BrowseTitle(page.shown(item), player = player) },
-                        supportingContent = { PinFacts(item, model) },
+                        supportingContent = { app.rufin.rufin.ui.DownloadedLine(item) { PinFacts(item, model) } },
                         leadingContent = { PinCover(item, player, 50.dp) },
                         trailingContent = { PlayerIconButton("rufin-view-more-symbolic", "More", { action = item }) },
                         modifier = Modifier.combinedClickable(onClick = { browse.open(item) }, onLongClick = { action = item }))
@@ -154,7 +154,7 @@ private fun PinSelectRow(item: BrowseItem, player: PlayerConnection, picked: Boo
         PinCover(item, player, 50.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             BrowseTitle(item, player = player)
-            PinFacts(item, player.model)
+            app.rufin.rufin.ui.DownloadedLine(item) { PinFacts(item, player.model) }
         }
         Box(Modifier.size(40.dp).pointerInput(item.row.pin) {
             detectDragGestures(onDragEnd = { onMoved(Math.round(drag / rowHeight)); drag = 0f }, onDragCancel = { drag = 0f }) { change, amount ->

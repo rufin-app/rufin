@@ -654,7 +654,7 @@ internal fun PlaylistPickerSheet(
                     val playlist = choice.row
                     val artwork = rememberArtwork(playlist.artworkIdentity, player, with(LocalDensity.current) { 50.dp.roundToPx() })
                     ListItem(headlineContent = { BrowseTitle(favoriteItem(model, choice), player = player) },
-                        supportingContent = { Text(playlist.subtitle, maxLines = 1) },
+                        supportingContent = { app.rufin.rufin.ui.DownloadedLine(choice) { Text(playlist.subtitle, maxLines = 1) } },
                         leadingContent = { Artwork(artwork, Modifier.size(50.dp).clip(CoverShape)) },
                         modifier = Modifier.clickable {
                         model.runAction {

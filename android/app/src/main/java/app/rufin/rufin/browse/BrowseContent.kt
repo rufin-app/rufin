@@ -486,8 +486,10 @@ private fun PaneRow(item: BrowseItem, player: PlayerConnection, onActivate: (Bro
         BrowseCover(item, artwork, Modifier.size(40.dp).clip(CoverShape))
         Column(Modifier.weight(1f)) {
             BrowseTitle(shown, maxLines = 1, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), player = player)
-            if (item.row.subtitle.isNotBlank()) Text(item.row.subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            app.rufin.rufin.ui.DownloadedLine(item) {
+                if (item.row.subtitle.isNotBlank()) Text(item.row.subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
@@ -505,7 +507,7 @@ private fun HomeRow(item: BrowseItem, player: PlayerConnection, onClick: (Browse
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         BrowseCover(item, artwork, Modifier.size(cover).clip(CoverShape))
         Column(Modifier.weight(1f)) {
-            BrowseTitle(shown, maxLines = 1, style = MaterialTheme.typography.bodyLarge, player = player, showDownloadBadge = false)
+            BrowseTitle(shown, maxLines = 1, style = MaterialTheme.typography.bodyLarge, player = player)
             if (line.isNotBlank()) Text(line, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -578,9 +580,7 @@ private fun HomeBandPage(item: BrowseItem, player: PlayerConnection, onMenu: (Br
                 Column(Modifier.fillMaxWidth().padding(start = 16.dp + cover + 16.dp, end = 16.dp, top = bar + 24.dp, bottom = 12.dp)
                     .heightIn(min = cover * .9f - 20.dp), verticalArrangement = Arrangement.Bottom) {
                     CompositionLocalProvider(LocalContentColor provides OnBand) {
-                    // Showcases carry no download badge; rows and cards do.
                     BrowseTitle(projected, Modifier.fillMaxWidth(), style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold),
-                        showDownloadBadge = false,
                         marquee = true)
                     if (item.row.subtitle.isNotBlank()) Text(item.row.subtitle, Modifier.rufinMarquee().padding(top = 2.dp),
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
@@ -683,7 +683,7 @@ private fun rememberPlaying(item: BrowseItem, player: PlayerConnection?): Boolea
 @Composable
 internal fun BrowseTitle(item: BrowseItem, modifier: Modifier = Modifier,
     maxLines: Int = 1, style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyLarge,
-    player: PlayerConnection? = null, marquee: Boolean = false, showDownloadBadge: Boolean = true,
+    player: PlayerConnection? = null, marquee: Boolean = false,
     title: String = item.row.title,
     /** Whether the title shows the playing bars; a grid card shows them on its cover. */
     playingIndicator: Boolean = true) {
@@ -695,7 +695,6 @@ internal fun BrowseTitle(item: BrowseItem, modifier: Modifier = Modifier,
         Text(title, Modifier.weight(1f, fill = false).then(if (marquee) Modifier.rufinMarquee() else Modifier),
             maxLines = maxLines, overflow = TextOverflow.Ellipsis, style = style,
             color = if (playing) MaterialTheme.colorScheme.secondary else LocalContentColor.current)
-        if (showDownloadBadge) app.rufin.rufin.ui.DownloadBadge(item)
     }
 }
 
@@ -822,7 +821,7 @@ internal fun CoverCard(item: BrowseItem, player: PlayerConnection, modifier: Mod
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 // Cards carry no download badge; list rows do.
                 BrowseTitle(shown, Modifier.weight(1f), maxLines = if (oneLine) 1 else 2,
-                    style = MaterialTheme.typography.titleSmall, player = player, showDownloadBadge = false,
+                    style = MaterialTheme.typography.titleSmall, player = player,
                     playingIndicator = false)
             }
             // The labels under the title: the list's grid fields, one per line.
@@ -927,7 +926,7 @@ private fun HomeShowcase(item: BrowseItem, player: PlayerConnection, onActivate:
                             PlayerIconButton("rufin-audio-only-symbolic", "Play radio", { onRadio(item) }, Modifier.size(32.dp), iconSize = 16.dp)
                         }
                     }
-                    BrowseTitle(projected, Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleLarge, marquee = true, showDownloadBadge = false)
+                    BrowseTitle(projected, Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleLarge, marquee = true)
                     Text(item.row.subtitle, Modifier.rufinMarquee(), style = MaterialTheme.typography.bodyMedium, maxLines = 1)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         item.row.yearText?.let { SummaryFact("rufin-x-office-calendar-symbolic", "Year", it) }
@@ -995,8 +994,10 @@ private fun BrowseTrackRow(item: BrowseItem, player: PlayerConnection,
         BrowseCover(item, artwork, Modifier.size(imageSize))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             BrowseTitle(item, player = player)
-            Text(item.row.subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            app.rufin.rufin.ui.DownloadedLine(item) {
+                Text(item.row.subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             item.row.lyricsSnippet?.let { LyricsSnippetText(it) }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {

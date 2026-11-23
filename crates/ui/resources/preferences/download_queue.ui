@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface domain="rufin">
-  <object class="GtkScrolledWindow" id="scroll">
-    <property name="hscrollbar-policy">never</property>
-    <property name="min-content-height">160</property>
-    <property name="max-content-height">360</property>
-    <property name="propagate-natural-height">true</property>
-    <property name="child"><object class="GtkListView" id="queue">
-      <property name="name">download-queue</property>
-      <property name="single-click-activate">false</property>
-      <style><class name="boxed-list"/></style>
+  <object class="AdwPreferencesRow" id="queue_row">
+    <property name="activatable">false</property>
+    <property name="selectable">false</property>
+    <property name="child"><object class="GtkScrolledWindow">
+      <property name="hscrollbar-policy">never</property>
+      <property name="max-content-height">360</property>
+      <property name="propagate-natural-height">true</property>
+      <property name="child"><object class="GtkListView" id="queue">
+        <property name="name">download-queue</property>
+        <property name="single-click-activate">false</property>
+        <property name="show-separators">true</property>
+        <style><class name="download-queue"/></style>
+      </object></property>
     </object></property>
   </object>
   <object class="AdwActionRow" id="empty">

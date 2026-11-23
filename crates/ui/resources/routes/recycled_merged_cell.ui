@@ -30,15 +30,20 @@
           </object>
         </child>
         <child>
-          <object class="GtkLabel" id="subtitle">
-            <property name="xalign">0</property>
-            <property name="halign">start</property>
-            <property name="hexpand">false</property>
-            <property name="width-chars">1</property>
-            <property name="max-width-chars">28</property>
-            <property name="wrap">false</property>
-            <property name="single-line-mode">true</property>
-            <property name="ellipsize">end</property>
+          <object class="GtkBox" id="subtitle_row">
+            <property name="spacing">4</property>
+            <child>
+              <object class="GtkLabel" id="subtitle">
+                <property name="xalign">0</property>
+                <property name="halign">start</property>
+                <property name="hexpand">false</property>
+                <property name="width-chars">1</property>
+                <property name="max-width-chars">28</property>
+                <property name="wrap">false</property>
+                <property name="single-line-mode">true</property>
+                <property name="ellipsize">end</property>
+              </object>
+            </child>
           </object>
         </child>
       </object>

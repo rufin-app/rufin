@@ -104,7 +104,7 @@ pub fn mix_kinds() -> Vec<MixKindChoice> {
         Some(own(
             K::Played,
             msgid("Played"),
-            "rufin-circle-check-symbolic",
+            "rufin-selection-mode-symbolic",
         )),
         template(K::RecentlyAdded, "Recently added"),
         template(K::ThisTimeLastYear, "This time last year"),

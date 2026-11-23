@@ -265,6 +265,10 @@ impl RecycledBadgedTextCell {
         cell
     }
 
+    pub fn without_downloads() -> Self {
+        Self::new()
+    }
+
     pub fn label(&self) -> gtk::Label {
         self.imp().label.get()
     }
@@ -294,6 +298,8 @@ pub mod merged_imp {
         pub(super) title_row: TemplateChild<gtk::Box>,
         #[template_child]
         pub(super) title: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub(super) subtitle_row: TemplateChild<gtk::Box>,
         #[template_child]
         pub(super) subtitle: TemplateChild<gtk::Label>,
         pub(super) links: RefCell<Option<DetailLinkBinding>>,
@@ -349,7 +355,7 @@ impl RecycledMergedCell {
             .replace(Some(DetailLinkBinding::new(&imp.subtitle, navigate)));
         if downloaded {
             let badge = downloads.download_badge(false);
-            imp.title_row.append(&badge);
+            imp.subtitle_row.prepend(&badge);
             imp.downloaded.replace(Some(badge));
         }
         cell

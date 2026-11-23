@@ -311,7 +311,7 @@ private fun DetailHeader(
             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = bar + 4.dp, bottom = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 FindRow(summary.row.title, LocalFindHeight.current)
-                BrowseTitle(item, maxLines = 1, style = title, marquee = true, showDownloadBadge = false)
+                BrowseTitle(item, maxLines = 1, style = title, marquee = true)
                 Text(translate(sectionTitle), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
             }
         }
@@ -338,9 +338,9 @@ private fun DetailHeader(
     val names: @Composable (Boolean) -> Unit = { phone ->
         CompositionLocalProvider(LocalContentColor provides OnBand) {
             // A phone's title is never cut: it wraps, a long one in a smaller size.
-            if (phone) BrowseTitle(item, maxLines = Int.MAX_VALUE, showDownloadBadge = false,
+            if (phone) BrowseTitle(item, maxLines = Int.MAX_VALUE,
                 style = if (item.row.title.length > 40) title.copy(fontSize = 20.sp, lineHeight = 26.sp) else title)
-            else BrowseTitle(item, maxLines = 1, style = title, marquee = true, showDownloadBadge = false)
+            else BrowseTitle(item, maxLines = 1, style = title, marquee = true)
             if (item.row.albumRow != null && summary.artistText.isNotBlank()) {
                 val credited = buildAnnotatedString {
                     append(summary.artistText)
@@ -688,8 +688,10 @@ internal fun FieldRow(
                     if (showImage) DetailCover(detailArtwork(item.row.artworkIdentity, player, imageSize), Modifier.size(imageSize))
                     Column(Modifier.weight(1f)) {
                         BrowseTitle(projected, maxLines = 1, style = MaterialTheme.typography.bodyMedium, player = player, title = value)
-                        Text(item.row.artist, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        app.rufin.rufin.ui.DownloadedLine(projected) {
+                            Text(item.row.artist, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         item.row.lyricsSnippet?.let { LyricsSnippetText(it) }
                     }
                 }

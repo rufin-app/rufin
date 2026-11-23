@@ -934,7 +934,7 @@ fn add_download_queue(
 ) {
     let resource = "preferences/download_queue.ui";
     let builder = crate::ui_resource::builder(resource);
-    crate::objects!(builder, resource, { scroll: gtk::ScrolledWindow, queue: gtk::ListView, empty: adw::ActionRow });
+    crate::objects!(builder, resource, { queue_row: adw::PreferencesRow, queue: gtk::ListView, empty: adw::ActionRow });
     use crate::widgets::view_model::{Rows, bind_row_item, item_at_from_item, unbind_row_item};
     let owner = shell.products.downloads.clone();
     let source = source_id.clone();
@@ -1016,15 +1016,28 @@ fn add_download_queue(
         let drag_source = gtk::DragSource::builder()
             .actions(gtk::gdk::DragAction::MOVE)
             .build();
+        // A dragged download shows its cover and title, as a dragged playlist does.
+        let preview = crate::widgets::media_drag::MediaDragPreviewBinding::default();
+        let prepare_preview = preview.clone();
         let drag_job = current.clone();
+        let drag_artwork = artwork.downgrade();
         drag_source.connect_prepare(move |_, _, _| {
+            prepare_preview.clear();
             let current = drag_job.borrow();
-            current.as_ref().map(|job| {
-                gtk::gdk::ContentProvider::for_value(
-                    &format!("{DOWNLOAD_JOB_DRAG_PREFIX}{}", job.id).to_value(),
-                )
-            })
+            let job = current.as_ref()?;
+            let cover = drag_artwork
+                .upgrade()
+                .and_then(|artwork| artwork.first_child())
+                .map(|cover| gtk::WidgetPaintable::new(Some(&cover)).current_image());
+            prepare_preview.prepare(
+                rufin_core::downloads::download_subject_title(&job.subject),
+                cover,
+            );
+            Some(gtk::gdk::ContentProvider::for_value(
+                &format!("{DOWNLOAD_JOB_DRAG_PREFIX}{}", job.id).to_value(),
+            ))
         });
+        preview.connect(&drag_source);
         drag.add_controller(drag_source);
         let target = gtk::DropTarget::new(String::static_type(), gtk::gdk::DragAction::MOVE);
         let weak = weak_shell.clone();
@@ -1129,7 +1142,7 @@ fn add_download_queue(
     factory
         .connect_unbind(|_, item| unbind_row_item(item.downcast_ref::<gtk::ListItem>().unwrap()));
     queue.set_factory(Some(&factory));
-    group.add(&scroll);
+    group.add(&queue_row);
     group.add(&empty);
     let owner = shell.products.downloads.clone();
     pause.connect_clicked(move |_| owner.set_paused(!owner.status().paused));
@@ -1137,17 +1150,17 @@ fn add_download_queue(
     let running = task.clone();
     let visible = group.downgrade();
     let pause = pause.downgrade();
-    let scroll = scroll.downgrade();
+    let queue_row = queue_row.downgrade();
     let empty = empty.downgrade();
     let owner = shell.products.downloads.clone();
     let refresh_source = source_id.clone();
     let source_id = source_id.clone();
     let rows = jobs.clone();
     let refresh: Rc<dyn Fn()> = Rc::new(move || {
-        let (Some(group), Some(pause), Some(scroll), Some(empty)) = (
+        let (Some(group), Some(pause), Some(queue_row), Some(empty)) = (
             visible.upgrade(),
             pause.upgrade(),
-            scroll.upgrade(),
+            queue_row.upgrade(),
             empty.upgrade(),
         ) else {
             return;
@@ -1170,7 +1183,7 @@ fn add_download_queue(
         pause.set_icon_name(icon);
         pause.set_tooltip_text(Some(&label));
         pause.update_property(&[gtk::accessible::Property::Label(&label)]);
-        scroll.set_visible(count > 0);
+        queue_row.set_visible(count > 0);
         empty.set_visible(count == 0);
         if let Some(task) = running.borrow_mut().take() {
             task.abort();

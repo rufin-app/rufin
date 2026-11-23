@@ -643,7 +643,12 @@ fn named_collection_column<T: NamedCollectionRow>(
                 let Some(item) = item.downcast_ref::<gtk::ListItem>() else {
                     return;
                 };
-                let cell = RecycledBadgedTextCell::with_downloads(&setup_shell.downloads);
+                // Only Title (merged) carries the downloaded badge, so Title beside it never repeats it.
+                let cell = if field == LibraryField::TitleMerged {
+                    RecycledBadgedTextCell::with_downloads(&setup_shell.downloads)
+                } else {
+                    RecycledBadgedTextCell::without_downloads()
+                };
                 let drag_item = item.downgrade();
                 install_media_drag_source(&cell, move || {
                     let item = drag_item.upgrade()?;
@@ -669,9 +674,11 @@ fn named_collection_column<T: NamedCollectionRow>(
                 };
                 cell.label().set_text(&row.field(LibraryField::Title));
                 cell.set_folder(row.folder());
-                bind_shell
-                    .downloads
-                    .bind_download_badge(&cell.downloaded(), row.downloaded());
+                if field == LibraryField::TitleMerged {
+                    bind_shell
+                        .downloads
+                        .bind_download_badge(&cell.downloaded(), row.downloaded());
+                }
             });
             factory.connect_unbind(|_, item| {
                 if let Some(item) = item.downcast_ref::<gtk::ListItem>()

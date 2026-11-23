@@ -2538,6 +2538,19 @@ label link.inline-detail-link:focus:focus-visible {
   min-height: 34px;
 }
 
+/* The queue's rows sit on the card of the Downloads group, under its header. */
+listview.download-queue {
+  background: none;
+}
+
+listview.download-queue > row {
+  padding: 0;
+}
+
+listview.download-queue > row:last-child {
+  border-bottom-width: 0;
+}
+
 button.download-queue-pause {
   min-width: 22px;
   min-height: 22px;

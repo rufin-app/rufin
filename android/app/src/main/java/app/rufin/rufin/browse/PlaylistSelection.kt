@@ -617,8 +617,10 @@ private fun PlaylistPickRow(item: BrowseItem, player: PlayerConnection, picked: 
             Artwork(artwork, Modifier.size(44.dp).clip(CoverShape))
             Column(Modifier.weight(1f)) {
                 BrowseTitle(item, player = player, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
-                if (item.row.subtitle.isNotBlank()) Text(item.row.subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                app.rufin.rufin.ui.DownloadedLine(item) {
+                    if (item.row.subtitle.isNotBlank()) Text(item.row.subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
         if (item.row.playlistFolderMember != null) Box(Modifier.size(40.dp).carries(carrying, hold = false), contentAlignment = Alignment.Center) {

@@ -213,11 +213,13 @@ private fun SearchResults(
                 headlineContent = { if (item != null) BrowseTitle(favoriteItem(player.model, item), player = player, title = result.title)
                     else Text(result.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 supportingContent = {
-                    Text(listOf(result.subtitle, translate(when (result.kind) {
+                    val line = listOf(result.subtitle, translate(when (result.kind) {
                         RecentSearchKind.ALBUM -> "Album"
                         RecentSearchKind.ARTIST -> "Artist"
                         RecentSearchKind.TRACK -> "Track"
-                    })).filter(String::isNotBlank).joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    })).filter(String::isNotBlank).joinToString(" · ")
+                    if (item != null) app.rufin.rufin.ui.DownloadedLine(item) { Text(line, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    else Text(line, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 },
                 leadingContent = { Artwork(artwork, Modifier.size(50.dp).clip(CoverShape)) },
                 trailingContent = {

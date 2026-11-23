@@ -1,9 +1,13 @@
 package app.rufin.rufin.ui
 
 import app.rufin.rufin.browse.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.rufin.rufin.core.translate
@@ -15,6 +19,15 @@ internal val LocalShowDownloadedBadges = staticCompositionLocalOf { true }
 internal fun DownloadBadge(item: BrowseItem, modifier: Modifier = Modifier) {
     val row = item.row
     if (!LocalShowDownloadedBadges.current || row.mediaUri.startsWith("file:") || row.mediaUri.startsWith("rufin:cue/")) return
-    if (row.downloaded) RufinIcon("rufin-folder-download-symbolic", translate("Downloaded"),
+    if (row.downloaded) RufinIcon("rufin-emblem-default-symbolic", translate("Downloaded"),
         modifier.size(16.dp), MaterialTheme.colorScheme.primary)
+}
+
+/** A row's line under its title, led by the row's downloaded badge. */
+@Composable
+internal fun DownloadedLine(item: BrowseItem, modifier: Modifier = Modifier, line: @Composable RowScope.() -> Unit) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        DownloadBadge(item)
+        line()
+    }
 }
