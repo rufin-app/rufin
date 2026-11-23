@@ -506,8 +506,15 @@ _build-flatpak:
     fi
 
     # flatpak-spawn --host, which the Builder app runs flatpak through, needs a session bus.
+    # Use the user's bus when it exists: a private bus activates a second document
+    # portal, which takes over and then removes the user's $XDG_RUNTIME_DIR/doc mount.
     if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
-        exec dbus-run-session -- "$0" "$@"
+        user_bus="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus"
+        if [[ -S "$user_bus" ]]; then
+            export DBUS_SESSION_BUS_ADDRESS="unix:path=${user_bus}"
+        else
+            exec dbus-run-session -- "$0" "$@"
+        fi
     fi
 
     if [[ "${RUFIN_CONTAINER:-0}" == "1" ]]; then
