@@ -327,6 +327,8 @@ setup-macos-signing:
         | grep -F "$signing_identity" >/dev/null
     echo "Created $signing_identity."
 
+# Build and run the development app. A checkout with a .local/profile folder runs on the config,
+# data, cache and state folders in it instead of the user's.
 debug *args:
     @if [[ "${RUFIN_CONTAINER:-0}" == "1" ]]; then \
         echo "Run 'just debug' on the host." >&2; \
@@ -353,6 +355,10 @@ debug *args:
         fi; \
         cmake --preset development; \
         cmake --build --preset development --target "$executable_name"; \
+        if [[ -d .local/profile ]]; then \
+            export XDG_CONFIG_HOME="$PWD/.local/profile/config" XDG_DATA_HOME="$PWD/.local/profile/data"; \
+            export XDG_CACHE_HOME="$PWD/.local/profile/cache" XDG_STATE_HOME="$PWD/.local/profile/state"; \
+        fi; \
         executable="${CARGO_TARGET_DIR:-$PWD/target}/debug/$executable_name"; \
         if [[ "$(rustc -vV | sed -n 's/^host: //p')" == *-windows-* ]]; then \
             executable="${executable}.exe"; \
