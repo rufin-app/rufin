@@ -11,13 +11,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -168,8 +174,7 @@ internal fun MixSheet(model: RufinConnection, browse: BrowseConnection, onDismis
                 val count = if (albums) albumLimit else limit
                 fun step(next: ULong) { if (albums) albumLimit = next else limit = next }
                 MixStep("rufin-value-decrease-symbolic", "Less", loaded && count > mixCounts.first) { step(count - 1UL) }
-                Text(count.toString(), Modifier.widthIn(min = 48.dp), textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = scheme.onSurface)
+                MixCount(count, loaded, ::step)
                 MixStep("rufin-list-add-symbolic", "More", loaded && count < mixCounts.last) { step(count + 1UL) }
             }
             // Play, the one filled button, then Play Next and Play Later, each icon beside its label.
@@ -251,6 +256,26 @@ private fun MixStep(icon: String, label: String, enabled: Boolean, action: () ->
     FilledTonalIconButton(action, Modifier.size(40.dp), enabled) {
         RufinIcon(icon, translate(label), Modifier.size(18.dp), glyph = true)
     }
+}
+
+/** The count between its steps, typed in too: a number in range takes effect as it is typed, and leaving the
+ *  field shows the count again. */
+@Composable
+private fun MixCount(count: ULong, enabled: Boolean, set: (ULong) -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val focus = LocalFocusManager.current
+    var text by remember { mutableStateOf(count.toString()) }
+    // A step, or the other unit's count, replaces what is typed.
+    LaunchedEffect(count) { if (text.toULongOrNull() != count) text = count.toString() }
+    BasicTextField(text, { typed ->
+        text = typed.filter(Char::isDigit).take(mixCounts.last.toString().length)
+        text.toULongOrNull()?.takeIf { it in mixCounts }?.let(set)
+    }, Modifier.width(56.dp).onFocusChanged { if (!it.isFocused) text = count.toString() }, enabled,
+        textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold, color = scheme.onSurface,
+            textAlign = TextAlign.Center),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }), singleLine = true,
+        cursorBrush = SolidColor(scheme.primary))
 }
 
 /** Edits both years; an empty or unreadable one leaves that end open. */

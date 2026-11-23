@@ -80,7 +80,7 @@ internal fun SourceChoices(model: RufinConnection, setup: SourceSetupConnection,
         item { SettingsGroup(translate("Add Manually")) {
             setup.providers.chunked(2).forEach { pair -> Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 pair.forEach { provider ->
-                    SettingsRow(provider.second, leading = { SourceIcon(provider.first, Modifier.size(24.dp)) },
+                    SettingsRow(provider.second, leading = { SourceIcon(provider.first, Modifier.size(24.dp)) }, titleLines = 1,
                         modifier = Modifier.weight(1f).clickable { setup.selectProvider(provider.first) })
                 }
             } }

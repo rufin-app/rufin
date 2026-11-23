@@ -45,6 +45,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import app.rufin.rufin.ui.LocalPlayerBottomPadding
 import app.rufin.rufin.core.translate
 import app.rufin.rufin.ui.RufinIcon
@@ -89,9 +90,11 @@ internal fun SettingsRow(
     selected: Boolean = false,
     /** An action's title takes the accent, or the error color for one that removes. */
     titleColor: Color = Color.Unspecified,
+    /** A title in a narrow tile keeps to one line, ended by an ellipsis. */
+    titleLines: Int = Int.MAX_VALUE,
 ) {
     ListItem(
-        headlineContent = { Text(title, color = titleColor) },
+        headlineContent = { Text(title, color = titleColor, maxLines = titleLines, overflow = TextOverflow.Ellipsis) },
         supportingContent = summary?.let { { Text(it) } },
         leadingContent = leading,
         trailingContent = trailing,
