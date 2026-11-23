@@ -505,13 +505,15 @@ _build-flatpak:
         builder=(flatpak run org.flatpak.Builder)
     fi
 
+    # flatpak-spawn --host, which the Builder app runs flatpak through, needs a session bus.
+    if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
+        exec dbus-run-session -- "$0" "$@"
+    fi
+
     if [[ "${RUFIN_CONTAINER:-0}" == "1" ]]; then
         if [[ "${RUFIN_CONTAINER_NESTED_SANDBOX:-0}" != "1" ]]; then
             echo "The Flatpak build needs the command-scoped nested sandbox profile. Run 'just build flatpak' from the host." >&2
             exit 1
-        fi
-        if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then
-            exec dbus-run-session -- "$0" "$@"
         fi
 
         # Flatpak 1.16 otherwise probes the unavailable system bus for parental controls.
