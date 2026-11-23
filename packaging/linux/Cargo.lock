@@ -173,7 +173,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "app-identity"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "directories",
  "tempfile",
@@ -222,7 +222,7 @@ dependencies = [
 
 [[package]]
 name = "artwork"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "blurhash",
  "fast_image_resize",
@@ -515,7 +515,7 @@ checksum = "21e4227379beff4205943696e6c3e0cd809bacdf3f0edd6e3dd153e2269571a4"
 
 [[package]]
 name = "audio-processing"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "base64 0.23.1",
  "blake3",
@@ -1658,7 +1658,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-integration"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "app-identity",
  "artwork",
@@ -4245,7 +4245,7 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
 name = "library"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "blake3",
  "bytemuck",
@@ -4371,7 +4371,7 @@ dependencies = [
 
 [[package]]
 name = "localization"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "gettext-rs",
  "spiritless_po",
@@ -4514,7 +4514,7 @@ checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
 name = "lyrics"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "futures-util",
  "lindera",
@@ -4663,7 +4663,7 @@ dependencies = [
 
 [[package]]
 name = "metadata-lookup"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "blake3",
  "library",
@@ -4940,7 +4940,7 @@ dependencies = [
 
 [[package]]
 name = "names"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "icu_normalizer",
  "icu_properties",
@@ -6058,7 +6058,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
 name = "playback"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "audio-processing",
  "library",
@@ -6071,7 +6071,7 @@ dependencies = [
 
 [[package]]
 name = "playback-cast"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "audio-processing",
  "axum",
@@ -6098,7 +6098,7 @@ dependencies = [
 
 [[package]]
 name = "playback-gstreamer"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "audio-processing",
  "gstreamer",
@@ -6349,7 +6349,7 @@ dependencies = [
 
 [[package]]
 name = "process-memory"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "libc",
  "tracing",
@@ -7006,7 +7006,7 @@ dependencies = [
 
 [[package]]
 name = "rufin"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "app-identity",
  "desktop-integration",
@@ -7022,7 +7022,7 @@ dependencies = [
 
 [[package]]
 name = "rufin-connect"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -7045,7 +7045,7 @@ dependencies = [
 
 [[package]]
 name = "rufin-controller"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "app-identity",
  "localization",
@@ -7059,7 +7059,7 @@ dependencies = [
 
 [[package]]
 name = "rufin-core"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "age",
  "app-identity",
@@ -7433,7 +7433,7 @@ dependencies = [
 
 [[package]]
 name = "secrets"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "app-identity",
  "apple-native-keyring-store",
@@ -7951,7 +7951,7 @@ checksum = "ea06cc588e43c632923a55450401b8f25e628131571d4e1baea1bdfdb2b5ed06"
 
 [[package]]
 name = "sources"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "async-channel",
  "audio-processing",
@@ -9020,7 +9020,7 @@ dependencies = [
 
 [[package]]
 name = "ui"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "app-identity",
  "ashpd",
@@ -9522,7 +9522,7 @@ dependencies = [
 
 [[package]]
 name = "web"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "askama",
  "async-channel",
@@ -9877,7 +9877,7 @@ dependencies = [
 
 [[package]]
 name = "windows-updater"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "app-identity",
  "directories",

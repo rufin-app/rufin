@@ -39,67 +39,67 @@
   <screenshots>
     <screenshot type="default">
       <caption>Browse your music library</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/Rufin.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/Rufin.png</image>
     </screenshot>
     <screenshot>
       <caption>View artist details</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/artist_detail.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/artist_detail.png</image>
     </screenshot>
     <screenshot>
       <caption>Browse artists</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/artists.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/artists.png</image>
     </screenshot>
     <screenshot>
       <caption>View an album with the compact sidebar</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/compact_sidebar.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/compact_sidebar.png</image>
     </screenshot>
     <screenshot>
       <caption>Listen to internet radio</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/radio.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/radio.png</image>
     </screenshot>
     <screenshot>
       <caption>Use the fullscreen player</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/fullscreen_player.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/fullscreen_player.png</image>
     </screenshot>
     <screenshot>
       <caption>Browse playlists in a custom theme</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/custom_theme.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/custom_theme.png</image>
     </screenshot>
     <screenshot>
       <caption>Create smart playlists</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/smart_playlists.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/smart_playlists.png</image>
     </screenshot>
     <screenshot>
       <caption>Edit a playlist</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/playlist_settings.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/playlist_settings.png</image>
     </screenshot>
     <screenshot>
       <caption>Edit metadata of several tracks</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/edit_metadata.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/edit_metadata.png</image>
     </screenshot>
     <screenshot>
       <caption>Look up metadata on MusicBrainz</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/edit_metadata_lookup.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/edit_metadata_lookup.png</image>
     </screenshot>
     <screenshot>
       <caption>Find and replace artwork</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/edit_metadata_artwork.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/edit_metadata_artwork.png</image>
     </screenshot>
     <screenshot>
       <caption>Find and sync lyrics</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/edit_metadata_lyrics.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/edit_metadata_lyrics.png</image>
     </screenshot>
     <screenshot>
       <caption>Adjust preferences</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/settings.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/settings.png</image>
     </screenshot>
     <screenshot>
       <caption>Tune Auto DJ and radio picks</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/auto_dj.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/auto_dj.png</image>
     </screenshot>
     <screenshot>
       <caption>Tune the equalizer</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.19.0/resources/screenshots/equalizer_settings.png</image>
+      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/equalizer_settings.png</image>
     </screenshot>
   </screenshots>
   <launchable type="desktop-id">app.rufin.rufin.desktop</launchable>
@@ -116,6 +116,32 @@
     <control>touch</control>
   </supports>
   <releases>
+    <release version="0.20.0" date="2026-11-23">
+      <description>
+        <p>This release is mostly about library and offline fixes andd hardening. App-ID change broke scrobbling tokens for flatpak updates, which this release fixes.</p>
+        <ul>
+          <li>Local folders: if a music folder can't be read, for example on an unplugged drive, Rufin marks it unavailable and offers &quot;Locate Folder&quot; instead of dropping the tracks. This tries to make a problem on distros with older `xdg-desktop-portal` worse, but it can't fully fix it because of an upstream bug. If you are on Debian derivatives, you should grant Rufin access to your local library through Flatseal instead of using the file picker.</li>
+          <li>Playback: Rufin can now have a configurable stream cache. This is on by default with 2 GB, but skipped if your server is on LAN or of course, when you don't have a server. You can configure it from Preferences -&gt; Playback. Additionally, if your audio output disappears, playback pauses and picks up when the output comes back, instead of skipping through the queue. Shuffle always starts with the track you picked. Your place in a track is saved every ten seconds, so a crash loses very little. On Android, notifications now lower the volume instead of pausing.</li>
+          <li>Offline: when a server can't be reached, Rufin now says so in the top bar (and in the sidebar on Android). The queue skips that server's tracks quietly and keeps playing your downloaded copies, instead of showing an error for every track.</li>
+          <li>Download rules: favorites is split into Favorite Tracks, Favorite Albums and Favorite Artists. A track that leaves a rule has a 10 minute grace period before it is deleted, so a misclick to favorite doesn't delete the song immediately.</li>
+          <li>Font sizes and dialog widths now follow the system text scale. For Windows, the scaling will not be applied to widgets and make things look crowded until the next stable GTK release, so that is a problem outside Rufin.</li>
+          <li>Ratings: Rufin now keeps ratings for local files itself and doesn't change your files. You can turn on &quot;Write ratings to files&quot; for each file source.</li>
+          <li>Syncing: older Subsonic servers that can't report only the changes are now refreshed on launch and once a day. Rufin Connect devices see each other's library changes as they happen. Rufin also asks servers for compressed responses, so syncing uses less data.</li>
+          <li>Search: server search keeps the server's own results and order. Library search puts exact and starts-with matches first.</li>
+          <li>Albums: new &quot;Group albums by folder&quot; setting. With it, files without an album artist tag form one album per folder, so different albums with the same title stay apart. A new &quot;Split featured artists&quot; setting credits &quot;feat.&quot; artists as artists of their own. A reissue's year and an album's version are shown beside its year.</li>
+          <li>Artist pages: the web UI now matches the desktop.</li>
+          <li>Radio: the Radio page has a &quot;Customize display&quot; option. You can hide Suggested stations or recently heard songs, and use compact cards without genres and descriptions.</li>
+          <li>New &quot;Show whole covers&quot; option, which fits wide and tall covers inside their frames instead of cropping them.</li>
+          <li>&quot;Prefer distinct track covers&quot; now also works for Navidrome and local files.</li>
+          <li>Tag reading is reworked. This fixes albums being split up, some tags not showing or saving correctly, and numeric ID3 genres.</li>
+          <li>Android: scanning large music folders is much faster and more reliable, and files with the same name are handled. Local tracks survive Android renumbering its media library. Saving a playlist file can no longer leave a half-written file.</li>
+          <li>Settings on Android can now be searched, thanks @karigaa.</li>
+          <li>The symbolic tray icon now shows in the right color on KDE Plasma.</li>
+          <li>Fixed Rufin taking a long time to show in the dock after launching.</li>
+          <li>Fixed the &quot;System&quot; theme showing a transparent window in Flatpak when a GTK theme is forced.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.19.0" date="2026-11-19">
       <description>
         <p>Rufin repo is now at the organization! This is only a minor release because app IDs changed. Even though I tried my best to make sure the new id does as little damage as possible, if there happens to be an issue I intend to do a patch release shortly after.</p>
