@@ -1116,7 +1116,10 @@ async fn remote_response(
         headers.insert("content-length", HeaderValue::from(length));
         return Ok((headers, Body::empty()).into_response());
     }
+    // The device is given the server's bytes and their length as they are, so neither relay
+    // client asks for compression.
     let client = reqwest::Client::builder()
+        .no_gzip()
         .referer(false)
         .danger_accept_invalid_certs(resource.stream.trust_invalid_certificate())
         .build()
@@ -1278,6 +1281,7 @@ fn response_content_length(response: &reqwest::blocking::Response) -> Option<u64
 
 fn upstream_client(stream: &PreparedStream) -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
+        .no_gzip()
         .referer(false)
         .danger_accept_invalid_certs(stream.trust_invalid_certificate())
         .build()
