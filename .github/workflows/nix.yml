@@ -39,7 +39,7 @@ on:
       ref:
         description: Git ref to build
         required: true
-        default: main
+        default: master
 
 permissions:
   contents: read
@@ -74,7 +74,7 @@ jobs:
             exit 0
           fi
 
-          echo "Nix cache builds are limited to main or version tags" >&2
+          echo "Nix cache builds are limited to master or version tags" >&2
           exit 1
 
       - name: Check out repository
