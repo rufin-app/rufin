@@ -1,3 +1,4 @@
+import com.android.build.api.variant.FilterConfiguration
 import groovy.json.JsonSlurper
 import java.util.Properties
 import org.gradle.api.tasks.TaskProvider
@@ -36,8 +37,6 @@ android {
         targetSdk = 37
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionName = version
-        val parts = version.substringBefore('-').split('.').map(String::toInt)
-        versionCode = parts[0] * 1_000_000 + parts[1] * 1_000 + parts[2]
     }
     flavorDimensions += "distribution"
     productFlavors {
@@ -109,7 +108,13 @@ android {
 }
 
 val nativeBuildTasks = mutableListOf<TaskProvider<Exec>>()
+val versionCodes = metadata["versionCodes"] as Map<*, *>
 androidComponents.onVariants { variant ->
+    // Each ABI APK has its own versionCode, so F-Droid can publish them side by side.
+    variant.outputs.forEach { output ->
+        val abi = output.filters.single { it.filterType == FilterConfiguration.FilterType.ABI }.identifier
+        output.versionCode.set((versionCodes[abi] as Number).toInt())
+    }
     val generated = layout.buildDirectory.dir("generated/rufin/${variant.name}")
     val earlierNativeBuilds = nativeBuildTasks.toList()
     val native = tasks.register<Exec>("build${variant.name.replaceFirstChar(Char::uppercaseChar)}Native") {

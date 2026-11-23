@@ -51,6 +51,7 @@ fn print_usage() {
         "Usage:
   cargo run --locked -p xtask -- android build stable|development
   cargo run --locked -p xtask -- android install
+  cargo run --locked -p xtask -- generate fastlane
   cargo run --locked -p xtask -- generate flatpak-sources [--check]
   cargo run --locked -p xtask -- generate i18n-template [--check] [--output PATH]
   cargo run --locked -p xtask -- generate windows-installer STAGE_DIR LOCALE_DIR MAKENSIS OUTPUT_DIR VERSION PROJECT_NAME DISPLAY_NAME APP_ID

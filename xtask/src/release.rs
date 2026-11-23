@@ -60,6 +60,7 @@ fn prepare_version(version: &str, notes: &str) -> Result<()> {
     update_rpm_spec_version(version)?;
     run_command("cargo", ["update", "--workspace", "--offline"])?;
     update_metainfo_release(version, &release_date, notes)?;
+    crate::android::fastlane()?;
     update_issue_template_versions(version)?;
 
     Ok(())
@@ -687,28 +688,38 @@ fn update_rpm_spec_version_in(input: &str, version: &str) -> Result<String> {
 }
 
 fn replace_workspace_version_in_toml(input: &str, version: &str) -> Result<String> {
+    let mut parts = version.split('.').map(str::parse::<u32>);
+    let (Some(Ok(major)), Some(Ok(minor)), Some(Ok(patch)), None) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
+        return Err(format!("version {version} is not MAJOR.MINOR.PATCH").into());
+    };
+    let version_code = major * 1_000_000 + minor * 1_000 + patch;
     let mut output = String::new();
-    let mut in_workspace_package = false;
-    let mut replaced = false;
+    let mut section = "";
+    let mut replaced = (false, false);
 
     for line in input.lines() {
         if line.starts_with('[') {
-            in_workspace_package = line == "[workspace.package]";
+            section = line;
         }
 
-        if in_workspace_package && line.starts_with("version = ") {
+        if section == "[workspace.package]" && line.starts_with("version = ") {
             output.push_str(&format!("version = \"{version}\"\n"));
-            replaced = true;
+            replaced.0 = true;
+        } else if section == "[workspace.metadata.android]" && line.starts_with("version-code = ") {
+            output.push_str(&format!("version-code = {version_code}\n"));
+            replaced.1 = true;
         } else {
             output.push_str(line);
             output.push('\n');
         }
     }
 
-    if replaced {
-        Ok(output)
-    } else {
-        Err("missing workspace package version".into())
+    match replaced {
+        (true, true) => Ok(output),
+        (false, _) => Err("missing workspace package version".into()),
+        (_, false) => Err("missing workspace Android version-code".into()),
     }
 }
 

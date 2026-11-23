@@ -5,13 +5,19 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::Result;
-use crate::process::{command_stdout, repo_root};
+use crate::process::{command_stdout, read_to_string, repo_root, write_string};
 
 const GSTREAMER_VERSION: &str = "1.28.7";
 const GSTREAMER_SHA256: &str = "fa914bcf8695af1c6fa1f81db2e8da019a0306a89c2c3e48659438e1654023da";
 // Every download unpacks all ABIs, so a cached SDK serves arm64 checks and releases alike.
 const GSTREAMER_ARCHITECTURES: [&str; 3] = ["arm64", "armv7", "x86_64"];
-const ABIS: [&str; 3] = ["arm64-v8a", "armeabi-v7a", "x86_64"];
+// An APK's versionCode is the release's version-code * 10 + its position here, so devices that
+// run both ARM ABIs get arm64. F-Droid's recipe repeats these offsets in VercodeOperation.
+const ABIS: [&str; 3] = ["armeabi-v7a", "arm64-v8a", "x86_64"];
+const FASTLANE: &str = "android/app/fastlane/metadata/android/en-US";
+const METAINFO: &str = "resources/app.rufin.rufin.metainfo.xml";
+// F-Droid cuts changelogs at 500 characters.
+const CHANGELOG_LIMIT: usize = 500;
 
 pub(crate) fn run(args: Vec<String>) -> Result<()> {
     let root = repo_root()?;
@@ -53,10 +59,13 @@ fn metadata() -> Result<()> {
                 .find(|package| package["name"] == "rustls-platform-verifier-android")
         })
         .ok_or("Cargo metadata is missing rustls-platform-verifier-android")?;
+    let (version, version_code) = workspace_version()?;
     println!(
         "{}",
         serde_json::json!({
-            "version": env!("CARGO_PKG_VERSION"),
+            "version": version,
+            "versionCodes": version_codes(version_code),
+            "gstreamerVersion": GSTREAMER_VERSION,
             "stableId": app_identity::STABLE_APP_ID,
             "stableName": app_identity::STABLE_DISPLAY_NAME,
             "developmentId": app_identity::DEVELOPMENT_APP_ID,
@@ -68,6 +77,118 @@ fn metadata() -> Result<()> {
         })
     );
     Ok(())
+}
+
+// Read at run time: `release prepare` runs this after rewriting the versions.
+fn workspace_version() -> Result<(String, u32)> {
+    let manifest = read_to_string(Path::new("Cargo.toml"))?;
+    let mut section = "";
+    let (mut version, mut code) = (None, None);
+    for line in manifest.lines() {
+        if line.starts_with('[') {
+            section = line;
+        } else if section == "[workspace.package]" {
+            version = version.or(line.strip_prefix("version = ").map(|v| v.trim_matches('"')));
+        } else if section == "[workspace.metadata.android]" {
+            code = code.or(line.strip_prefix("version-code = "));
+        }
+    }
+    match (version, code.map(str::parse)) {
+        (Some(version), Some(Ok(code))) => Ok((version.to_owned(), code)),
+        _ => Err("Cargo.toml is missing the workspace version or Android version-code".into()),
+    }
+}
+
+fn version_codes(version_code: u32) -> serde_json::Map<String, serde_json::Value> {
+    (1..)
+        .zip(ABIS)
+        .map(|(offset, abi)| (abi.to_owned(), (version_code * 10 + offset).into()))
+        .collect()
+}
+
+// Writes F-Droid's store listing from the MetaInfo that Flathub shows, and the release's
+// changelog under every APK's versionCode.
+pub(crate) fn fastlane() -> Result<()> {
+    let root = repo_root()?;
+    let (version, version_code) = workspace_version()?;
+    let metainfo = read_to_string(&root.join(METAINFO))?;
+    let document = roxmltree::Document::parse(&metainfo)?;
+    let component = document.root_element();
+    fn child<'a, 'input>(
+        parent: roxmltree::Node<'a, 'input>,
+        name: &str,
+    ) -> Result<roxmltree::Node<'a, 'input>> {
+        parent
+            .children()
+            .find(|node| node.has_tag_name(name))
+            .ok_or_else(|| format!("MetaInfo is missing <{name}>").into())
+    }
+    let text = |node: roxmltree::Node<'_, '_>| {
+        node.descendants()
+            .filter(|node| node.is_text())
+            .filter_map(|node| node.text())
+            .collect::<String>()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let escape = |text: String| {
+        text.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+    };
+    let mut description = String::new();
+    for block in child(component, "description")?
+        .children()
+        .filter(|node| node.is_element())
+    {
+        match block.tag_name().name() {
+            "p" => description.push_str(&format!("<p>{}</p>\n", escape(text(block)))),
+            "ul" | "ol" => {
+                let list = block.tag_name().name();
+                description.push_str(&format!("<{list}>\n"));
+                for item in block.children().filter(|node| node.has_tag_name("li")) {
+                    description.push_str(&format!("<li>{}</li>\n", escape(text(item))));
+                }
+                description.push_str(&format!("</{list}>\n"));
+            }
+            name => return Err(format!("MetaInfo description has unexpected <{name}>").into()),
+        }
+    }
+    let release = child(component, "releases")?
+        .children()
+        .find(|node| node.has_tag_name("release") && node.attribute("version") == Some(&version))
+        .ok_or_else(|| format!("MetaInfo has no release {version}"))?;
+    let summary = text(child(child(release, "description")?, "p")?);
+    let link = format!("\n\nhttps://github.com/rufin-app/rufin/releases/tag/v{version}\n");
+    let room = CHANGELOG_LIMIT - link.chars().count();
+    let changelog = if summary.chars().count() <= room {
+        summary + &link
+    } else {
+        let cut: String = summary.chars().take(room - 1).collect();
+        let cut = cut.rsplit_once(' ').map_or(cut.as_str(), |(head, _)| head);
+        format!("{cut}…{link}")
+    };
+
+    let fastlane = root.join(FASTLANE);
+    fs::create_dir_all(fastlane.join("changelogs"))?;
+    fs::create_dir_all(fastlane.join("images"))?;
+    write_string(
+        &fastlane.join("title.txt"),
+        &format!("{}\n", text(child(component, "name")?)),
+    )?;
+    write_string(
+        &fastlane.join("short_description.txt"),
+        &format!("{}\n", text(child(component, "summary")?)),
+    )?;
+    write_string(&fastlane.join("full_description.txt"), &description)?;
+    for code in version_codes(version_code).values() {
+        write_string(&fastlane.join(format!("changelogs/{code}.txt")), &changelog)?;
+    }
+    copy_file(
+        &root.join("resources/icons/hicolor/512x512/apps/app.rufin.rufin.png"),
+        &fastlane.join("images/icon.png"),
+    )
 }
 
 fn execute(command: &mut Command) -> Result<()> {

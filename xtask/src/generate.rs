@@ -14,6 +14,7 @@ pub(crate) fn run(mut args: Vec<String>) -> Result<()> {
     }
 
     match args.remove(0).as_str() {
+        "fastlane" if args.is_empty() => crate::android::fastlane(),
         "flatpak-sources" => flatpak_sources_command(args),
         "i18n-template" => i18n_template_command(args),
         "windows-installer" => crate::windows_installer::command(args),

@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Builds the GStreamer Android SDK for one ABI from source with cerbero, where xtask otherwise
+# unpacks the prebuilt SDK. F-Droid runs this in its build stage.
+# Host packages: cerbero's DebianBootstrapper list plus python3-distro and python3-venv.
+# RUFIN_GSTREAMER_JOBS caps parallel jobs (default: all cores).
+set -euo pipefail
+
+abi=${1:?usage: packaging/fdroid/gstreamer arm64-v8a|armeabi-v7a|x86_64}
+case $abi in
+    armeabi-v7a) config=armv7 arch=armv7 rust=armv7-linux-androideabi ;;
+    arm64-v8a) config=arm64 arch=arm64 rust=aarch64-linux-android ;;
+    x86_64) config=x86-64 arch=x86_64 rust=x86_64-linux-android ;;
+    *) echo "unknown ABI: $abi" >&2; exit 1 ;;
+esac
+jobs=${RUFIN_GSTREAMER_JOBS:-$(nproc)}
+
+root=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+cd "$root"
+version=$(cargo run --quiet --locked -p xtask -- android metadata |
+    python3 -c 'import json, sys; print(json.load(sys.stdin)["gstreamerVersion"])')
+ndk=${ANDROID_NDK_HOME:-${ANDROID_HOME:-$HOME/Android/Sdk}/ndk/29.0.14206865}
+# Outside the repository, or cargo inside cerbero finds Rufin's workspace.
+cerbero=${XDG_CACHE_HOME:-$HOME/.cache}/rufin/cerbero-$version
+sdk=$root/android/.toolchains/gstreamer-$version/$arch
+
+mkdir -p "$(dirname "$cerbero")"
+[ -d "$cerbero/.git" ] ||
+    git clone --quiet --depth 1 --branch "$version" \
+        https://gitlab.freedesktop.org/gstreamer/cerbero.git "$cerbero"
+# Only the Rust plugins android/native/CMakeLists.txt links; the full list builds AWS, WebRTC,
+# AV1 encoders and ML models that Rufin never loads.
+python3 - "$cerbero/recipes/gst-plugins-rs.recipe" <<'EOF'
+import re, sys
+path = sys.argv[1]
+recipe = open(path).read()
+packages = ['audioparsers', 'claxon', 'closedcaption', 'gif', 'isobmff', 'json', 'lewton',
+            'png', 'regex', 'textahead', 'textwrap', 'uriplaylistbin']
+recipe = re.sub(r"cargo_packages = \[.*?\n    \]", f"cargo_packages = {packages!r}", recipe,
+                count=1, flags=re.S)
+# Version features only for the bindings those plugins depend on.
+recipe = recipe.replace(
+    "components = ('', '-app', '-audio', '-base', '-check', '-net', '-pbutils',\n"
+    "                      '-rtp', '-sdp', '-utils', '-video', '-webrtc')",
+    "components = ('', '-app', '-audio', '-base', '-check', '-pbutils', '-video')")
+assert "'-check', '-pbutils', '-video')" in recipe, 'gst-plugins-rs recipe changed; update this patch'
+open(path, 'w').write(recipe)
+EOF
+# Cerbero builds with the same NDK r29 and the rustup toolchain that builds Rufin instead of
+# downloading its own. Its build-tools config ignores rustup_home and cargo_home, so link
+# its default locations; dragonfire needs llvm-tools.
+rustup target add "$rust"
+rustup component add llvm-tools
+rm -rf "$cerbero/build/rust"
+mkdir -p "$cerbero/build/rust"
+ln -sfn "${RUSTUP_HOME:-$HOME/.rustup}" "$cerbero/build/rust/rustup"
+ln -sfn "${CARGO_HOME:-$HOME/.cargo}" "$cerbero/build/rust/cargo"
+cat > "$cerbero/rufin.cbc" <<EOF
+toolchain_prefix = '$ndk'
+num_of_cpus = $jobs
+cargo_build_jobs = $jobs
+EOF
+run=("$cerbero/cerbero-uninstalled" -c "$cerbero/config/cross-android-$config.cbc"
+    -c "$cerbero/rufin.cbc" -v nodebug)
+"${run[@]}" bootstrap --system=no --toolchains=no --assume-yes --jobs "$jobs"
+# gst-android pulls in the plugins Rufin links plus the CMake and ndk-build glue.
+"${run[@]}" build --jobs "$jobs" gst-android-1.0
+# The SDK is the devel tarball: static libraries only (the build prefix also has shared ones).
+# --skip-deps-build packs what was built; the full package would also build codecs Rufin drops.
+rm -rf "$cerbero/sdk-output"
+mkdir -p "$cerbero/sdk-output"
+"${run[@]}" package --skip-deps-build --force --output-dir "$cerbero/sdk-output" gstreamer-1.0
+
+rm -rf "$sdk"
+mkdir -p "$sdk"
+tar -xf "$cerbero/sdk-output/gstreamer-1.0-android-$arch-$version.tar.xz" -C "$sdk"
+test -f "$sdk/lib/pkgconfig/gstreamer-1.0.pc"
