@@ -1309,7 +1309,7 @@ mod playback_refresh_tests {
         let mut streaming = current_change.clone();
         let current = streaming.transport.current.as_mut().unwrap();
         current.stream = Some(playback::CurrentStream {
-            local: false,
+            delivery: playback::StreamDelivery::Streaming,
             format: Some("audio/mpeg".into()),
             transcoded: true,
             bitstream: false,
@@ -1331,7 +1331,7 @@ mod playback_refresh_tests {
         );
         let current = streaming.transport.current.as_mut().unwrap();
         current.stream = Some(playback::CurrentStream {
-            local: true,
+            delivery: playback::StreamDelivery::Local,
             format: Some("audio/ogg; codecs=opus".into()),
             transcoded: false,
             bitstream: false,
@@ -1364,7 +1364,7 @@ mod playback_refresh_tests {
         CurrentMedia {
             live: None,
             stream: Some(playback::CurrentStream {
-                local: true,
+                delivery: playback::StreamDelivery::Local,
                 format: Some("audio/flac".into()),
                 transcoded: false,
                 bitstream: false,

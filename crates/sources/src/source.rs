@@ -1475,6 +1475,17 @@ impl Source {
         }
     }
 
+    /// Whether requests reach the server at its local address now: the one entered for it, or
+    /// a connection Plex found on this network.
+    pub fn on_local_address(&self) -> bool {
+        match &self.implementation {
+            Implementation::Plex(source) => source.on_local_address(),
+            Implementation::JellyfinEmby(source) => source.on_local_address(),
+            Implementation::OpenSubsonic(source) => source.on_local_address(),
+            Implementation::Files(_) | Implementation::Local(_) | Implementation::Peer(_) => false,
+        }
+    }
+
     /// The stream of a remote or document file, or of a server track. A server encodes the
     /// track when its own audio does not fit the quality asked for.
     pub async fn stream(

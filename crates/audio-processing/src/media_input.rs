@@ -28,6 +28,10 @@ pub struct ResolvedStream {
     window: Option<StreamWindow>,
     time_seek: Option<TimeSeek>,
     time_offset_millis: Option<u64>,
+    /// Where the whole stream is kept while it plays, so playback outlasts the connection.
+    download_buffer: Option<std::path::PathBuf>,
+    /// The input is a copy the stream cache keeps.
+    cached: bool,
     resource: Option<std::sync::Arc<dyn Send + Sync>>,
 }
 
@@ -41,6 +45,8 @@ impl PartialEq for ResolvedStream {
             && self.window == other.window
             && self.time_seek == other.time_seek
             && self.time_offset_millis == other.time_offset_millis
+            && self.download_buffer == other.download_buffer
+            && self.cached == other.cached
             && self.content_type == other.content_type
     }
 }
@@ -59,6 +65,8 @@ impl ResolvedStream {
             window: None,
             time_seek: None,
             time_offset_millis: None,
+            download_buffer: None,
+            cached: false,
             resource: None,
             content_type: None,
         }
@@ -75,6 +83,8 @@ impl ResolvedStream {
             window: None,
             time_seek: None,
             time_offset_millis: None,
+            download_buffer: None,
+            cached: false,
             resource: None,
             content_type: None,
         }
@@ -119,6 +129,26 @@ impl ResolvedStream {
     pub fn without_window(mut self) -> Self {
         self.window = None;
         self
+    }
+
+    /// Keeps the whole of a network stream in a file under `directory` while it plays. A
+    /// stream of this device has nothing to keep.
+    pub fn with_download_buffer(mut self, directory: Option<std::path::PathBuf>) -> Self {
+        self.download_buffer = directory.filter(|_| !self.local_input);
+        self
+    }
+
+    pub fn download_buffer(&self) -> Option<&std::path::Path> {
+        self.download_buffer.as_deref()
+    }
+
+    pub fn with_cached(mut self, cached: bool) -> Self {
+        self.cached = cached;
+        self
+    }
+
+    pub fn cached(&self) -> bool {
+        self.cached
     }
 
     /// The HTTP input starts at a source time when asked this way.

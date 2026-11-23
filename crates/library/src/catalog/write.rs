@@ -1193,7 +1193,8 @@ impl<'a> Write<'a> {
     pub(crate) async fn read_downloads(&mut self, uris: &[&str]) -> LibraryResult<()> {
         for page in uris.chunks(READ_KEYS) {
             let sql = format!(
-                "SELECT track.track_key,EXISTS(SELECT 1 FROM downloads download WHERE download.media_uri=track.media_uri),track.media_uri FROM tracks track WHERE track.media_uri IN({})",
+                "SELECT track.track_key,EXISTS(SELECT 1 FROM downloads download WHERE download.media_uri=track.media_uri AND download.reason<>'{}'),track.media_uri FROM tracks track WHERE track.media_uri IN({})",
+                crate::STREAM_CACHE_OWNERS,
                 families::placeholders(1, page.len())
             );
             let mut query =

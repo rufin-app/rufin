@@ -187,11 +187,7 @@ pub async fn media_details(
                     add(
                         &mut playing,
                         msgid("Delivery"),
-                        Some(tr(if stream.local {
-                            msgid("Local")
-                        } else {
-                            msgid("Streaming")
-                        })),
+                        Some(tr(presentation::delivery_label(stream.delivery))),
                     );
                     add(
                         &mut playing,

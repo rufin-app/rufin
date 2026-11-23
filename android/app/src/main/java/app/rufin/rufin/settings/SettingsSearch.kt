@@ -162,8 +162,13 @@ internal fun settingsSearchItems(model: RufinConnection, preferences: Preference
         rows("Services", "Last.fm", "MusicBrainz", "Server")
     }
     page(MoreDestination.Playback, PlaybackTab.Queue) {
-        rows(null, "Transition mode", "Crossfade duration", "Skip same-album crossfade", "Playback speed", "Preserve pitch",
-            "Audio fade on play/pause", "Skip unplayable tracks", "Clearing queue also clears the current song")
+        rows(null, "Transition mode", "Crossfade duration", "Skip same-album crossfade",
+            "Skip unplayable tracks", "Clearing queue also clears the current song")
+        group("Stream quality")
+        group("Stream quality on mobile data")
+        row(translate("Cache streamed tracks"), translate("Stream cache"), translate("Fetches the next tracks before they play and keeps played ones"))
+        rows("Stream cache", "Size in gigabytes", "Tracks ahead on mobile data")
+        row(translate("Skip on the local network"), translate("Stream cache"), translate("A server reached at its local address is not cached"))
     }
     page(MoreDestination.Playback, PlaybackTab.AutoDj) {
         row(translate("Override server recommendations"), summary = translate("Play Rufin's picks instead of the server's own"))
@@ -172,9 +177,9 @@ internal fun settingsSearchItems(model: RufinConnection, preferences: Preference
         row(translate("Skip low-rated tracks"), summary = translate("Leave out tracks rated two stars or lower"))
     }
     page(MoreDestination.Playback, PlaybackTab.Audio) {
-        rows(null, "Audio output", "Loudness normalization", "Normalization scope", "Target loudness", "Write EBU R128 tags to files", "Volume scale")
-        group("Stream quality")
-        group("Stream quality on mobile data")
+        rows(null, "Audio output", "Loudness normalization", "Normalization scope", "Target loudness", "Write EBU R128 tags to files", "Volume scale",
+            "Audio fade on play/pause")
+        rows("Speed", "Playback speed", "Preserve pitch")
     }
     page(MoreDestination.Equalizer) {
         rows(null, "Equalizer", "Automatic preamp", "Preamp")

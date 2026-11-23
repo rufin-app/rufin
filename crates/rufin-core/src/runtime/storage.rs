@@ -11,10 +11,12 @@ pub enum CacheKind {
     Artwork,
     Lyrics,
     JapaneseDictionary,
+    /// The tracks the stream cache keeps for playback.
+    StreamCache,
 }
 
 impl CacheKind {
-    pub(crate) const ALL: [Self; 7] = [
+    pub(crate) const ALL: [Self; 8] = [
         Self::Waveforms,
         Self::Loudness,
         Self::Fingerprints,
@@ -22,6 +24,7 @@ impl CacheKind {
         Self::Artwork,
         Self::Lyrics,
         Self::JapaneseDictionary,
+        Self::StreamCache,
     ];
 
     /// Clears this cache in place, while the runtime runs.
@@ -39,6 +42,7 @@ impl CacheKind {
             Self::JapaneseDictionary => return lyrics.clear_dictionary_cache().await,
             Self::Artwork => return downloads.clear_artwork_cache().await.map_err(string),
             Self::Lyrics => return downloads.clear_lyrics_cache().await.map_err(string),
+            Self::StreamCache => return downloads.clear_stream_cache().await,
         }
         .map_err(string)
     }
@@ -162,6 +166,11 @@ impl ProductHandles {
             CacheKind::Artwork => self
                 .artwork
                 .cache_usage()
+                .await
+                .map_err(|error| error.to_string()),
+            CacheKind::StreamCache => self
+                .library
+                .stream_cache_usage()
                 .await
                 .map_err(|error| error.to_string()),
         }

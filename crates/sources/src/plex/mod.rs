@@ -165,6 +165,10 @@ impl PlexSource {
     }
 
     /// The connection requests use now, once one was chosen in this run.
+    pub(crate) fn on_local_address(&self) -> bool {
+        self.connection.current().local
+    }
+
     async fn connection(&self) -> PlexConnection {
         self.chosen
             .get_or_init(async || {

@@ -365,6 +365,22 @@ impl Sequence {
         }
         (self.repeat_mode == QueueRepeatMode::All && self.total() > 0).then_some(self.total())
     }
+    /// The tracks after the playing one, at most `count`: the ones a skip reaches, also
+    /// while one track repeats. A shuffled queue that repeats draws its next pass anew.
+    pub(super) fn upcoming(&self, count: usize) -> Vec<library::TrackKey> {
+        let Some(current) = self.selected_index else {
+            return Vec::new();
+        };
+        let total = self.total();
+        let wraps = self.repeat_mode == QueueRepeatMode::All && !self.shuffle_enabled;
+        (1..total.max(1))
+            .map(|step| current + step)
+            .take_while(|index| wraps || *index < total)
+            .take(count)
+            .filter_map(|index| self.entry_at(index % total).map(|entry| entry.track_key))
+            .collect()
+    }
+
     pub(super) fn next_index_eos(&self) -> Option<usize> {
         self.next_index(true)
     }

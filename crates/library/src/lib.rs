@@ -66,7 +66,7 @@ pub use pins::{CollectionShown, SidebarPin};
 mod queue;
 pub mod rank;
 mod waveform;
-pub use downloads::{DownloadFile, media_encoding_key};
+pub use downloads::{DownloadFile, STREAM_CACHE_OWNERS, media_encoding_key};
 mod catalog;
 mod mix;
 mod quick_mix;

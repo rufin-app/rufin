@@ -273,11 +273,22 @@
           </div>
           <label class="pref-row" data-when="/playback/transition_mode=Crossfade"><span class="pref-label"><span>{{ localization::tr("Crossfade duration") }}</span></span><span class="pref-range"><input type="range" min="1" max="30" step="1" data-setting="/playback/crossfade_seconds" /><output></output></span></label>
           {% call m::switch("/playback/skip_same_album_crossfade", localization::tr("Skip same-album crossfade"), "") %}{% endcall %}
-          <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Playback speed") }}</span></span><span class="pref-range"><input type="range" min="0.5" max="2" step="0.05" data-setting="/playback/playback_rate" /><output></output></span></label>
-          {% call m::switch("/playback/preserve_pitch", localization::tr("Preserve pitch"), "") %}{% endcall %}
-          {% call m::switch("/playback/audio_fade_on_status_change", localization::tr("Audio fade on play/pause"), localization::tr("Fade audio when playback is paused or resumed")) %}{% endcall %}
           {% call m::switch("/playback/skip_unplayable_tracks", localization::tr("Skip unplayable tracks"), "") %}{% endcall %}
           {% call m::switch("/clear_queue_includes_current", localization::tr("Clearing queue also clears the current song"), "") %}{% endcall %}
+        </div>
+        <div data-tabs="playback-tab" data-tab="queue">
+          <h4>{{ localization::tr("Stream quality") }}</h4>
+          <div class="pref-group">
+            <div class="pref-row pref-quality" id="pref-stream-quality">{% include "audio_quality.html" %}</div>
+          </div>
+        </div>
+        <div data-tabs="playback-tab" data-tab="queue">
+          <h4>{{ localization::tr("Stream cache") }}</h4>
+          <div class="pref-group">
+            {% call m::switch("/playback/stream_cache_enabled", localization::tr("Cache streamed tracks"), localization::tr("Fetches the next tracks before they play and keeps played ones")) %}{% endcall %}
+            <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Size in gigabytes") }}</span></span><input type="number" min="1" step="1" data-setting="/playback/stream_cache_gigabytes" /></label>
+            {% call m::switch("/playback/stream_cache_skips_local", localization::tr("Skip on the local network"), localization::tr("A server reached at its local address is not cached")) %}{% endcall %}
+          </div>
         </div>
         <div data-tabs="playback-tab" data-tab="auto-dj" hidden>
         <p class="pref-note">{{ localization::tr("What Auto DJ and radio pick") }}</p>
@@ -300,11 +311,13 @@
           <label class="pref-row" data-when="/playback/loudness_normalization=EbuR128"><span class="pref-label"><span>{{ localization::tr("Target loudness") }}</span><small>{{ localization::tr("EBU R128 reference level") }}</small></span><span class="pref-range"><input type="range" min="-48" max="0" step="1" data-setting="/playback/ebu_r128_target_lufs" /><output></output></span></label>
           <label class="pref-row" data-when="/playback/loudness_normalization=EbuR128"><span class="pref-label"><span>{{ localization::tr("Write EBU R128 tags to files") }}</span><small>{{ localization::tr("Store calculated loudness in supported Local music files") }}</small></span><input type="checkbox" role="switch" data-setting="/playback/write_ebu_r128_tags" /></label>
           <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Volume scale") }}</span><small>{{ localization::tr("Perceptual for a finer control at low volume; Linear for a direct scale") }}</small></span><select data-setting="/playback/volume_scale"><option value='"Perceptual"'>{{ localization::tr("Perceptual") }}</option><option value='"Linear"'>{{ localization::tr("Linear") }}</option></select></label>
+          {% call m::switch("/playback/audio_fade_on_status_change", localization::tr("Audio fade on play/pause"), localization::tr("Fade audio when playback is paused or resumed")) %}{% endcall %}
         </div>
         <div data-tabs="playback-tab" data-tab="audio" hidden>
-          <h4>{{ localization::tr("Stream quality") }}</h4>
+          <h4>{{ localization::tr("Speed") }}</h4>
           <div class="pref-group">
-            <div class="pref-row pref-quality" id="pref-stream-quality">{% include "audio_quality.html" %}</div>
+            <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Playback speed") }}</span></span><span class="pref-range"><input type="range" min="0.5" max="2" step="0.05" data-setting="/playback/playback_rate" /><output></output></span></label>
+            {% call m::switch("/playback/preserve_pitch", localization::tr("Preserve pitch"), "") %}{% endcall %}
           </div>
         </div>
       </section>
@@ -347,7 +360,7 @@
           <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Lyrics") }}</span></span><select data-setting="/download_lyrics_automatically"><option value="false">{{ localization::tr("Download Lazily") }}</option><option value="true">{{ localization::tr("Download Automatically") }}</option></select></label>
         </div>
         <div class="pref-group" id="pref-caches">
-          {% for (kind, label, clear) in [("waveforms", "Waveforms", "Clear waveform cache"), ("loudness", "EBU R128 analysis", "Clear EBU R128 cache"), ("fingerprints", "Audio fingerprints", "Clear fingerprint cache"), ("metadata_lookups", "Metadata lookups", "Clear lookup cache"), ("artwork", "Artwork", "Clear artwork cache"), ("lyrics", "Lyrics", "Clear lyrics cache"), ("japanese_dictionary", "Japanese dictionary", "Clear Japanese dictionary")] %}
+          {% for (kind, label, clear) in [("waveforms", "Waveforms", "Clear waveform cache"), ("loudness", "EBU R128 analysis", "Clear EBU R128 cache"), ("fingerprints", "Audio fingerprints", "Clear fingerprint cache"), ("metadata_lookups", "Metadata lookups", "Clear lookup cache"), ("artwork", "Artwork", "Clear artwork cache"), ("lyrics", "Lyrics", "Clear lyrics cache"), ("japanese_dictionary", "Japanese dictionary", "Clear Japanese dictionary"), ("stream_cache", "Stream cache", "Clear stream cache")] %}
           <div class="pref-row" data-cache="{{ kind }}"><span class="pref-label"><span>{{ localization::tr(label) }}</span><small></small></span><button type="button" class="icon-button" title="{{ localization::tr(clear) }}" aria-label="{{ localization::tr(clear) }}">{% call m::icon("rufin-user-trash-symbolic") %}{% endcall %}</button></div>
           {% endfor %}
         </div>

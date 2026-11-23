@@ -33,6 +33,44 @@
                   <object class="AdwPreferencesGroup" id="transition_group">
                   </object>
                 </child>
+                <child>
+                  <object class="AdwPreferencesGroup" id="stream_quality_group">
+                    <property name="title" translatable="yes">Stream quality</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwPreferencesGroup">
+                    <property name="title" translatable="yes">Stream cache</property>
+                    <child>
+                      <object class="AdwSwitchRow" id="stream_cache_enabled">
+                        <property name="title" translatable="yes">Cache streamed tracks</property>
+                        <property name="subtitle" translatable="yes">Fetches the next tracks before they play and keeps played ones</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="stream_cache_size_row">
+                        <property name="title" translatable="yes">Size in gigabytes</property>
+                        <property name="activatable-widget">stream_cache_size</property>
+                        <child type="suffix">
+                          <object class="GtkSpinButton" id="stream_cache_size">
+                            <property name="valign">center</property>
+                            <property name="adjustment"><object class="GtkAdjustment">
+                          <property name="lower">1</property><property name="upper">4000000</property>
+                          <property name="step-increment">1</property><property name="page-increment">10</property>
+                        </object></property>
+                            <property name="numeric">true</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwSwitchRow" id="stream_cache_skips_local">
+                        <property name="title" translatable="yes">Skip on the local network</property>
+                        <property name="subtitle" translatable="yes">A server reached at its local address is not cached</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
               </object>
             </property>
           </object>
@@ -63,8 +101,8 @@
                   </object>
                 </child>
                 <child>
-                  <object class="AdwPreferencesGroup" id="stream_quality_group">
-                    <property name="title" translatable="yes">Stream quality</property>
+                  <object class="AdwPreferencesGroup" id="speed_group">
+                    <property name="title" translatable="yes">Speed</property>
                   </object>
                 </child>
               </object>

@@ -247,6 +247,10 @@ impl SubsonicSource {
         self.address.current()
     }
 
+    pub(crate) fn on_local_address(&self) -> bool {
+        self.address.on_local()
+    }
+
     /// Uses the local address while an OpenSubsonic server answers there, and returns whether
     /// the address changed. Learns from getUser's shareRole whether the user may make share
     /// links; Navidrome reports its sharing setting there.

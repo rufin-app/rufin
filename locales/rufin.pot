@@ -280,6 +280,9 @@ msgstr ""
 msgid "A new update is available, restart to apply"
 msgstr ""
 
+msgid "A server reached at its local address is not cached"
+msgstr ""
+
 msgid "A"
 msgstr ""
 
@@ -729,6 +732,9 @@ msgstr ""
 msgid "CUE file"
 msgstr ""
 
+msgid "Cache streamed tracks"
+msgstr ""
+
 msgid "Cache"
 msgstr ""
 
@@ -902,6 +908,9 @@ msgid "Clear lyrics cache"
 msgstr ""
 
 msgid "Clear queue"
+msgstr ""
+
+msgid "Clear stream cache"
 msgstr ""
 
 msgid "Clear this cache?"
@@ -1741,6 +1750,9 @@ msgstr ""
 
 #, rust-format
 msgid "February {year}"
+msgstr ""
+
+msgid "Fetches the next tracks before they play and keeps played ones"
 msgstr ""
 
 msgid "Fetching Home"
@@ -4166,6 +4178,9 @@ msgstr ""
 msgid "Singles"
 msgstr ""
 
+msgid "Size in gigabytes"
+msgstr ""
+
 msgid "Size"
 msgstr ""
 
@@ -4173,6 +4188,9 @@ msgid "Skip count"
 msgstr ""
 
 msgid "Skip low-rated tracks"
+msgstr ""
+
+msgid "Skip on the local network"
 msgstr ""
 
 msgid "Skip same-album crossfade"
@@ -4274,6 +4292,9 @@ msgstr ""
 msgid "Spectrum"
 msgstr ""
 
+msgid "Speed"
+msgstr ""
+
 msgid "Split featured artists"
 msgstr ""
 
@@ -4330,6 +4351,9 @@ msgid "Store calculated loudness in supported Local music files"
 msgstr ""
 
 msgid "Stream address"
+msgstr ""
+
+msgid "Stream cache"
 msgstr ""
 
 msgid "Stream quality on mobile data"
@@ -4548,6 +4572,9 @@ msgid "Track unavailable"
 msgstr ""
 
 msgid "Track"
+msgstr ""
+
+msgid "Tracks ahead on mobile data"
 msgstr ""
 
 msgid "Tracks from every playlist"
@@ -4859,6 +4886,9 @@ msgid "Yellow"
 msgstr ""
 
 msgid "Yes"
+msgstr ""
+
+msgid "You need to configure a local address"
 msgstr ""
 
 msgid "Your library is ready"

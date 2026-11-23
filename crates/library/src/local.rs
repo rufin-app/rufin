@@ -458,15 +458,17 @@ impl Catalog {
         let mut connection = self.acquire_cancellable(&ReadCancellation::new()).await?;
         let count = if let Some(source_id) = source_id {
             sqlx::query_scalar::<_, i64>(
-                "SELECT count(DISTINCT media_uri) FROM main.downloads WHERE source_id=?1",
+                "SELECT count(DISTINCT media_uri) FROM main.downloads WHERE source_id=?1 AND reason<>?2",
             )
             .bind(source_id)
+            .bind(crate::STREAM_CACHE_OWNERS)
             .fetch_one(&mut *connection)
             .await
         } else {
             sqlx::query_scalar::<_, i64>(
-                "SELECT count(DISTINCT media_uri) FROM main.downloads WHERE source_id IS NULL",
+                "SELECT count(DISTINCT media_uri) FROM main.downloads WHERE source_id IS NULL AND reason<>?1",
             )
+            .bind(crate::STREAM_CACHE_OWNERS)
             .fetch_one(&mut *connection)
             .await
         };

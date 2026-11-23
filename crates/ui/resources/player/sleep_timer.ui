@@ -91,9 +91,13 @@
             <property name="selection-mode">none</property>
             <style><class name="boxed-list" /></style>
             <child>
-              <object class="AdwSpinRow" id="custom">
+              <object class="AdwActionRow" id="custom_row">
                 <property name="title" translatable="yes">Minutes</property>
-                <property name="adjustment">
+                <property name="activatable-widget">custom</property>
+                <child type="suffix">
+                  <object class="GtkSpinButton" id="custom">
+                    <property name="valign">center</property>
+                    <property name="adjustment">
                   <object class="GtkAdjustment">
                     <property name="lower">1</property>
                     <property name="upper">240</property>
@@ -102,6 +106,8 @@
                     <property name="page-increment">5</property>
                   </object>
                 </property>
+                  </object>
+                </child>
                 <child type="suffix">
                   <object class="GtkButton" id="start">
                     <property name="label" translatable="yes">Start</property>

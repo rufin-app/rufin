@@ -960,7 +960,7 @@ impl PlayerPipeline {
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = stream.loudness.clone();
         self.trust_invalid_certificate
             .store(stream.trust_invalid_certificate(), Ordering::SeqCst);
-        self.native()?.0.set_property("uri", stream.uri());
+        set_playbin_stream(&self.native()?.0, stream);
         Ok(())
     }
 
@@ -1489,6 +1489,38 @@ pub(super) fn make_playbin(name: &str) -> Result<gst::Element, String> {
         .build()
         .map_err(|error| error.to_string())
 }
+/// Hands playbin a stream. One with a download buffer is kept whole in a file there while it
+/// plays, where its server tells its length; any other stream keeps playbin's queue.
+pub(super) fn set_playbin_stream(pipeline: &gst::Element, stream: &PreparedStream) {
+    let directory = stream.download_buffer();
+    if let Some(directory) = directory
+        && let Some(decoder) = pipeline
+            .downcast_ref::<gst::Bin>()
+            .and_then(|playbin| playbin.by_name("uridecodebin3"))
+    {
+        decoder.set_property("download-dir", directory.to_string_lossy().as_ref());
+    }
+    let flags = pipeline.property_value("flags");
+    if let Some(class) = glib::FlagsClass::with_type(flags.type_())
+        && let Some(builder) = class.builder_with_value(flags)
+        && let Some(flags) = match directory {
+            Some(_) => builder.set_by_nick("download").build(),
+            None => builder.unset_by_nick("download").build(),
+        }
+    {
+        pipeline.set_property_from_value("flags", &flags);
+    }
+    // The file fills as fast as the server sends, so playback starts on a megabyte or three
+    // seconds of it, whichever comes first. A queue keeps playbin's own limits.
+    let (bytes, nanoseconds) = match directory {
+        Some(_) => (1 << 20, 3 * gst::ClockTime::SECOND.nseconds() as i64),
+        None => (-1, -1),
+    };
+    pipeline.set_property("buffer-size", bytes);
+    pipeline.set_property("buffer-duration", nanoseconds);
+    pipeline.set_property("uri", stream.uri());
+}
+
 pub(super) fn configure_playbin_for_audio(pipeline: &gst::Element) {
     // playbin3 still selects a file's video, and playsink drops it when the video flag is
     // off. Stopping decoding at what the video decoders read hands it over undecoded.

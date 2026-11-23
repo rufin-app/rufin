@@ -85,7 +85,8 @@ pub(super) fn page(shell: &Rc<Shell>) -> gtk::Widget {
         default_left: adw::ToggleGroup,
         default_right: adw::ToggleGroup,
         narrow_row: adw::SwitchRow,
-        threshold_row: adw::SpinRow,
+        threshold_row: adw::ActionRow,
+        threshold: gtk::SpinButton,
         narrow_left_row: adw::ActionRow,
         narrow_right_row: adw::ActionRow,
         narrow_left: adw::ToggleGroup,
@@ -154,17 +155,17 @@ pub(super) fn page(shell: &Rc<Shell>) -> gtk::Widget {
         layout.narrow_profile.right_sidebar,
         |layout| &mut layout.narrow_profile.right_sidebar,
     );
-    threshold_row.set_adjustment(Some(&gtk::Adjustment::new(
+    threshold.set_adjustment(&gtk::Adjustment::new(
         f64::from(layout.narrow_threshold),
         f64::from(MIN_NARROW_LAYOUT_THRESHOLD),
         f64::from(MAX_NARROW_LAYOUT_THRESHOLD),
         10.0,
         100.0,
         0.0,
-    )));
+    ));
     let threshold_shell = Rc::clone(shell);
-    threshold_row.connect_value_notify(move |row| {
-        let threshold = row.value().round() as i32;
+    threshold.connect_value_changed(move |spin| {
+        let threshold = spin.value().round() as i32;
         update_layout(&threshold_shell, |layout| {
             layout.narrow_threshold = threshold
         });

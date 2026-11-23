@@ -10,7 +10,7 @@ use sources::MetadataFieldKind;
 pub(super) enum Control {
     /// Text, dates and fields chosen from a vocabulary.
     Entry(adw::EntryRow),
-    Number(adw::SpinRow),
+    Number(adw::ActionRow, gtk::SpinButton),
     List(Rc<Values>),
     /// The stars, and whether they take half stars.
     Rating(adw::ActionRow, crate::ratings::RatingControl, bool),
@@ -42,18 +42,18 @@ impl Control {
                 Self::Rating(row, rating, half_stars)
             }
             MetadataFieldKind::Number => {
-                crate::objects!(builder, resource, { row: adw::SpinRow });
+                crate::objects!(builder, resource, { row: adw::ActionRow, spin: gtk::SpinButton });
                 // No number is an empty row, not a zero.
-                row.connect_output(|row| {
-                    let empty = row.value() == 0.0;
+                spin.connect_output(|spin| {
+                    let empty = spin.value() == 0.0;
                     if empty {
-                        row.set_text("");
+                        spin.set_text("");
                     }
-                    empty
+                    gtk::glib::Propagation::from(empty)
                 });
-                row.connect_input(|row| row.text().is_empty().then_some(Ok(0.0)));
-                row.update();
-                Self::Number(row)
+                spin.connect_input(|spin| spin.text().is_empty().then_some(Ok(0.0)));
+                spin.update();
+                Self::Number(row, spin)
             }
             _ => {
                 crate::objects!(builder, resource, {
@@ -70,7 +70,7 @@ impl Control {
     pub(super) fn row(&self) -> adw::PreferencesRow {
         match self {
             Self::Entry(row) => row.clone().upcast(),
-            Self::Number(row) => row.clone().upcast(),
+            Self::Number(row, _) => row.clone().upcast(),
             Self::List(values) => values.row.clone(),
             Self::Rating(row, _, _) => row.clone().upcast(),
         }
@@ -80,15 +80,15 @@ impl Control {
         match self {
             Self::Entry(row) if row.text() != text => row.set_text(text),
             Self::Entry(_) => {}
-            Self::Number(row) => {
+            Self::Number(_, spin) => {
                 // The number a text starts with: tags hold `8; 8` and `120.5` too.
                 let number = text
                     .split(|digit: char| !digit.is_ascii_digit())
                     .next()
                     .unwrap_or_default();
-                if row.text() != number {
-                    row.set_text(number);
-                    row.update();
+                if spin.text() != number {
+                    spin.set_text(number);
+                    spin.update();
                 }
             }
             Self::List(values) => values.set_text(text),
@@ -104,8 +104,8 @@ impl Control {
             Self::Entry(row) => {
                 row.connect_changed(move |row| changed(&row.text()));
             }
-            Self::Number(row) => {
-                row.connect_changed(move |row| changed(&row.text()));
+            Self::Number(_, spin) => {
+                spin.connect_changed(move |spin| changed(&spin.text()));
             }
             Self::List(values) => values.changed.borrow_mut().push(Rc::new(changed)),
             Self::Rating(_, rating, _) => rating.connect_commit(move |rating| {

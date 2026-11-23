@@ -116,12 +116,15 @@ internal fun PlayerSettingsContent(player: PlayerConnection, page: PlayerSetting
 /** As GTK's player settings popover. */
 @Composable
 private fun PlayerPlaybackSettings(player: PlayerConnection) {
-    SettingsGroup { TransitionAndSpeed(player) }
+    SettingsGroup {
+        Transition(player)
+        Speed(player)
+    }
 }
 
-/** Transition, crossfade, speed and pitch: the first rows of both GTK's playback page and its player settings. */
+/** Transition and crossfade: the first rows of both GTK's playback page and its player settings. */
 @Composable
-private fun TransitionAndSpeed(player: PlayerConnection) {
+private fun Transition(player: PlayerConnection) {
     val playback = player.settings?.playback ?: return
     val options = player.preferenceOptions ?: return
     val transitionDuration = if (LocalReduceMotion.current) 0 else 180
@@ -141,6 +144,14 @@ private fun TransitionAndSpeed(player: PlayerConnection) {
             PreferenceSwitch("Skip same-album crossfade", playback.skipSameAlbumCrossfade) { change { setSkipSameAlbumCrossfade(it) } }
         }
     }
+}
+
+/** Speed and pitch: in the player settings, and under Speed on the playback page's Audio tab. */
+@Composable
+private fun Speed(player: PlayerConnection) {
+    val playback = player.settings?.playback ?: return
+    val options = player.preferenceOptions ?: return
+    fun change(edit: SettingsOwner.() -> Unit) { player.editPreferences(edit) }
     SettingsSliderNumber(translate("Playback speed"), playback.playbackRate, options.minPlaybackRate..options.maxPlaybackRate, .05,
         unit = "×", default = options.defaultPlaybackRate, marks = options.playbackRateMarks) { change { setPlaybackRate(it) } }
     PreferenceSwitch("Preserve pitch", playback.preservePitch) { change { setPreservePitch(it) } }
@@ -166,10 +177,40 @@ internal fun PlaybackPreferences(player: PlayerConnection, preferences: Preferen
             when (tab) {
                 PlaybackTab.Queue -> {
                     SettingsGroup {
-                        TransitionAndSpeed(player)
-                        PreferenceSwitch("Audio fade on play/pause", playback.audioFadeOnStatusChange) { change { setAudioFadeOnStatusChange(it) } }
+                        Transition(player)
                         PreferenceSwitch("Skip unplayable tracks", playback.skipUnplayableTracks) { change { setSkipUnplayableTracks(it) } }
                         PreferenceSwitch("Clearing queue also clears the current song", state.display.clearQueueIncludesCurrent) { change { setClearQueueIncludesCurrent(it) } }
+                    }
+                    SettingsGroup(translate("Stream quality")) {
+                        AudioQualityControls(playback.streamQuality) { quality -> quality?.let { change { setStreamQuality(it) } } }
+                    }
+                    preferences.applicationSettings?.let { application ->
+                        SettingsGroup(translate("Stream quality on mobile data")) {
+                            AudioQualityControls(application.mobileDataStreamQuality, follows = true) { quality ->
+                                preferences.changePreference { setMobileDataStreamQuality(quality) }
+                            }
+                        }
+                    }
+                    SettingsGroup(translate("Stream cache")) {
+                        val enabled = playback.streamCacheEnabled
+                        val unbounded = 0.0..UInt.MAX_VALUE.toDouble()
+                        SettingsSwitch(translate("Cache streamed tracks"), enabled,
+                            summary = translate("Fetches the next tracks before they play and keeps played ones")) { change { setStreamCacheEnabled(it) } }
+                        SettingsNumber(translate("Size in gigabytes"), playback.streamCacheGigabytes.toDouble(), 1.0..UInt.MAX_VALUE.toDouble(), enabled = enabled) {
+                            change { setStreamCacheGigabytes((it as Number).toLong().toUInt()) }
+                        }
+                        preferences.applicationSettings?.let { application ->
+                            SettingsNumber(translate("Tracks ahead on mobile data"), application.mobileDataStreamCacheAhead.toDouble(), unbounded, enabled = enabled) {
+                                preferences.changePreference { setMobileDataStreamCacheAhead((it as Number).toLong().toUInt()) }
+                            }
+                        }
+                        SettingsSwitch(translate("Skip on the local network"), playback.streamCacheSkipsLocal,
+                            summary = translate("A server reached at its local address is not cached"), enabled = enabled) { skips ->
+                            // No source says where its server is on this network, as GTK tells.
+                            val refusal = if (skips) player.playbackOwner?.streamCacheLocalRefusal() else null
+                            if (refusal != null) preferences.showFeedback(refusal)
+                            else change { setStreamCacheSkipsLocal(skips) }
+                        }
                     }
                 }
                 PlaybackTab.AutoDj -> {
@@ -215,17 +256,9 @@ internal fun PlaybackPreferences(player: PlayerConnection, preferences: Preferen
                         PreferenceChoice(translate("Volume scale"), playback.volumeScale.name,
                             listOf(VolumeScale.PERCEPTUAL.name to translate("Perceptual"), VolumeScale.LINEAR.name to translate("Linear")),
                             select = { change { setVolumeScale(VolumeScale.valueOf(it)) } })
+                        PreferenceSwitch("Audio fade on play/pause", playback.audioFadeOnStatusChange) { change { setAudioFadeOnStatusChange(it) } }
                     }
-                    SettingsGroup(translate("Stream quality")) {
-                        AudioQualityControls(playback.streamQuality) { quality -> quality?.let { change { setStreamQuality(it) } } }
-                    }
-                    preferences.applicationSettings?.let { application ->
-                        SettingsGroup(translate("Stream quality on mobile data")) {
-                            AudioQualityControls(application.mobileDataStreamQuality, follows = true) { quality ->
-                                preferences.changePreference { setMobileDataStreamQuality(quality) }
-                            }
-                        }
-                    }
+                    SettingsGroup(translate("Speed")) { Speed(player) }
                 }
             }
         }

@@ -2,7 +2,7 @@ use super::audio::{
     SharedQueuedLoudness, audio_output_change, audio_output_is_available, passthrough_allowed,
     selected_output_unavailable, watch_audio_outputs,
 };
-use super::pipeline::{AboutToFinishAction, PlayerPipeline, SourceClock};
+use super::pipeline::{AboutToFinishAction, PlayerPipeline, SourceClock, set_playbin_stream};
 #[cfg(test)]
 use super::visualizer::visualizer_pipeline_is_live;
 use super::visualizer::{VisualizerAnalyzer, VisualizerTap};
@@ -3420,7 +3420,7 @@ pub(super) fn handle_about_to_finish(
                 .unwrap_or_else(|poisoned| poisoned.into_inner()) = next.stream.loudness.clone();
             trust_invalid_certificate
                 .store(next.stream.trust_invalid_certificate(), Ordering::SeqCst);
-            pipeline.set_property("uri", next.stream.uri());
+            set_playbin_stream(pipeline, &next.stream);
         }
         AboutToFinishAction::Ignore => {}
     }

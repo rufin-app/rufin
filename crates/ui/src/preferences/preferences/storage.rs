@@ -50,6 +50,7 @@ pub(super) fn page(
         artwork_count: gtk::Label, artwork_size: gtk::Label, clear_artwork: gtk::Button,
         lyrics_count: gtk::Label, lyrics_size: gtk::Label, clear_lyrics: gtk::Button,
         dictionary_size: gtk::Label, clear_dictionary: gtk::Button,
+        stream_cache_count: gtk::Label, stream_cache_size: gtk::Label, clear_stream_cache: gtk::Button,
     });
     navigation_controls.set_navigation(&navigation);
     navigation_controls.set_nested_page_visible(false);
@@ -122,6 +123,12 @@ pub(super) fn page(
             None,
             dictionary_size,
             clear_dictionary,
+        ),
+        (
+            CacheKind::StreamCache,
+            Some(stream_cache_count),
+            stream_cache_size,
+            clear_stream_cache,
         ),
     ];
     let view = Rc::new(StorageView {

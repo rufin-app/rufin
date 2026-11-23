@@ -152,16 +152,22 @@
                   </object>
                 </child>
                 <child>
-                  <object class="AdwSpinRow" id="size">
+                  <object class="AdwActionRow" id="size_row">
                     <property name="title" translatable="yes">Font size (px)</property>
-                    <property name="digits">0</property>
-                    <property name="adjustment">
+                    <property name="activatable-widget">size</property>
+                    <child type="suffix">
+                      <object class="GtkSpinButton" id="size">
+                        <property name="valign">center</property>
+                        <property name="adjustment">
                       <object class="GtkAdjustment" id="size_adjustment">
                         <property name="lower">12</property>
                         <property name="upper">28</property>
                         <property name="step-increment">1</property>
                       </object>
                     </property>
+                        <property name="digits">0</property>
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>

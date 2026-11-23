@@ -54,7 +54,12 @@ pub fn playback_page(shell: &Rc<Shell>) -> gtk::Box {
         skip_low_rated_row: adw::SwitchRow,
         clear_queue_row: adw::SwitchRow,
         audio_group: adw::PreferencesGroup,
+        speed_group: adw::PreferencesGroup,
         stream_quality_group: adw::PreferencesGroup,
+        stream_cache_enabled: adw::SwitchRow,
+        stream_cache_size: gtk::SpinButton,
+        stream_cache_size_row: adw::ActionRow,
+        stream_cache_skips_local: adw::SwitchRow,
         ebu_target_row: adw::ActionRow,
         ebu_target: gtk::Scale,
         write_ebu_tags_row: adw::SwitchRow,
@@ -66,10 +71,10 @@ pub fn playback_page(shell: &Rc<Shell>) -> gtk::Box {
     transition_group.add(&crossfade_options);
 
     let speed_row = playback_rate_row(&shell.player_ui, settings.playback_rate, 220);
-    transition_group.add(&speed_row);
+    speed_group.add(&speed_row);
 
     let pitch_row = preserve_pitch_row(&shell.player_ui, settings.preserve_pitch);
-    transition_group.add(&pitch_row);
+    speed_group.add(&pitch_row);
 
     audio_fade_row.set_active(settings.audio_fade_on_status_change);
     let audio_fade_shell = Rc::clone(shell);
@@ -80,7 +85,6 @@ pub fn playback_page(shell: &Rc<Shell>) -> gtk::Box {
                 settings.audio_fade_on_status_change = row.is_active();
             });
     });
-    transition_group.add(&audio_fade_row);
 
     skip_unplayable_row.set_active(settings.skip_unplayable_tracks);
     let skip_unplayable_shell = Rc::clone(shell);
@@ -349,6 +353,7 @@ pub fn playback_page(shell: &Rc<Shell>) -> gtk::Box {
         "Perceptual for a finer control at low volume; Linear for a direct scale",
     ));
     audio_group.add(&volume_scale_row);
+    audio_group.add(&audio_fade_row);
 
     let quality_shell = Rc::clone(shell);
     let quality_rows =
@@ -360,6 +365,43 @@ pub fn playback_page(shell: &Rc<Shell>) -> gtk::Box {
     for row in &quality_rows {
         stream_quality_group.add(row);
     }
+
+    stream_cache_enabled.set_active(settings.stream_cache_enabled);
+    for row in [
+        stream_cache_size_row.upcast_ref::<gtk::Widget>(),
+        stream_cache_skips_local.upcast_ref(),
+    ] {
+        stream_cache_enabled
+            .bind_property("active", row, "sensitive")
+            .sync_create()
+            .build();
+    }
+    let cache_shell = Rc::clone(shell);
+    stream_cache_enabled.connect_active_notify(move |row| {
+        let enabled = row.is_active();
+        (cache_shell.player_ui)
+            .update_playback_settings(|settings| settings.stream_cache_enabled = enabled);
+    });
+    stream_cache_size.set_value(f64::from(settings.stream_cache_gigabytes));
+    let cache_shell = Rc::clone(shell);
+    stream_cache_size.connect_value_changed(move |spin| {
+        let gigabytes = spin.value() as u32;
+        (cache_shell.player_ui)
+            .update_playback_settings(|settings| settings.stream_cache_gigabytes = gigabytes);
+    });
+    stream_cache_skips_local.set_active(settings.stream_cache_skips_local);
+    let cache_shell = Rc::clone(shell);
+    stream_cache_skips_local.connect_active_notify(move |row| {
+        let skips = row.is_active();
+        // No source says where its server is on this network: the switch goes back.
+        if skips && let Some(refusal) = cache_shell.products.playback.stream_cache_local_refusal() {
+            row.set_active(false);
+            (cache_shell.chrome.toast_overlay).add_toast(adw::Toast::new(&refusal));
+            return;
+        }
+        (cache_shell.player_ui)
+            .update_playback_settings(|settings| settings.stream_cache_skips_local = skips);
+    });
 
     let output_dropdown = audio_output_dropdown(&shell, 220);
     output_row.add_suffix(&output_dropdown);

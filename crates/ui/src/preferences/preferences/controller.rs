@@ -22,7 +22,7 @@ pub(super) fn bind(
 ) {
     crate::objects!(builder, resource, {
         web_allow_remote: adw::SwitchRow,
-        web_port: adw::SpinRow,
+        web_port: gtk::SpinButton,
         web_regenerate: gtk::Button,
         web_copy_token: gtk::Button,
         web_copy_token_icon: gtk::Image,
@@ -96,14 +96,14 @@ pub(super) fn bind(
     });
     let weak = Rc::downgrade(shell);
     let status = web_status.downgrade();
-    web_port.connect_value_notify(move |row| {
+    web_port.connect_value_changed(move |spin| {
         if let (Some(shell), Some(status)) = (weak.upgrade(), status.upgrade()) {
             save(
                 &status,
                 shell
                     .settings
                     .persistence
-                    .set_controller_port(row.value() as u16),
+                    .set_controller_port(spin.value() as u16),
             );
         }
     });

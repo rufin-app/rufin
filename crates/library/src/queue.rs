@@ -424,6 +424,23 @@ impl Catalog {
             .collect())
     }
 
+    /// The URIs of `tracks`, in their order; a track that is gone is left out.
+    pub async fn track_media_uris(
+        &self,
+        tracks: &[crate::TrackKey],
+    ) -> LibraryResult<Vec<(crate::TrackKey, String)>> {
+        let keys = tracks.iter().map(|track| track.raw()).collect::<Vec<_>>();
+        let mut reader = self.acquire_reader().await?;
+        let rows: Vec<(i64, String)> = sqlx::query_as("SELECT track.track_key,track.media_uri FROM json_each(?1) wanted JOIN tracks track ON track.track_key=wanted.value ORDER BY wanted.key")
+            .bind(serde_json::to_string(&keys)?)
+            .fetch_all(&mut *reader)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(key, uri)| (crate::TrackKey::from_raw(key), uri))
+            .collect())
+    }
+
     pub async fn save_queue(&self, state: &QueueRestore) -> LibraryResult<()> {
         let mut write = self.write().await?;
         save_queue_on(write.connection().await?, state).await?;

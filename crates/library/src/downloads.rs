@@ -1,6 +1,10 @@
 //! Download records: one row per track, written after the file lands. A track is downloaded
-//! while it has a row, at whatever quality it was downloaded.
+//! while it has a row, at whatever quality it was downloaded. A row only the stream cache
+//! owns is a copy playback uses, and no download.
 use crate::{Catalog, LibraryResult};
+
+/// The owners of a copy only the stream cache keeps, as a row stores them.
+pub const STREAM_CACHE_OWNERS: &str = r#"[{"Subject":"StreamCache"}]"#;
 
 #[derive(Clone, Debug, Default, sqlx::FromRow)]
 pub struct DownloadFile {
@@ -106,6 +110,28 @@ impl Catalog {
         }
         write.commit().await?;
         Ok(removed)
+    }
+
+    /// The copies only the stream cache keeps.
+    pub async fn stream_cache_files(&self) -> LibraryResult<Vec<DownloadFile>> {
+        let mut reader = self.acquire_reader().await?;
+        Ok(sqlx::query_as("SELECT * FROM downloads WHERE reason=?1")
+            .bind(STREAM_CACHE_OWNERS)
+            .fetch_all(&mut *reader)
+            .await?)
+    }
+
+    pub async fn stream_cache_usage(&self) -> LibraryResult<crate::CacheUsage> {
+        let mut reader = self.acquire_reader().await?;
+        let (entries, bytes): (i64, i64) =
+            sqlx::query_as("SELECT count(*),coalesce(sum(size),0) FROM downloads WHERE reason=?1")
+                .bind(STREAM_CACHE_OWNERS)
+                .fetch_one(&mut *reader)
+                .await?;
+        Ok(crate::CacheUsage {
+            entries: entries as u64,
+            bytes: bytes as u64,
+        })
     }
 
     pub async fn download_files_page(

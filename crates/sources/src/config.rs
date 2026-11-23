@@ -300,6 +300,23 @@ impl SourceConfiguration {
         self.kind == crate::file::local::LOCAL_SOURCE_ID
     }
 
+    /// Whether the source can tell that its server answers on this network: a local address
+    /// was entered for it, or it is a Plex server, which finds its own.
+    pub fn knows_local_address(&self) -> bool {
+        match self.kind.as_str() {
+            "plex" => true,
+            "jellyfin" | "emby" => {
+                crate::jellyfin_emby::JellyfinEmbySourceConfig::from_configuration(self)
+                    .is_ok_and(|config| config.local_url.is_some())
+            }
+            "navidrome" | "subsonic" => {
+                crate::subsonic::SubsonicSourceConfig::from_configuration(self)
+                    .is_ok_and(|config| config.local_url.is_some())
+            }
+            _ => false,
+        }
+    }
+
     pub fn source_kind(&self) -> Option<library::SourceKind> {
         library::SourceKind::parse(&self.kind)
     }

@@ -295,6 +295,9 @@ preference_group!(#[cfg_attr(feature = "bindings", derive(uniffi::Record))] Appl
     /// Android: the quality streams are asked for on mobile data, in place of every other.
     #[serde(default)]
     mobile_data_stream_quality: Option<library::AudioQuality> = None => set_mobile_data_stream_quality;
+    /// Android: how many tracks ahead the stream cache fetches on mobile data.
+    #[serde(default = "default_mobile_data_stream_cache_ahead")]
+    mobile_data_stream_cache_ahead: u32 = default_mobile_data_stream_cache_ahead() => set_mobile_data_stream_cache_ahead;
     #[serde(default = "default_auto_dj_refill_threshold")]
     auto_dj_refill_threshold: u8 = DEFAULT_AUTO_DJ_REFILL_THRESHOLD => set_auto_dj_refill_threshold;
     /// How many tracks one Auto DJ refill adds.
@@ -624,6 +627,28 @@ impl Settings {
             .unwrap_or(self.playback.stream_quality)
     }
 
+    /// The most the stream cache may take, in bytes; 0 while it is off.
+    pub fn stream_cache_limit(&self) -> u64 {
+        let playback = &self.playback;
+        if !playback.stream_cache_enabled {
+            return 0;
+        }
+        u64::from(playback.stream_cache_gigabytes) << 30
+    }
+
+    /// How many tracks after the playing one the stream cache fetches: the count for mobile
+    /// data while the network is metered, three on any other, and none while the cache is
+    /// off. Three covers a slow server or a short drop; a trip is what downloads are for.
+    pub fn stream_cache_ahead(&self, metered: bool) -> usize {
+        if self.stream_cache_limit() == 0 {
+            0
+        } else if metered {
+            self.application.mobile_data_stream_cache_ahead as usize
+        } else {
+            3
+        }
+    }
+
     pub fn set_download_directory(
         &mut self,
         source_id: SourceId,
@@ -676,6 +701,10 @@ fn default_starting_page() -> SidebarRouteItem {
 
 fn default_release_check_interval_hours() -> u32 {
     6
+}
+
+fn default_mobile_data_stream_cache_ahead() -> u32 {
+    1
 }
 
 fn default_cover_providers() -> Vec<metadata_lookup::CoverProvider> {

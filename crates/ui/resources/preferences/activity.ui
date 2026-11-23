@@ -13,48 +13,72 @@
         <child><object class="AdwSwitchRow" id="monthly_enabled">
           <property name="title" translatable="yes">Open automatically</property>
         </object></child>
-        <child><object class="AdwSpinRow" id="monthly_before">
+        <child><object class="AdwActionRow" id="monthly_before_row">
           <property name="title" translatable="yes">Days before month ends</property>
-          <property name="numeric">true</property>
-          <property name="adjustment"><object class="GtkAdjustment">
+  <property name="activatable-widget">monthly_before</property>
+  <child type="suffix">
+    <object class="GtkSpinButton" id="monthly_before">
+      <property name="valign">center</property>
+      <property name="adjustment"><object class="GtkAdjustment">
             <property name="lower">0</property><property name="upper">31</property>
             <property name="step-increment">1</property><property name="page-increment">1</property>
             <property name="value">0</property>
           </object></property>
-        </object></child>
-        <child><object class="AdwSpinRow" id="monthly_after">
+      <property name="numeric">true</property>
+    </object>
+  </child>
+</object></child>
+        <child><object class="AdwActionRow" id="monthly_after_row">
           <property name="title" translatable="yes">Days after month ends</property>
-          <property name="numeric">true</property>
-          <property name="adjustment"><object class="GtkAdjustment">
+  <property name="activatable-widget">monthly_after</property>
+  <child type="suffix">
+    <object class="GtkSpinButton" id="monthly_after">
+      <property name="valign">center</property>
+      <property name="adjustment"><object class="GtkAdjustment">
             <property name="lower">0</property><property name="upper">31</property>
             <property name="step-increment">1</property><property name="page-increment">1</property>
             <property name="value">5</property>
           </object></property>
-        </object></child>
+      <property name="numeric">true</property>
+    </object>
+  </child>
+</object></child>
       </object></child>
       <child><object class="AdwPreferencesGroup">
         <property name="title" translatable="yes">Yearly</property>
         <child><object class="AdwSwitchRow" id="yearly_enabled">
           <property name="title" translatable="yes">Open automatically</property>
         </object></child>
-        <child><object class="AdwSpinRow" id="yearly_before">
+        <child><object class="AdwActionRow" id="yearly_before_row">
           <property name="title" translatable="yes">Days before year ends</property>
-          <property name="numeric">true</property>
-          <property name="adjustment"><object class="GtkAdjustment">
+  <property name="activatable-widget">yearly_before</property>
+  <child type="suffix">
+    <object class="GtkSpinButton" id="yearly_before">
+      <property name="valign">center</property>
+      <property name="adjustment"><object class="GtkAdjustment">
             <property name="lower">0</property><property name="upper">31</property>
             <property name="step-increment">1</property><property name="page-increment">1</property>
             <property name="value">6</property>
           </object></property>
-        </object></child>
-        <child><object class="AdwSpinRow" id="yearly_after">
+      <property name="numeric">true</property>
+    </object>
+  </child>
+</object></child>
+        <child><object class="AdwActionRow" id="yearly_after_row">
           <property name="title" translatable="yes">Days after year ends</property>
-          <property name="numeric">true</property>
-          <property name="adjustment"><object class="GtkAdjustment">
+  <property name="activatable-widget">yearly_after</property>
+  <child type="suffix">
+    <object class="GtkSpinButton" id="yearly_after">
+      <property name="valign">center</property>
+      <property name="adjustment"><object class="GtkAdjustment">
             <property name="lower">0</property><property name="upper">31</property>
             <property name="step-increment">1</property><property name="page-increment">1</property>
             <property name="value">7</property>
           </object></property>
-        </object></child>
+      <property name="numeric">true</property>
+    </object>
+  </child>
+</object></child>
       </object></child>
     </object></property>
   </object>

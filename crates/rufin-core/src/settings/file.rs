@@ -135,6 +135,18 @@ pub(super) const CHOICES: &[(&str, &str)] = &[
     ("playback.volume_scale", "/playback/volume_scale"),
     ("playback.stream_quality", "/playback/stream_quality"),
     (
+        "playback.stream_cache_enabled",
+        "/playback/stream_cache_enabled",
+    ),
+    (
+        "playback.stream_cache_gigabytes",
+        "/playback/stream_cache_gigabytes",
+    ),
+    (
+        "playback.stream_cache_skips_local",
+        "/playback/stream_cache_skips_local",
+    ),
+    (
         "playback.visualizer_fft_size",
         "/playback/visualizer_fft_size",
     ),
@@ -281,6 +293,10 @@ pub(super) const CHOICES: &[(&str, &str)] = &[
     (
         "android.mobile_data_stream_quality",
         "/mobile_data_stream_quality",
+    ),
+    (
+        "android.mobile_data_stream_cache_ahead",
+        "/mobile_data_stream_cache_ahead",
     ),
 ];
 

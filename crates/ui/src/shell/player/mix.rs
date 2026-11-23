@@ -27,7 +27,8 @@ struct MixControls {
     min_year: gtk::Entry,
     max_year: gtk::Entry,
     /// The count of the unit chosen.
-    limit: adw::SpinRow,
+    limit: gtk::SpinButton,
+    limit_row: adw::ActionRow,
     /// The counts of tracks and of albums.
     limits: Rc<Cell<[usize; 2]>>,
     favorites: adw::SwitchRow,
@@ -249,6 +250,7 @@ fn present_mix_popover_loaded(
         min_year: crate::ui_resource::object(&builder, resource, "min_year"),
         max_year: crate::ui_resource::object(&builder, resource, "max_year"),
         limit: crate::ui_resource::object(&builder, resource, "limit"),
+        limit_row: crate::ui_resource::object(&builder, resource, "limit_row"),
         limits: Rc::new(Cell::new([saved.limit, saved.album_limit])),
         favorites: crate::ui_resource::object(&builder, resource, "favorites"),
         favorite_kinds: Rc::new(favorite_kinds),
@@ -265,17 +267,22 @@ fn present_mix_popover_loaded(
     controls
         .unit
         .set_active_name(Some(if saved.albums { "albums" } else { "tracks" }));
-    show_unit(&controls.limit, saved.albums, controls.limits.get());
+    show_unit(
+        &controls.limit_row,
+        &controls.limit,
+        saved.albums,
+        controls.limits.get(),
+    );
     // Each unit keeps its own count.
     controls.unit.connect_active_name_notify({
-        let limit = controls.limit.clone();
+        let (row, limit) = (controls.limit_row.clone(), controls.limit.clone());
         let counts = Rc::clone(&controls.limits);
         move |unit| {
             let albums = unit.active_name().as_deref() == Some("albums");
             let mut limits = counts.get();
             limits[usize::from(!albums)] = limit.value() as usize;
             counts.set(limits);
-            show_unit(&limit, albums, limits);
+            show_unit(&row, &limit, albums, limits);
         }
     });
     let kind = controls
@@ -382,9 +389,9 @@ fn present_mix_popover_loaded(
 }
 
 /// Shows the count of the unit chosen, named after it.
-fn show_unit(limit: &adw::SpinRow, albums: bool, limits: [usize; 2]) {
-    limit.set_title(&if albums { tr("Albums") } else { tr("Tracks") });
-    limit.set_subtitle(&if albums {
+fn show_unit(row: &adw::ActionRow, limit: &gtk::SpinButton, albums: bool, limits: [usize; 2]) {
+    row.set_title(&if albums { tr("Albums") } else { tr("Tracks") });
+    row.set_subtitle(&if albums {
         tr("Each plays whole")
     } else {
         String::new()

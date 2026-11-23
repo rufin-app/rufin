@@ -11,6 +11,8 @@ let streamQuality = null;
 
 // Rows that only apply while another setting is on, as GTK makes them insensitive.
 const dependencies = {
+  "/playback/stream_cache_gigabytes": "/playback/stream_cache_enabled",
+  "/playback/stream_cache_skips_local": "/playback/stream_cache_enabled",
   "/layout/narrow_threshold": "/layout/narrow_enabled",
   "/layout/narrow_profile/left_sidebar": "/layout/narrow_enabled",
   "/layout/narrow_profile/right_sidebar": "/layout/narrow_enabled",

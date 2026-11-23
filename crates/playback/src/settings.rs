@@ -99,6 +99,15 @@ macro_rules! playback_preference_fields {
                 write_ebu_r128_tags: bool = false => set_write_ebu_r128_tags;
                 #[serde(default)]
                 stream_quality: AudioQuality = AudioQuality::Original => set_stream_quality;
+                /// Whether tracks are fetched ahead and kept for the next time.
+                #[serde(default = "default_true")]
+                stream_cache_enabled: bool = true => set_stream_cache_enabled;
+                /// How many gigabytes the stream cache may take.
+                #[serde(default = "default_stream_cache_gigabytes")]
+                stream_cache_gigabytes: u32 = default_stream_cache_gigabytes() => set_stream_cache_gigabytes;
+                /// A source reached at its local address is left out of the stream cache.
+                #[serde(default = "default_true")]
+                stream_cache_skips_local: bool = true => set_stream_cache_skips_local;
                 #[serde(default, skip_serializing_if = "Option::is_none")]
                 audio_output: Option<String> = None;
                 #[serde(default = "default_playback_rate")]
@@ -271,6 +280,10 @@ fn default_visualizer_fft_size() -> u32 {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_stream_cache_gigabytes() -> u32 {
+    2
 }
 
 fn default_volume() -> f64 {

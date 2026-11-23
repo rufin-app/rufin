@@ -53,6 +53,15 @@ pub fn audio_source_label(format: Option<&str>, path: Option<&str>) -> Option<St
     })
 }
 
+/// Where the playing audio comes from, as the player and the track details show it.
+pub fn delivery_label(delivery: playback::StreamDelivery) -> &'static str {
+    match delivery {
+        playback::StreamDelivery::Local => msgid("Local"),
+        playback::StreamDelivery::Cached => msgid("Cached"),
+        playback::StreamDelivery::Streaming => msgid("Streaming"),
+    }
+}
+
 pub fn now_playing_labels(
     media: Option<&playback::CurrentMedia>,
     output_name: Option<&str>,
@@ -124,11 +133,7 @@ pub fn now_playing_labels(
     }
     let mut place = Vec::from_iter(output_name.map(str::to_owned));
     if let Some(stream) = &media.stream {
-        place.push(localization::tr(if stream.local {
-            msgid("Local")
-        } else {
-            msgid("Streaming")
-        }));
+        place.push(localization::tr(delivery_label(stream.delivery)));
         if stream.bitstream {
             place.push(localization::tr(msgid("Bitstream")));
         }

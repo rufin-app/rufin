@@ -70,10 +70,16 @@
                       </object>
                     </child>
                     <child>
-                      <object class="AdwSpinRow" id="threshold_row">
+                      <object class="AdwActionRow" id="threshold_row">
                         <property name="title" translatable="yes">Narrow layout threshold</property>
-                        <property name="digits">0</property>
-                        <property name="numeric">true</property>
+                        <property name="activatable-widget">threshold</property>
+                        <child type="suffix">
+                          <object class="GtkSpinButton" id="threshold">
+                            <property name="valign">center</property>
+                            <property name="digits">0</property>
+                            <property name="numeric">true</property>
+                          </object>
+                        </child>
                         <child type="suffix">
                           <object class="GtkLabel">
                             <property name="label">px</property>

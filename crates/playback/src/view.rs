@@ -87,10 +87,21 @@ pub fn announced_song(title: &str, artist: Option<&str>) -> Option<(String, Stri
     )
 }
 
+/// Where the playing audio comes from.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "bindings", derive(uniffi::Enum))]
+pub enum StreamDelivery {
+    /// A file on this device: the track's own, a mapped one or a download.
+    Local,
+    /// A copy the stream cache keeps.
+    Cached,
+    Streaming,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "bindings", derive(uniffi::Record))]
 pub struct CurrentStream {
-    pub local: bool,
+    pub delivery: StreamDelivery,
     pub format: Option<String>,
     pub transcoded: bool,
     pub bitstream: bool,

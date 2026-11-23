@@ -72,6 +72,11 @@ impl<T: Clone + PartialEq> ServerAddress<T> {
         self.chosen.current()
     }
 
+    /// Whether requests use the local address now.
+    pub(crate) fn on_local(&self) -> bool {
+        (self.local.as_ref()).is_some_and(|local| *local == self.chosen.current())
+    }
+
     /// Uses the local address while `reachable` finds this server there, and the public one
     /// otherwise. Returns whether the address changed.
     pub(crate) async fn select(&self, reachable: impl AsyncFnOnce(&T) -> bool) -> bool {

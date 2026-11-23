@@ -71,6 +71,9 @@ const SETTINGS: &[&str] = &[
     "/playback/write_ebu_r128_tags",
     "/playback/volume_scale",
     "/playback/stream_quality",
+    "/playback/stream_cache_enabled",
+    "/playback/stream_cache_gigabytes",
+    "/playback/stream_cache_skips_local",
     "/auto_dj_refill_threshold",
     "/auto_dj_refill_count",
     "/override_server_recommendations",
@@ -303,10 +306,18 @@ async fn write(
     let settings = products.settings.clone();
     let artwork = products.artwork.clone();
     let source = products.source.clone();
+    let playback = Arc::clone(&products.playback);
     tokio::task::spawn_blocking(move || match edit {
         Edit::Set { path, value } => {
             if !SETTINGS.contains(&path.as_str()) {
                 return Err(bad_request(format!("{path} is not a preference")));
+            }
+            // No source says where its server is on this network, as GTK tells.
+            if path == "/playback/stream_cache_skips_local"
+                && value == json!(true)
+                && let Some(refusal) = playback.stream_cache_local_refusal()
+            {
+                return Err(bad_request(refusal));
             }
             // Covers and artist images still missing are asked for again, as GTK does.
             let retry_artwork = match path.as_str() {
@@ -436,7 +447,7 @@ async fn write(
     Ok(json_response(StatusCode::OK, values(&products).await?))
 }
 
-const CACHES: [(&str, CacheKind); 7] = [
+const CACHES: [(&str, CacheKind); 8] = [
     ("waveforms", CacheKind::Waveforms),
     ("loudness", CacheKind::Loudness),
     ("fingerprints", CacheKind::Fingerprints),
@@ -444,6 +455,7 @@ const CACHES: [(&str, CacheKind); 7] = [
     ("artwork", CacheKind::Artwork),
     ("lyrics", CacheKind::Lyrics),
     ("japanese_dictionary", CacheKind::JapaneseDictionary),
+    ("stream_cache", CacheKind::StreamCache),
 ];
 
 async fn summary(products: &ProductHandles, clear: Option<CacheKind>) -> Value {

@@ -25,8 +25,10 @@ pub use quality::{
     audio_quality_shows_bitrate, audio_quality_shows_channels, audio_quality_with_bitrate,
     audio_quality_with_channels, audio_quality_with_codec, default_audio_bitrate,
 };
+mod ahead;
 mod storage;
 mod track_download;
+use ahead::Ahead;
 use storage::DownloadAudio;
 pub use storage::DownloadDirectory;
 
@@ -49,6 +51,8 @@ pub struct Downloads {
     root: Arc<PathBuf>,
     commands: Sender<Command>,
     status: tokio::sync::watch::Receiver<DownloadStatus>,
+    /// The tracks the stream cache has a copy of now, for playback.
+    kept: Receiver<String>,
 }
 
 /// Holds the existing download actor at a completed command boundary during restore.
@@ -114,6 +118,12 @@ enum Command {
         source_id: SourceId,
         notify: bool,
     },
+    /// The playing track and the ones after it, nearest first, for the stream cache.
+    Ahead {
+        playing: Option<TrackKey>,
+        upcoming: Vec<TrackKey>,
+    },
+    ClearStreamCache(Sender<Result<(), String>>),
 }
 
 #[derive(Clone)]
@@ -755,6 +765,8 @@ pub enum DownloadSubject {
         context_id: String,
         title: Option<String>,
     },
+    /// The stream cache, which owns the copies it fetched for playback and has no job.
+    StreamCache,
 }
 
 impl DownloadSubject {
@@ -862,6 +874,7 @@ pub fn download_subject_title(subject: &DownloadSubject) -> String {
         DownloadSubject::Prepared { title, .. } => title
             .clone()
             .unwrap_or_else(|| localization::tr("Selection")),
+        DownloadSubject::StreamCache => localization::tr("Stream cache"),
     }
 }
 
@@ -961,6 +974,7 @@ struct Actor {
     paused: bool,
     metered: bool,
     next_job: u64,
+    ahead: Ahead,
 }
 
 /// The rules while a source has some: the changes that touch a source with rules reconcile
@@ -1022,10 +1036,12 @@ impl Downloads {
         let (commands, receiver) = async_channel::unbounded();
         let (prepared_rules, rule_results) = async_channel::unbounded();
         let (status, changes) = tokio::sync::watch::channel(DownloadStatus::default());
+        let (kept, heard) = async_channel::bounded(64);
         let downloads = Self {
             root: Arc::new(root),
             commands,
             status: changes,
+            kept: heard,
         };
         runtime.spawn(run(
             Actor {
@@ -1049,6 +1065,7 @@ impl Downloads {
                 metered: false,
                 leaving: HashMap::new(),
                 next_job: 0,
+                ahead: Ahead::reporting(kept),
             },
             receiver,
             rule_results,
@@ -1156,6 +1173,22 @@ impl Downloads {
         self.send(Command::KeepPictures(source_id));
     }
 
+    /// The tracks the stream cache has a copy of now, each as it lands.
+    pub(crate) fn stream_cache_copies(&self) -> Receiver<String> {
+        self.kept.clone()
+    }
+
+    /// Tells the stream cache the playing track and the ones after it, nearest first.
+    pub(crate) fn play_ahead(&self, playing: Option<TrackKey>, upcoming: Vec<TrackKey>) {
+        self.send(Command::Ahead { playing, upcoming });
+    }
+
+    pub(crate) async fn clear_stream_cache(&self) -> Result<(), String> {
+        let (response, receive) = async_channel::bounded(1);
+        self.send(Command::ClearStreamCache(response));
+        receive.recv().await.map_err(|error| error.to_string())?
+    }
+
     fn send(&self, command: Command) {
         if self.commands.try_send(command).is_err() {
             warn!("download operation lane is unavailable");
@@ -1207,6 +1240,9 @@ async fn run(mut actor: Actor, receiver: Receiver<Command>, rule_results: Receiv
                 }
                 if current.sources.configured != previous.sources.configured {
                     actor.attach_configured(&mut active).await;
+                }
+                if current.ui.stream_cache_limit() != previous.ui.stream_cache_limit() {
+                    actor.evict_stream_cache(&mut active).await;
                 }
                 previous = current;
             }
@@ -1411,6 +1447,13 @@ impl Actor {
                         warn!(%source_id, failed, "could not keep the pictures of some downloads");
                     }
                 });
+            }
+            Command::Ahead { playing, upcoming } => {
+                self.play_ahead(playing, upcoming, active).await;
+            }
+            Command::ClearStreamCache(response) => {
+                let result = self.clear_stream_cache(active).await;
+                let _ = response.send(result).await;
             }
             Command::Clear { source_id, notify } => {
                 self.schedule_rules(&source_id, DownloadRules::default());
@@ -2097,18 +2140,12 @@ impl Actor {
     }
 
     async fn fill_slots(&mut self, active: &mut Vec<ActiveDownload>) {
-        if self.paused {
-            return;
-        }
         let rule = |download: &ActiveDownload| matches!(download.subject, DownloadSubject::Rule(_));
         let holds_rules = self.holds_rules();
-        if holds_rules && active.iter().any(rule) {
+        if !self.paused && holds_rules && active.iter().any(rule) {
             self.abort_matching(active, true, rule).await;
         }
-        while active.len() < MAX_ACTIVE_DOWNLOADS {
-            let Some(download) = self.start_next(active, holds_rules).await else {
-                break;
-            };
+        while let Some(download) = self.start_next(active, holds_rules).await {
             active.push(download);
         }
     }
@@ -2120,8 +2157,21 @@ impl Actor {
     ) -> Option<ActiveDownload> {
         let mut waiting = HashSet::new();
         loop {
-            let (source_id, job_id, subject, quality, media_uri) =
-                self.next_candidate(active, &waiting, holds_rules)?;
+            // The stream cache fetches first, also while downloads are paused or take every
+            // slot.
+            let ahead = self.peek_ahead(active, &waiting);
+            let cached = ahead.is_some();
+            let (source_id, job_id, subject, quality, media_uri) = match ahead {
+                Some((source_id, media_uri)) => (
+                    Some(source_id),
+                    String::new(),
+                    DownloadSubject::StreamCache,
+                    self.settings.stream_quality(),
+                    media_uri,
+                ),
+                None if self.paused || active.len() >= MAX_ACTIVE_DOWNLOADS => return None,
+                None => self.next_candidate(active, &waiting, holds_rules)?,
+            };
             // A CUE track whose file another track copies now takes that copy once it lands.
             let backing = (self.catalog.cue_backing(&media_uri).await).ok().flatten();
             if backing.is_some()
@@ -2141,18 +2191,47 @@ impl Actor {
                 None => None,
             };
             if source_id.is_some() && source.is_none() {
+                if cached {
+                    self.ahead.waiting = true;
+                    continue;
+                }
                 if let Some(job) = self.find_job_mut(&source_id, &job_id) {
                     job.state = DownloadQueueState::WaitingForConnection;
                 }
                 self.publish(source_id.as_ref()).await;
                 continue;
             }
-            let custom_directory = attached.and_then(|attached| attached.directory);
+            // The cache keeps what the stream of the track would be, in its own folder.
+            let quality = if cached {
+                match playable(&self.catalog, &media_uri).await {
+                    Ok(playable) => playable
+                        .stream_encoding(quality)
+                        .map_or(AudioQuality::Original, AudioQuality::Transcoded),
+                    Err(_) => {
+                        self.settle_ahead(&media_uri);
+                        continue;
+                    }
+                }
+            } else {
+                quality
+            };
+            let custom_directory = attached
+                .and_then(|attached| attached.directory)
+                .filter(|_| !cached);
             let owner = DownloadOwner::Subject(subject.clone());
             match self
                 .add_download_owner(source_id.as_ref(), &media_uri, &owner, quality)
                 .await
             {
+                Ok(true) if cached => {
+                    self.kept_ahead(&media_uri);
+                    continue;
+                }
+                Err(error) if cached => {
+                    warn!(%error, %media_uri, "could not keep a copy for the stream cache");
+                    self.settle_ahead(&media_uri);
+                    continue;
+                }
                 Ok(true) => {
                     if self.remove_job_track(&source_id, &job_id, &media_uri, true) {
                         self.persist_and_publish(source_id.as_ref()).await;
@@ -2174,7 +2253,9 @@ impl Actor {
             if let Some(job) = self.find_job_mut(&source_id, &job_id) {
                 job.state = DownloadQueueState::Downloading;
             }
-            self.publish(source_id.as_ref()).await;
+            if !cached {
+                self.publish(source_id.as_ref()).await;
+            }
             let paths = staging_paths(
                 &self.root,
                 source_id.as_ref(),
@@ -2374,6 +2455,9 @@ impl Actor {
         joined: Result<Result<DownloadAudio, DownloadFailure>, tokio::task::JoinError>,
         remaining_active: &mut Vec<ActiveDownload>,
     ) {
+        if active.subject == DownloadSubject::StreamCache {
+            return self.finish_ahead(active, joined, remaining_active).await;
+        }
         if self
             .find_job_mut(&active.source_id, &active.job_id)
             .is_none()
@@ -2630,12 +2714,16 @@ impl Actor {
     }
 
     async fn reconcile_staging(&self, source_id: &Option<SourceId>) {
+        let ahead = (self.ahead.wanted.iter())
+            .filter(|(source, _)| Some(source) == source_id.as_ref())
+            .map(|(_, media_uri)| media_uri.clone());
         let queued = self
             .jobs
             .get(source_id)
             .into_iter()
             .flatten()
             .flat_map(|job| job.remaining.iter().cloned())
+            .chain(ahead)
             .collect::<HashSet<_>>();
         let directory = source_id
             .as_ref()
@@ -2756,6 +2844,7 @@ impl Actor {
     }
 
     fn retry_waiting(&mut self) {
+        self.ahead.waiting = false;
         for jobs in self.jobs.values_mut() {
             if let Some(first) = jobs.first_mut()
                 && first.state == DownloadQueueState::WaitingForConnection
@@ -2996,11 +3085,14 @@ impl Actor {
         if owners.is_empty() {
             self.retire_receipt(file).await.map(|_| ())
         } else {
+            let before = file.clone();
             file.owners = serde_json::to_string(&owners).map_err(|error| error.to_string())?;
             self.catalog
                 .save_download(file)
                 .await
-                .map_err(|error| error.to_string())
+                .map_err(|error| error.to_string())?;
+            self.events.counted(Some(&before), Some(file));
+            Ok(())
         }
     }
 
@@ -3899,6 +3991,7 @@ mod tests {
             metered: false,
             leaving: HashMap::new(),
             next_job: 0,
+            ahead: Ahead::default(),
         }
     }
 
@@ -4166,6 +4259,9 @@ impl DownloadEvents {
         before: Option<&library::DownloadFile>,
         after: Option<&library::DownloadFile>,
     ) {
+        // A copy only the stream cache owns is no download.
+        let download = |file: &&library::DownloadFile| file.owners != library::STREAM_CACHE_OWNERS;
+        let (before, after) = (before.filter(download), after.filter(download));
         let before = before.map(|file| file.source_id.clone());
         // A record saved without a source keeps the one it had.
         let after = after.map(|file| file.source_id.clone().or(before.clone().flatten()));

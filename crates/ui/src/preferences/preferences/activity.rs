@@ -15,8 +15,10 @@ pub(super) fn wrap_general(
     crate::objects!(builder, resource, {
         navigation: adw::NavigationView, root: adw::NavigationPage, settings_page: adw::NavigationPage,
         monthly_enabled: adw::SwitchRow, yearly_enabled: adw::SwitchRow,
-        monthly_before: adw::SpinRow, monthly_after: adw::SpinRow,
-        yearly_before: adw::SpinRow, yearly_after: adw::SpinRow,
+        monthly_before: gtk::SpinButton, monthly_after: gtk::SpinButton,
+        yearly_before: gtk::SpinButton, yearly_after: gtk::SpinButton,
+        monthly_before_row: adw::ActionRow, monthly_after_row: adw::ActionRow,
+        yearly_before_row: adw::ActionRow, yearly_after_row: adw::ActionRow,
     });
     root.set_child(Some(general));
     controls.set_navigation(&navigation);
@@ -42,13 +44,13 @@ pub(super) fn wrap_general(
     for (toggle, rows, field) in [
         (
             &monthly_enabled,
-            [&monthly_before, &monthly_after],
+            [&monthly_before_row, &monthly_after_row],
             (|s: &mut ActivityOverviewSettings| &mut s.monthly_enabled)
                 as fn(&mut ActivityOverviewSettings) -> &mut bool,
         ),
         (
             &yearly_enabled,
-            [&yearly_before, &yearly_after],
+            [&yearly_before_row, &yearly_after_row],
             (|s: &mut ActivityOverviewSettings| &mut s.yearly_enabled)
                 as fn(&mut ActivityOverviewSettings) -> &mut bool,
         ),
@@ -82,13 +84,13 @@ pub(super) fn wrap_general(
         |s| &mut s.yearly_days_before_end,
         |s| &mut s.yearly_days_after_end,
     ];
-    for (row, field) in [monthly_before, monthly_after, yearly_before, yearly_after]
+    for (spin, field) in [monthly_before, monthly_after, yearly_before, yearly_after]
         .into_iter()
         .zip(fields)
     {
-        row.set_value(f64::from(*field(&mut settings)));
+        spin.set_value(f64::from(*field(&mut settings)));
         let weak = Rc::downgrade(shell);
-        row.connect_value_notify(move |row| {
+        spin.connect_value_changed(move |row| {
             if let Some(shell) = weak.upgrade() {
                 shell
                     .settings

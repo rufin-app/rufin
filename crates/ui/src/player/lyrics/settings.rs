@@ -163,7 +163,7 @@ fn build_lyrics_settings(
         color_button: gtk::Button,
         highlight_color: adw::ActionRow,
         font: adw::ComboRow,
-        size: adw::SpinRow,
+        size: gtk::SpinButton,
         size_adjustment: gtk::Adjustment,
     });
 
@@ -386,8 +386,8 @@ fn build_lyrics_settings(
         .unwrap_or(19),
     ));
     let size_shell = Rc::clone(shell);
-    size.connect_value_notify(move |row| {
-        let size = row.value().round() as u16;
+    size.connect_value_changed(move |spin| {
+        let size = spin.value().round() as u16;
         let value = (size != 19).then_some(size);
         let edit = |settings: &mut rufin_core::lyrics::UserPreferences| {
             if fullscreen {

@@ -492,6 +492,10 @@ impl JellyfinEmbySource {
         self.address.current()
     }
 
+    pub(crate) fn on_local_address(&self) -> bool {
+        self.address.on_local()
+    }
+
     /// Uses the local address while this same server answers there. Returns whether the
     /// address changed.
     pub(crate) async fn select_address(&self) -> bool {

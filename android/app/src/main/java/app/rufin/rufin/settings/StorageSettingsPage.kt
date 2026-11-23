@@ -158,6 +158,7 @@ private fun CacheKind.title() = when (this) {
     CacheKind.ARTWORK -> "Artwork"
     CacheKind.LYRICS -> "Lyrics"
     CacheKind.JAPANESE_DICTIONARY -> "Japanese dictionary"
+    CacheKind.STREAM_CACHE -> "Stream cache"
 }
 
 private fun CacheKind.clearTitle() = when (this) {
@@ -168,4 +169,5 @@ private fun CacheKind.clearTitle() = when (this) {
     CacheKind.ARTWORK -> "Clear artwork cache"
     CacheKind.LYRICS -> "Clear lyrics cache"
     CacheKind.JAPANESE_DICTIONARY -> "Clear Japanese dictionary"
+    CacheKind.STREAM_CACHE -> "Clear stream cache"
 }

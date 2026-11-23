@@ -127,8 +127,12 @@
           </object>
         </child>
         <child>
-          <object class="AdwSpinRow" id="limit">
-            <property name="adjustment">
+          <object class="AdwActionRow" id="limit_row">
+            <property name="activatable-widget">limit</property>
+            <child type="suffix">
+              <object class="GtkSpinButton" id="limit">
+                <property name="valign">center</property>
+                <property name="adjustment">
               <object class="GtkAdjustment">
                 <property name="lower">1</property>
                 <property name="upper">500</property>
@@ -136,6 +140,8 @@
                 <property name="page-increment">10</property>
               </object>
             </property>
+              </object>
+            </child>
           </object>
         </child>
       </object>

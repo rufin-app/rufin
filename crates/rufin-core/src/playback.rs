@@ -296,6 +296,14 @@ impl PlaybackOwner {
                 std::future::ready(())
             },
         );
+        let (kept, heard) = (owner.source.downloads().stream_cache_copies(), weak.clone());
+        owner.runtime.spawn(async move {
+            while let (Ok(media_uri), Some(owner)) = (kept.recv().await, heard.upgrade()) {
+                if let Some(active) = owner.active() {
+                    (active.downgrade()).post(move |player, _| player.copy_kept(&media_uri));
+                }
+            }
+        });
         owner.runtime.spawn(async move {
             while let Ok((source_id, report)) = report_receiver.recv().await {
                 let Some(owner) = weak.upgrade() else { break };
@@ -573,6 +581,9 @@ impl PlaybackOwner {
         let source_owner = Arc::clone(&self.source);
         let local = self.settings.local_configuration();
         request.quality = self.settings.stream_quality();
+        // With the stream cache on, a stream is kept whole while it plays.
+        let buffer =
+            stream_buffer_directory().filter(|_| self.settings.load().ui.stream_cache_limit() > 0);
         // A cast receiver shows the cover the cache holds.
         let cast_artwork = (!self.playback_output().is_local()).then(|| {
             (
@@ -635,6 +646,7 @@ impl PlaybackOwner {
             )
             .await
             .map(|stream| {
+                let stream = stream.with_download_buffer(buffer);
                 let mut stream =
                     prepare_media_stream(stream, track_loudness(&playable), occurrence);
                 if let Some((artwork, policy)) = cast_artwork {
@@ -691,6 +703,13 @@ impl PlaybackOwner {
         );
         if before != after {
             self.stream_quality_changed(before, after);
+        } else if previous.application.mobile_data_stream_cache_ahead
+            != current.application.mobile_data_stream_cache_ahead
+            || previous.playback.stream_cache_skips_local
+                != current.playback.stream_cache_skips_local
+        {
+            // The stream cache follows other tracks on mobile data, or other sources.
+            let _ = self.stream_inputs_changed();
         }
         if previous.application.cast_proxy_enabled != current.application.cast_proxy_enabled {
             self.cast
@@ -733,6 +752,19 @@ impl PlaybackOwner {
                 let _ = active.command(Command::ResolveCurrentAgain(track.media_uri.clone()));
             }
         });
+    }
+
+    /// How many tracks after the playing one the stream cache fetches on this network.
+    pub(crate) fn stream_cache_ahead(&self) -> usize {
+        (self.settings.load().ui).stream_cache_ahead(self.settings.metered())
+    }
+
+    pub(crate) fn play_ahead(
+        &self,
+        playing: Option<library::TrackKey>,
+        upcoming: Vec<library::TrackKey>,
+    ) {
+        self.source.downloads().play_ahead(playing, upcoming);
     }
 
     pub(crate) fn stream_inputs_changed(&self) -> Result<(), String> {
@@ -1038,6 +1070,15 @@ impl PlaybackOwner {
 
 #[cfg_attr(feature = "bindings", uniffi::export)]
 impl PlaybackOwner {
+    /// Why the stream cache cannot leave out the sources on the local network: none of them
+    /// says where its server is there. None when one does.
+    pub fn stream_cache_local_refusal(&self) -> Option<String> {
+        let settings = self.settings.load();
+        let mut sources = settings.sources.configured.iter();
+        (!sources.any(|source| source.configuration.knows_local_address()))
+            .then(|| localization::tr("You need to configure a local address"))
+    }
+
     /// Whether the device's network is metered, as mobile data is: streams are then asked
     /// for the quality chosen for it.
     pub fn set_metered(&self, metered: bool) {
@@ -1049,6 +1090,9 @@ impl PlaybackOwner {
                 settings.ui.stream_quality(was),
                 settings.ui.stream_quality(metered),
             );
+        } else if settings.ui.stream_cache_ahead(was) != settings.ui.stream_cache_ahead(metered) {
+            // The stream cache fetches another number of tracks ahead on this network.
+            let _ = self.stream_inputs_changed();
         }
     }
     pub fn remove(&self, position: usize) {
@@ -1318,9 +1362,15 @@ where
     let file_uri = granted_file.as_deref().unwrap_or(file_uri);
     let local_media =
         url::Url::parse(file_uri).is_ok_and(|uri| matches!(uri.scheme(), "file" | "content"));
+    // A copy the stream cache keeps plays when it is the track's own audio or what the
+    // stream would be now; an encoding kept for another quality is passed over.
+    let streamed = library::media_encoding_key(playable.stream_encoding(request.quality));
     let download = playable
         .download
         .clone()
+        .filter(|download| {
+            (download.cached.as_deref()).is_none_or(|kept| kept == "original" || kept == streamed)
+        })
         .map(|download| library::PlayableDownload {
             uri: granted(download.uri),
             ..download
@@ -1346,6 +1396,7 @@ where
         .as_ref()
         .zip(download.as_ref())
         .is_some_and(|(chosen, download)| *chosen == download.uri);
+    let cached = from_download && download.as_ref().is_some_and(|copy| copy.cached.is_some());
     // Downloads names its owned file using the actual transcoded extension.
     // Mapped and original files still use their parsed source format.
     let content_type = match &chosen {
@@ -1383,13 +1434,15 @@ where
             .await
             .map_err(failure)?
             .with_content_type(content_type)
+            .with_cached(cached)
             .with_window(start, end));
     }
     if let Some(uri) = chosen.or_else(|| library::normalize_direct_media_uri(file_uri)) {
         return Ok(direct_stream(uri)
             .await
             .map_err(failure)?
-            .with_content_type(content_type));
+            .with_content_type(content_type)
+            .with_cached(cached));
     }
     let source_id = playable
         .source_id
@@ -1531,6 +1584,11 @@ pub(crate) fn track_loudness(playable: &library::Playable) -> playback::TrackLou
         track: playable.gains.track_loudness().map(Box::new),
         album: playable.gains.album_loudness().map(Box::new),
     }
+}
+
+/// Where the playing stream is kept whole while it plays; the player removes each file itself.
+fn stream_buffer_directory() -> Option<std::path::PathBuf> {
+    crate::paths::project_cache_dir().map(|cache| cache.join("stream-buffer"))
 }
 
 fn prepare_media_stream(
@@ -1768,6 +1826,7 @@ mod tests {
                 size: Some(16),
                 managed: true,
                 root: Some(root.to_string_lossy().into_owned()),
+                cached: None,
             }),
             mapped: None,
             own: None,

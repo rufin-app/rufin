@@ -329,9 +329,10 @@ fn user_data(handle: &Handle<'_>, snapshot: &mut Snapshot) -> LibraryResult<()> 
     for (key, (plays, skips, last)) in listened {
         snapshot.set_listened(TrackKey::from_raw(key), Stats::listened(plays, skips, last));
     }
-    let mut rows = handle.prepare(
-        "SELECT DISTINCT track.track_key FROM downloads download JOIN tracks track USING(media_uri)",
-    )?;
+    let mut rows = handle.prepare(&format!(
+        "SELECT DISTINCT track.track_key FROM downloads download JOIN tracks track USING(media_uri) WHERE download.reason<>'{}'",
+        crate::STREAM_CACHE_OWNERS
+    ))?;
     while rows.step()? {
         snapshot.set_downloaded(TrackKey::from_raw(rows.int(0)), true);
     }

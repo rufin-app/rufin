@@ -384,6 +384,8 @@ pub(super) struct Player {
     external: Option<ExternalPlayback>,
     external_clock_millis: u64,
     sequence: Sequence,
+    /// The playing track and the ones after it the stream cache last heard of.
+    ahead: Option<(Option<library::TrackKey>, Vec<library::TrackKey>)>,
     pending_queue: Option<(u64, QueueCompletion, JoinHandle<()>)>,
     pending_hydration: Option<JoinHandle<()>>,
     queue_loading: bool,
@@ -450,6 +452,7 @@ impl Player {
             external: None,
             external_clock_millis: 0,
             sequence,
+            ahead: None,
             pending_queue: None,
             pending_hydration: None,
             queue_loading: false,
@@ -1137,6 +1140,15 @@ impl Player {
         }
         if refresh {
             self.sequence.refresh_metadata();
+        }
+    }
+
+    /// The stream cache has a copy of a track now: when it is the next one, it resolves
+    /// again and plays from this device.
+    pub(super) fn copy_kept(&mut self, media_uri: &str) {
+        let next = (self.next_plan.as_ref()).and_then(|plan| self.sequence.at_id(plan.occurrence));
+        if next.is_some_and(|row| row.track.media_uri == media_uri) {
+            self.replan_next(true);
         }
     }
 
@@ -2853,6 +2865,28 @@ impl Player {
     }
 
     fn replan_next(&mut self, force: bool) {
+        self.plan_next(force);
+        self.play_ahead(force);
+    }
+
+    /// Tells the stream cache the playing track and the ones playback reaches after it,
+    /// when they changed or `force` says what it fetches may have.
+    fn play_ahead(&mut self, force: bool) {
+        let playing = (self.current_run.as_ref()).map(|current| current.row.track.track_key);
+        let stops = (self.sleep_timer.as_ref()).is_some_and(SleepTimer::stops_after_current);
+        let upcoming = if playing.is_none() || stops || !self.playback_output.is_local() {
+            Vec::new()
+        } else {
+            self.sequence.upcoming(self.owner().stream_cache_ahead())
+        };
+        let ahead = (playing, upcoming);
+        if force || self.ahead.as_ref() != Some(&ahead) {
+            self.owner().play_ahead(ahead.0, ahead.1.clone());
+            self.ahead = Some(ahead);
+        }
+    }
+
+    fn plan_next(&mut self, force: bool) {
         let Some(current) = self.current_run.as_ref() else {
             self.next_plan = None;
             return;
@@ -3380,7 +3414,13 @@ impl Player {
                         run.resolved_stream
                             .as_ref()
                             .map(|stream| playback::CurrentStream {
-                                local: stream.local_input,
+                                delivery: if stream.cached() {
+                                    playback::StreamDelivery::Cached
+                                } else if stream.local_input {
+                                    playback::StreamDelivery::Local
+                                } else {
+                                    playback::StreamDelivery::Streaming
+                                },
                                 format: stream.content_type.clone(),
                                 transcoded: stream.transcoded(),
                                 bitstream: run.bitstream,

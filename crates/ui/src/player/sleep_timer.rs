@@ -30,7 +30,8 @@ pub struct SleepTimerControl {
     presets: gtk::Grid,
     /// The preset buttons and their values; the one matching the value is highlighted.
     preset_buttons: RefCell<Vec<(u32, gtk::Button)>>,
-    custom: adw::SpinRow,
+    custom: gtk::SpinButton,
+    custom_row: adw::ActionRow,
     finish_track: adw::SwitchRow,
     timer: Cell<Option<SleepTimerView>>,
     /// The room the bar leaves beside its actions, for the time left beside the moon.
@@ -64,7 +65,8 @@ impl SleepTimerControl {
             off: gtk::Button,
             mode: adw::ToggleGroup,
             presets: gtk::Grid,
-            custom: adw::SpinRow,
+            custom: gtk::SpinButton,
+            custom_row: adw::ActionRow,
             start: gtk::Button,
             finish_track: adw::SwitchRow,
         });
@@ -93,6 +95,7 @@ impl SleepTimerControl {
             presets,
             preset_buttons: RefCell::new(Vec::new()),
             custom: custom.clone(),
+            custom_row: custom_row.clone(),
             finish_track: finish_track.clone(),
             timer: Cell::new(None),
             spare: Cell::new(0),
@@ -119,7 +122,7 @@ impl SleepTimerControl {
         let start_action = on(Self::start_custom);
         start.connect_clicked(move |_| start_action());
         let value_action = on(Self::highlight_preset);
-        custom.connect_value_notify(move |_| value_action());
+        custom.connect_value_changed(move |_| value_action());
         let mode_action = on(Self::show_mode);
         mode.connect_active_name_notify(move |_| mode_action());
         let finish_action = on(Self::finish_track_changed);
@@ -249,7 +252,7 @@ impl SleepTimerControl {
             .adjustment()
             .set_upper(if tracks { 100.0 } else { 240.0 });
         self.custom.set_value(f64::from(value));
-        self.custom
+        self.custom_row
             .set_title(&tr(if tracks { "Tracks" } else { "Minutes" }));
         self.finish_track.set_visible(!tracks);
         self.updating.set(false);

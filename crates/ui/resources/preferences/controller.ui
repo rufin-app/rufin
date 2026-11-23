@@ -28,14 +28,20 @@
           </object>
         </child>
         <child>
-          <object class="AdwSpinRow" id="web_port">
+          <object class="AdwActionRow" id="web_port_row">
             <property name="title" translatable="yes">Port</property>
-            <property name="adjustment"><object class="GtkAdjustment">
+            <property name="activatable-widget">web_port</property>
+            <child type="suffix">
+              <object class="GtkSpinButton" id="web_port">
+                <property name="valign">center</property>
+                <property name="adjustment"><object class="GtkAdjustment">
               <property name="lower">1</property>
               <property name="upper">65535</property>
               <property name="step-increment">1</property>
               <property name="page-increment">10</property>
             </object></property>
+              </object>
+            </child>
           </object>
         </child>
         <child>
