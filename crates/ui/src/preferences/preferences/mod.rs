@@ -888,6 +888,7 @@ fn general_page(
         use_sort_tags_row: adw::SwitchRow,
         folder_albums_row: adw::SwitchRow,
         split_featured_artists_row: adw::SwitchRow,
+        fit_covers_row: adw::SwitchRow,
         language_row: adw::ComboRow,
         starting_page_row: adw::ComboRow,
         window_group: adw::PreferencesGroup,
@@ -936,6 +937,13 @@ fn general_page(
         "featured artist setting",
         |settings| &mut settings.application.split_featured_artists,
         |_| {},
+    );
+    let fit_covers_shell = Rc::clone(shell);
+    shell.settings.bind_switch(
+        &fit_covers_row,
+        "whole cover setting",
+        |settings| &mut settings.application.fit_covers,
+        move |settings| fit_covers_shell.appearance.apply(settings),
     );
     shell.settings.bind_switch(
         &permanent_delete_row,

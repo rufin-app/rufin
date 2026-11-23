@@ -64,6 +64,7 @@ pub(super) fn appearance_data(products: &ProductHandles) -> Value {
         "grids": {
             "favorite_badges": settings.application.grid_favorite_badges,
             "star_ratings": settings.application.grid_star_ratings,
+            "fit_covers": settings.application.fit_covers,
         },
     })
 }

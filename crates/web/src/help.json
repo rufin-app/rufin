@@ -61,7 +61,7 @@
       "returns": "played: false when nothing matched. Plays the entry shuffled as its tile's albums show it, then Home's Quick mix moves to its next shuffle."
     },
     "GET /api/quick-mix?source=...&entry=...": "Browse the tracks a Quick mix tile's entry plays next, as a smart playlist's tracks: entry is a tile's from GET /api/home. Use q, offset, limit (up to 256), sort and descending; it shares the saved order of smart playlists' tracks. Later reads of the page keep the tracks it opened with. POST /api/queue, /api/downloads or /api/playlists/entries with {page} takes what it lists; POST /api/home/quick-mix plays the entry as its tile does. An entry that is gone lists nothing.",
-    "GET /api/appearance": "The app's theme and colors, and grids: whether covers mark favorites (favorite_badges) and show ratings (star_ratings).",
+    "GET /api/appearance": "The app's theme and colors, and grids: whether covers mark favorites (favorite_badges), show ratings (star_ratings) and show whole inside their frames (fit_covers).",
     "POST /api/sources": "Connect, save and select a source, then scan its music in the background. Returns the source ID after selection. Follow /api/sources/events for scan progress. See source_setup for examples.",
     "PATCH /api/sources": "Change source settings. See source_update for examples.",
     "POST /api/sources/local": {

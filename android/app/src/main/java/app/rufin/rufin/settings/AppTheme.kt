@@ -26,6 +26,8 @@ internal val LocalReduceMotion = staticCompositionLocalOf { false }
 /** The Grids settings: a favorite's corner and a rating's chip on grid covers. */
 internal val LocalGridFavoriteBadges = staticCompositionLocalOf { true }
 internal val LocalGridStarRatings = staticCompositionLocalOf { false }
+/** Covers show whole inside their frames instead of filling them. */
+internal val LocalFitCovers = staticCompositionLocalOf { false }
 
 @Composable
 internal fun AppTheme(preferences: PreferencesConnection, content: @Composable () -> Unit) {
@@ -49,7 +51,8 @@ internal fun AppTheme(preferences: PreferencesConnection, content: @Composable (
         LocalShowDownloadedBadges provides preferences.showDownloadedBadges,
         LocalReduceMotion provides preferences.reduceMotion,
         LocalGridFavoriteBadges provides preferences.gridFavoriteBadges,
-        LocalGridStarRatings provides preferences.gridStarRatings) {
+        LocalGridStarRatings provides preferences.gridStarRatings,
+        LocalFitCovers provides preferences.fitCovers) {
         // Menus and small surfaces take a mobile rounding, not the 4 dp default.
         MaterialTheme(colorScheme = scheme, shapes = Shapes(extraSmall = RoundedCornerShape(12.dp)), typography = RufinTypography,
             content = content)

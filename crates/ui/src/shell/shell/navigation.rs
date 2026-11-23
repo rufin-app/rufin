@@ -154,6 +154,7 @@ impl Shell {
             || previous.application.reduce_motion != current.application.reduce_motion
             || previous.application.grid_favorite_badges != current.application.grid_favorite_badges
             || previous.application.grid_star_ratings != current.application.grid_star_ratings
+            || previous.application.fit_covers != current.application.fit_covers
         {
             self.appearance.apply(&current);
             self.publish_controller_appearance();

@@ -246,6 +246,11 @@
   inset: 0;
 }
 
+/* Show whole covers: wide and tall ones keep their shape inside the square. */
+html.fit-covers :is(.cover img, .cover-quadrant img, .pin-cover img, .quick-mix-cover > img) {
+  object-fit: contain;
+}
+
 .album-card .cover {
   box-shadow: 0 4px 15px #0002;
 }

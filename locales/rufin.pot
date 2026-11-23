@@ -693,6 +693,9 @@ msgstr ""
 msgid "Bearer token"
 msgstr ""
 
+msgid "Behavior"
+msgstr ""
+
 msgid "Bit depth"
 msgstr ""
 
@@ -1815,6 +1818,9 @@ msgid "Finishes the track playing at {time}"
 msgstr ""
 
 msgid "Fit to height"
+msgstr ""
+
+msgid "Fit wide and tall covers inside their frames instead of cropping them"
 msgstr ""
 
 msgid "Fixed position"
@@ -4079,6 +4085,9 @@ msgid "Show visualizer in the right panel"
 msgstr ""
 
 msgid "Show visualizer"
+msgstr ""
+
+msgid "Show whole covers"
 msgstr ""
 
 msgid "Show"

@@ -167,18 +167,19 @@ internal fun AppSettingsPage(destination: MoreDestination, model: RufinConnectio
                     PreferenceChoice(translate("Update check interval"), state.releaseCheckIntervalHours.toString(),
                         listOf("1" to translate("1 hour"), "6" to translate("6 hours"), "12" to translate("12 hours"), "24" to translate("24 hours")),
                         select = { preferences.changePreference { setReleaseCheckIntervalHours(it.toUInt()) } })
-                    SettingsSwitch(translate("Allow permanently deleting tracks"), state.allowPermanentDelete) { preferences.changePreference { setAllowPermanentDelete(it) } }
                     SettingsLink(null, translate("Listening overview")) { navigate(MoreDestination.OverviewSettings) }
                 }
                 SettingsGroup(translate("Notifications")) {
                     SettingsSwitch(translate("Control notifications"), state.controlNotificationsEnabled) { preferences.changePreference { setControlNotificationsEnabled(it) } }
                     SettingsSwitch(translate("Release notifications"), state.releaseNotificationsEnabled) { preferences.changePreference { setReleaseNotificationsEnabled(it) } }
                 }
-                SettingsGroup(translate("Metadata")) {
+                SettingsGroup(translate("Behavior")) {
                     SettingsSwitch(translate("Prefer distinct track covers"), state.preferDistinctTrackCovers) { preferences.changePreference { setPreferDistinctTrackCovers(it) } }
                     SettingsSwitch(translate("Use sort tags"), state.useSortTags) { preferences.changePreference { setUseSortTags(it) } }
                     SettingsSwitch(translate("Group albums by folder"), state.folderAlbums, translate("Files without an album artist tag form one album per folder instead of one per artist")) { preferences.changePreference { setFolderAlbums(it) } }
                     SettingsSwitch(translate("Split featured artists"), state.splitFeaturedArtists, translate("Credit the artists a tag names after feat. or ft. as artists of their own")) { preferences.changePreference { setSplitFeaturedArtists(it) } }
+                    SettingsSwitch(translate("Show whole covers"), state.fitCovers, translate("Fit wide and tall covers inside their frames instead of cropping them")) { preferences.changePreference { setFitCovers(it) } }
+                    SettingsSwitch(translate("Allow permanently deleting tracks"), state.allowPermanentDelete) { preferences.changePreference { setAllowPermanentDelete(it) } }
                 }
             }
             MoreDestination.Privacy -> {
