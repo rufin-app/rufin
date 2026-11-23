@@ -102,6 +102,7 @@ internal fun settingsSearchItems(model: RufinConnection, preferences: Preference
 
     page(MoreDestination.General) {
         rows(null, "Language")
+        rows("Accessibility", "Reduce motion")
         rows("App settings", "Starting page", "App icon", "Update check interval", "Listening overview")
         rows("Notifications", "Control notifications", "Release notifications")
         rows("Behavior", "Prefer distinct track covers", "Use sort tags", "Group albums by folder", "Split featured artists", "Show whole covers", "Allow permanently deleting tracks")
@@ -111,7 +112,6 @@ internal fun settingsSearchItems(model: RufinConnection, preferences: Preference
         rows("Yearly", "Open automatically", "Days before year ends", "Days after year ends")
     }
     page(MoreDestination.Customization, CustomizationTab.Layout) {
-        rows("Accessibility", "Reduce motion")
         rows("Grids", "Show a badge for favorited items", "Show star ratings")
         group("Library items")
         browse.routeSettings.forEach { row(it.descriptor.title, translate("Library items")) }

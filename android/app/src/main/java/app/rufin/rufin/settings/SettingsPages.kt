@@ -159,6 +159,9 @@ internal fun AppSettingsPage(destination: MoreDestination, model: RufinConnectio
                     PreferenceChoice(translate("Language"), preferences.state?.language ?: "system",
                         preferences.state?.languages.orEmpty().map { it.id to if (it.id == "system") translate("System default") else it.title }, select = preferences::selectLanguage)
                 }
+                SettingsGroup(translate("Accessibility")) {
+                    SettingsSwitch(translate("Reduce motion"), preferences.reduceMotion) { preferences.changePreference { setReduceMotion(it) } }
+                }
                 SettingsGroup(translate("App settings")) {
                     PreferenceChoice(translate("Starting page"), state.startingPage.name,
                         browse.routes.map { it.item.name to it.title },

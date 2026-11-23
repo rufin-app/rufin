@@ -78,9 +78,6 @@ internal fun CustomizationSettingsPage(preferences: PreferencesConnection, brows
 
 @Composable
 private fun LayoutTab(preferences: PreferencesConnection, browse: BrowseConnection) {
-    SettingsGroup(translate("Accessibility")) {
-        SettingsSwitch(translate("Reduce motion"), preferences.reduceMotion) { preferences.changePreference { setReduceMotion(it) } }
-    }
     SettingsGroup(translate("Grids")) {
         SettingsSwitch(translate("Show a badge for favorited items"), preferences.gridFavoriteBadges) { preferences.changePreference { setGridFavoriteBadges(it) } }
         SettingsSwitch(translate("Show star ratings"), preferences.gridStarRatings) { preferences.changePreference { setGridStarRatings(it) } }

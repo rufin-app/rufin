@@ -21,6 +21,8 @@
         <button type="button" class="icon-button" data-close="preferences-dialog" aria-label="{{ localization::tr("Close") }}">{% call m::icon("rufin-window-close-symbolic") %}{% endcall %}</button>
       </header>
       <section id="pref-general" role="tabpanel" hidden>
+        <h4>{{ localization::tr("Accessibility") }}</h4>
+        <div class="pref-group">{% call m::switch("/reduce_motion", localization::tr("Reduce motion"), "") %}{% endcall %}</div>
         <h4>{{ localization::tr("App settings") }}</h4>
         <div class="pref-group">
           <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Update check interval") }}</span></span><select data-setting="/release_check_interval_hours"><option value="1">{{ localization::tr("1 hour") }}</option><option value="6">{{ localization::tr("6 hours") }}</option><option value="12">{{ localization::tr("12 hours") }}</option><option value="24">{{ localization::tr("24 hours") }}</option></select></label>
@@ -40,8 +42,6 @@
           {% for (tab, label) in [("layout", "Layout"), ("home", "Home"), ("player", "Player"), ("menus", "Menus")] %}<label><input type="radio" name="customization-tab" value="{{ tab }}"{% if loop.first %} checked{% endif %} />{{ localization::tr(label) }}</label>{% endfor %}
         </div>
         <div data-tabs="customization-tab" data-tab="layout">
-          <h4>{{ localization::tr("Accessibility") }}</h4>
-          <div class="pref-group">{% call m::switch("/reduce_motion", localization::tr("Reduce motion"), "") %}{% endcall %}</div>
           <h4>{{ localization::tr("Window") }}</h4>
           <div class="pref-group">
             {% call m::sidebar_mode("/layout/default_profile/left_sidebar", localization::tr("Left sidebar"), true) %}{% endcall %}

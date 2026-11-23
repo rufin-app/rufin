@@ -82,7 +82,6 @@ pub(super) fn page(shell: &Rc<Shell>) -> gtk::Widget {
     let builder = crate::ui_resource::builder(resource);
     crate::objects!(builder, resource, {
         appearance_page: gtk::Box,
-        reduce_motion: adw::SwitchRow,
         default_left: adw::ToggleGroup,
         default_right: adw::ToggleGroup,
         narrow_row: adw::SwitchRow,
@@ -116,13 +115,6 @@ pub(super) fn page(shell: &Rc<Shell>) -> gtk::Widget {
     let settings = shell.settings.current.borrow().clone();
 
     // Layout
-    let motion_shell = Rc::clone(shell);
-    shell.settings.bind_switch(
-        &reduce_motion,
-        "reduced motion",
-        |settings| &mut settings.application.reduce_motion,
-        move |settings| motion_shell.appearance.apply(settings),
-    );
     let badges_shell = Rc::clone(shell);
     shell.settings.bind_switch(
         &grid_favorite_badges_row,

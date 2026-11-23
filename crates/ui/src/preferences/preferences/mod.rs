@@ -890,6 +890,7 @@ fn general_page(
         split_featured_artists_row: adw::SwitchRow,
         fit_covers_row: adw::SwitchRow,
         language_row: adw::ComboRow,
+        reduce_motion: adw::SwitchRow,
         starting_page_row: adw::ComboRow,
         window_group: adw::PreferencesGroup,
         activity_overview_row: adw::ActionRow,
@@ -937,6 +938,13 @@ fn general_page(
         "featured artist setting",
         |settings| &mut settings.application.split_featured_artists,
         |_| {},
+    );
+    let motion_shell = Rc::clone(shell);
+    shell.settings.bind_switch(
+        &reduce_motion,
+        "reduced motion",
+        |settings| &mut settings.application.reduce_motion,
+        move |settings| motion_shell.appearance.apply(settings),
     );
     let fit_covers_shell = Rc::clone(shell);
     shell.settings.bind_switch(
