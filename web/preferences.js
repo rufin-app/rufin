@@ -50,7 +50,7 @@ function show(preferences) {
   }
   for (const [path, owner] of Object.entries(dependencies))
     for (const node of document.querySelectorAll(`[data-setting="${path}"]`)) setSensitive(node.closest(".pref-row"), values[owner] !== false);
-  applyGrids(values["/grid_favorite_badges"] !== false, values["/grid_star_ratings"] === true);
+  applyGrids(values["/grid_favorite_badges"] !== false, values["/grid_star_ratings"] === true, values["/fit_covers"] === true);
   showCustomization(preferences);
   showIntegrations(preferences);
   // The sidebar follows its entries' order and visibility, as GTK's does.

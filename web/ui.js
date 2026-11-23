@@ -127,15 +127,16 @@ function applyColors(colors) {
     document.documentElement.style.setProperty(name, value);
 }
 
-// Grids mark favorites' covers and show ratings under the pointer as the settings say.
-function applyGrids(favoriteBadges, starRatings) {
+// Grids mark favorites' covers, show ratings under the pointer and fit covers as the settings say.
+function applyGrids(favoriteBadges, starRatings, fitCovers) {
   document.documentElement.classList.toggle("grid-favorite-badges", favoriteBadges);
   document.documentElement.classList.toggle("grid-star-ratings", starRatings);
+  document.documentElement.classList.toggle("fit-covers", fitCovers);
 }
 
 function applyAppearance(appearance) {
   savedAppearance = appearance;
-  if (appearance.grids) applyGrids(appearance.grids.favorite_badges, appearance.grids.star_ratings);
+  if (appearance.grids) applyGrids(appearance.grids.favorite_badges, appearance.grids.star_ratings, appearance.grids.fit_covers === true);
   document.documentElement.dataset.theme =
     appearance.theme === "System"
       ? matchMedia("(prefers-color-scheme: dark)").matches

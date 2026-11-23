@@ -24,7 +24,7 @@ mod tile;
 
 pub use cover_group::CoverGroupProjection;
 use texture_cache::TextureCache;
-pub use tile::{ArtworkTile, ArtworkTileWeak};
+pub use tile::{ArtworkTile, ArtworkTileWeak, set_fit_covers};
 
 pub fn cover_decode_size(display_size: i32, scale: f64) -> u32 {
     let display_size = f64::from(display_size.max(1));

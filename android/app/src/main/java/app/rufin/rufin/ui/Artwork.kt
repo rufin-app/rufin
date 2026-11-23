@@ -37,6 +37,7 @@ import app.rufin.rufin.core.AndroidPlayer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import app.rufin.rufin.settings.LocalFitCovers
 import app.rufin.rufin.settings.LocalReduceMotion
 import java.util.TreeMap
 
@@ -207,7 +208,8 @@ internal fun Artwork(cover: Cover, modifier: Modifier = Modifier, description: S
     Box(modifier.background(artwork?.color ?: MaterialTheme.colorScheme.surfaceContainerHighest), contentAlignment = Alignment.Center) {
         if (artwork == null && cover.missing) FallbackCover(Modifier.fillMaxSize())
         if (artwork != null) {
-            Image(frame ?: artwork.bitmap.asImageBitmap(), description, Modifier.fillMaxSize().graphicsLayer { alpha = opacity }, contentScale = ContentScale.Crop)
+            Image(frame ?: artwork.bitmap.asImageBitmap(), description, Modifier.fillMaxSize().graphicsLayer { alpha = opacity },
+                contentScale = if (LocalFitCovers.current) ContentScale.Fit else ContentScale.Crop)
         }
     }
 }

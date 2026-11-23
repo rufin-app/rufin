@@ -143,6 +143,7 @@ impl ApplicationAppearance {
                 gtk_settings.reset_property("gtk-enable-animations");
             }
         }
+        crate::widgets::artwork::set_fit_covers(settings.application.fit_covers);
         // Grids read these from their window, so a change shows on every cover at once.
         for window in gtk::Window::list_toplevels() {
             for (class, on) in [

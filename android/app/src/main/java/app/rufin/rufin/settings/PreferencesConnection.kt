@@ -51,6 +51,7 @@ internal class PreferencesConnection(private val connection: RufinConnection, co
     val showDownloadedBadges by derivedStateOf { applicationSettings?.showDownloadedBadges != false }
     val gridFavoriteBadges by derivedStateOf { applicationSettings?.gridFavoriteBadges != false }
     val gridStarRatings by derivedStateOf { applicationSettings?.gridStarRatings == true }
+    val fitCovers by derivedStateOf { applicationSettings?.fitCovers == true }
 
     fun showThemeErrors(errors: List<String>) { themeErrors = errors }
     fun changeSidebarCompact(compact: Boolean) {

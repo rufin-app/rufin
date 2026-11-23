@@ -6,6 +6,22 @@ use gtk::glib;
 
 const ARTWORK_RESIZE_STEP: i32 = 128;
 
+thread_local! {
+    // Every cover's picture follows this one's fit, so a change shows on every cover at once.
+    static COVER_FIT: gtk::Picture = cover_picture(gtk::ContentFit::Cover);
+}
+
+/// Covers show whole inside their frames, or fill them.
+pub fn set_fit_covers(fit: bool) {
+    COVER_FIT.with(|source| {
+        source.set_content_fit(if fit {
+            gtk::ContentFit::Contain
+        } else {
+            gtk::ContentFit::Cover
+        })
+    });
+}
+
 struct CoverReveal {
     animation: adw::TimedAnimation,
     softened: gtk::Picture,
@@ -105,6 +121,12 @@ impl ArtworkTile {
     }
 
     pub fn from_widgets(area: gtk::Overlay, image: gtk::Picture, size: i32) -> Self {
+        COVER_FIT.with(|source| {
+            source
+                .bind_property("content-fit", &image, "content-fit")
+                .sync_create()
+                .build();
+        });
         area.set_measure_overlay(&image, false);
         area.set_clip_overlay(&image, true);
 

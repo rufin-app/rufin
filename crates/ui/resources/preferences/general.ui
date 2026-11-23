@@ -79,11 +79,6 @@
           </object>
         </child>
         <child>
-          <object class="AdwSwitchRow" id="permanent_delete_row">
-            <property name="title" translatable="yes">Allow permanently deleting tracks</property>
-          </object>
-        </child>
-        <child>
           <object class="AdwActionRow" id="activity_overview_row">
             <property name="title" translatable="yes">Listening overview</property>
             <property name="activatable">true</property>
@@ -98,7 +93,7 @@
     </child>
     <child>
       <object class="AdwPreferencesGroup">
-        <property name="title" translatable="yes">Metadata</property>
+        <property name="title" translatable="yes">Behavior</property>
         <child>
           <object class="AdwSwitchRow" id="prefer_distinct_track_covers_row">
             <property name="title" translatable="yes">Prefer distinct track covers</property>
@@ -121,6 +116,17 @@
           <object class="AdwSwitchRow" id="split_featured_artists_row">
             <property name="title" translatable="yes">Split featured artists</property>
             <property name="subtitle" translatable="yes">Credit the artists a tag names after feat. or ft. as artists of their own</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwSwitchRow" id="fit_covers_row">
+            <property name="title" translatable="yes">Show whole covers</property>
+            <property name="subtitle" translatable="yes">Fit wide and tall covers inside their frames instead of cropping them</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwSwitchRow" id="permanent_delete_row">
+            <property name="title" translatable="yes">Allow permanently deleting tracks</property>
           </object>
         </child>
       </object>

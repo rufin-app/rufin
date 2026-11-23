@@ -24,14 +24,15 @@
         <h4>{{ localization::tr("App settings") }}</h4>
         <div class="pref-group">
           <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Update check interval") }}</span></span><select data-setting="/release_check_interval_hours"><option value="1">{{ localization::tr("1 hour") }}</option><option value="6">{{ localization::tr("6 hours") }}</option><option value="12">{{ localization::tr("12 hours") }}</option><option value="24">{{ localization::tr("24 hours") }}</option></select></label>
-          {% call m::switch("/allow_permanent_delete", localization::tr("Allow permanently deleting tracks"), "") %}{% endcall %}
         </div>
-        <h4>{{ localization::tr("Metadata") }}</h4>
+        <h4>{{ localization::tr("Behavior") }}</h4>
         <div class="pref-group">
           {% call m::switch("/prefer_distinct_track_covers", localization::tr("Prefer distinct track covers"), localization::tr("Use each track's own cover when available")) %}{% endcall %}
           {% call m::switch("/use_sort_tags", localization::tr("Use sort tags"), localization::tr("Sort artists and albums by their sort tags instead of their names")) %}{% endcall %}
           {% call m::switch("/folder_albums", localization::tr("Group albums by folder"), localization::tr("Files without an album artist tag form one album per folder instead of one per artist")) %}{% endcall %}
           {% call m::switch("/split_featured_artists", localization::tr("Split featured artists"), localization::tr("Credit the artists a tag names after feat. or ft. as artists of their own")) %}{% endcall %}
+          {% call m::switch("/fit_covers", localization::tr("Show whole covers"), localization::tr("Fit wide and tall covers inside their frames instead of cropping them")) %}{% endcall %}
+          {% call m::switch("/allow_permanent_delete", localization::tr("Allow permanently deleting tracks"), "") %}{% endcall %}
         </div>
       </section>
       <section id="pref-customization" role="tabpanel" hidden>
