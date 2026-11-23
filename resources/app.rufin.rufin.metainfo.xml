@@ -39,67 +39,67 @@
   <screenshots>
     <screenshot type="default">
       <caption>Browse your music library</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/Rufin.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/Rufin.png</image>
     </screenshot>
     <screenshot>
       <caption>View artist details</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/artist_detail.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/artist_detail.png</image>
     </screenshot>
     <screenshot>
       <caption>Browse artists</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/artists.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/artists.png</image>
     </screenshot>
     <screenshot>
       <caption>View an album with the compact sidebar</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/compact_sidebar.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/compact_sidebar.png</image>
     </screenshot>
     <screenshot>
       <caption>Listen to internet radio</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/radio.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/radio.png</image>
     </screenshot>
     <screenshot>
       <caption>Use the fullscreen player</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/fullscreen_player.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/fullscreen_player.png</image>
     </screenshot>
     <screenshot>
       <caption>Browse playlists in a custom theme</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/custom_theme.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/custom_theme.png</image>
     </screenshot>
     <screenshot>
       <caption>Create smart playlists</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/smart_playlists.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/smart_playlists.png</image>
     </screenshot>
     <screenshot>
       <caption>Edit a playlist</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/playlist_settings.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/playlist_settings.png</image>
     </screenshot>
     <screenshot>
       <caption>Edit metadata of several tracks</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/edit_metadata.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/edit_metadata.png</image>
     </screenshot>
     <screenshot>
       <caption>Look up metadata on MusicBrainz</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/edit_metadata_lookup.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/edit_metadata_lookup.png</image>
     </screenshot>
     <screenshot>
       <caption>Find and replace artwork</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/edit_metadata_artwork.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/edit_metadata_artwork.png</image>
     </screenshot>
     <screenshot>
       <caption>Find and sync lyrics</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/edit_metadata_lyrics.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/edit_metadata_lyrics.png</image>
     </screenshot>
     <screenshot>
       <caption>Adjust preferences</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/settings.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/settings.png</image>
     </screenshot>
     <screenshot>
       <caption>Tune Auto DJ and radio picks</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/auto_dj.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/auto_dj.png</image>
     </screenshot>
     <screenshot>
       <caption>Tune the equalizer</caption>
-      <image type="source" width="1050" height="750">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/equalizer_settings.png</image>
+      <image type="source" width="1000" height="700">https://raw.githubusercontent.com/rufin-app/rufin/v0.20.0/resources/screenshots/equalizer_settings.png</image>
     </screenshot>
   </screenshots>
   <launchable type="desktop-id">app.rufin.rufin.desktop</launchable>
