@@ -370,12 +370,9 @@ fn metadata_from_tags(tags: &ScopedTags, duration_seconds: u32, is_asf: bool) ->
                 .iter()
                 .map(String::as_str),
         ),
-        genres: split_values(
-            tags.strings::<gst::tags::Genre>()
-                .iter()
-                .map(String::as_str),
-        ),
-        moods: split_values(tags.extended_values(&["mood"]).iter().map(String::as_str)),
+        // The tag table splits these as it does every file's.
+        genres: tags.strings::<gst::tags::Genre>(),
+        moods: tags.extended_values(&["mood"]),
         year,
         release_date,
         comment: tags.string::<gst::tags::Comment>().or_else(|| {

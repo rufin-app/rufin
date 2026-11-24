@@ -1,7 +1,7 @@
 //! The tags a scan reads. A file's values are kept under its format's own keys, lowercase; one
 //! alias table says which keys name which tag and how its values split. The tags and their
-//! aliases are Navidrome's `resources/mappings.yaml`; genres and moods split as Rufin's always
-//! have. A cleaned tag holds each value once, trimmed, bounded and in its type.
+//! aliases are Navidrome's `resources/mappings.yaml`; genres and moods split as names do. A
+//! cleaned tag holds each value once, trimmed, bounded and in its type.
 
 use std::collections::BTreeMap;
 
@@ -85,9 +85,9 @@ struct Mapping {
 }
 
 /// Navidrome's tags and aliases: its main tags, then its additional ones, with the few keys
-/// the editor writes that it lacks. Genres and moods split as Rufin's always have, without
-/// the comma; a bare year is its own tag, the last a date is read from. Lyrics are read by
-/// `lyrics`, so they have no row.
+/// the editor writes that it lacks. Genres and moods split as names do, so that one keeps its
+/// own slash, as Pop/Rock does; a bare year is its own tag, the last a date is read from.
+/// Lyrics are read by `lyrics`, so they have no row.
 #[rustfmt::skip]
 const MAPPINGS: &[Mapping] = &[
     Mapping { name: "title", aliases: &["tit2", "title", "©nam", "inam"], split: &[], kind: Kind::Text, max_length: 1024 },
@@ -115,8 +115,8 @@ const MAPPINGS: &[Mapping] = &[
     Mapping { name: "album", aliases: &["talb", "album", "©alb", "wm/albumtitle", "iprd"], split: &[], kind: Kind::Text, max_length: 1024 },
     Mapping { name: "albumsort", aliases: &["tsoa", "albumsort", "soal", "wm/albumsortorder"], split: &[], kind: Kind::Text, max_length: 1024 },
     Mapping { name: "albumversion", aliases: &["albumversion", "musicbrainz_albumcomment", "musicbrainz album comment"], split: &[], kind: Kind::Text, max_length: 1024 },
-    Mapping { name: "genre", aliases: &["tcon", "genre", "©gen", "wm/genre", "ignr"], split: &[";", "/"], kind: Kind::Text, max_length: 1024 },
-    Mapping { name: "mood", aliases: &["tmoo", "mood", "----:com.apple.itunes:mood", "wm/mood"], split: &[";", "/"], kind: Kind::Text, max_length: 1024 },
+    Mapping { name: "genre", aliases: &["tcon", "genre", "©gen", "wm/genre", "ignr"], split: &NAME_SEPARATORS, kind: Kind::Text, max_length: 1024 },
+    Mapping { name: "mood", aliases: &["tmoo", "mood", "----:com.apple.itunes:mood", "wm/mood"], split: &NAME_SEPARATORS, kind: Kind::Text, max_length: 1024 },
     Mapping { name: "compilation", aliases: &["tcmp", "compilation", "cpil", "wm/iscompilation"], split: &[], kind: Kind::Text, max_length: 1024 },
     Mapping { name: "track", aliases: &["track", "trck", "tracknumber", "trkn", "wm/tracknumber", "itrk", "iprt"], split: &[], kind: Kind::Text, max_length: 1024 },
     Mapping { name: "tracktotal", aliases: &["tracktotal", "totaltracks", "ifrm"], split: &[], kind: Kind::Text, max_length: 1024 },
