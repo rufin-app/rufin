@@ -157,6 +157,9 @@ internal fun settingsSearchItems(model: RufinConnection, preferences: Preference
         rows(null, "External lyrics lookup", "Prefer server lyrics")
         group("Providers")
     }
+    page(MoreDestination.Integration, integration = IntegrationPage("iroh_relay", translate("Iroh relay"))) {
+        rows("Connection settings", "Iroh relay", "Relay address")
+    }
     page(MoreDestination.Integration, integration = IntegrationPage("links", translate("Page links"))) {
         rows(null, "Show external site links")
         rows("Services", "Last.fm", "MusicBrainz", "Server")
@@ -201,7 +204,7 @@ internal fun settingsSearchItems(model: RufinConnection, preferences: Preference
     }
     page(MoreDestination.Connect) {
         rows(null, "Device name", "Enable Rufin Connect", "Join profile", "Connect a device")
-        rows("Connection settings", "Nearby discovery", "Relay address", "Sync folder")
+        rows("Connection settings", "Nearby discovery", "Sync folder")
     }
     page(MoreDestination.Controller) {
         rows(null, "Enable Controller", "Allow remote connections", "Port", "Access token")

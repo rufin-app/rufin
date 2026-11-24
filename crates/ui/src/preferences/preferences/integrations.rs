@@ -14,7 +14,8 @@ use rufin_core::runtime::{
     ScrobblingServerPreferences, ScrobblingServerRequest,
 };
 use rufin_core::settings::{
-    ApplicationPreferences, ArtistImageProvider, CoverProvider, ExternalLyricsProvider, Settings,
+    ApplicationPreferences, ArtistImageProvider, CoverProvider, ExternalLyricsProvider, IrohRelay,
+    Settings,
 };
 
 use super::reorder_row::{ProviderList, ReorderRowPresentation, reorder_row};
@@ -135,8 +136,8 @@ struct Integrations {
     list_scroller: gtk::ScrolledWindow,
     separator: gtk::Separator,
     details: gtk::Stack,
-    lists: [gtk::ListBox; 4],
-    titles: [gtk::Label; 4],
+    lists: [gtk::ListBox; 5],
+    titles: [gtk::Label; 5],
     items: RefCell<Vec<ListItem>>,
     servers: RefCell<Vec<ServerItem>>,
     add_server_row: gtk::ListBoxRow,
@@ -166,10 +167,15 @@ pub(super) fn page(
         lookups_list: gtk::ListBox,
         presence_list: gtk::ListBox,
         folders_list: gtk::ListBox,
+        network_list: gtk::ListBox,
         scrobbling_title: gtk::Label,
         lookups_title: gtk::Label,
         presence_title: gtk::Label,
         folders_title: gtk::Label,
+        network_title: gtk::Label,
+        relay_mode: adw::ComboRow,
+        relay_address: adw::EntryRow,
+        relay_save: gtk::Button,
         lastfm_hero: adw::PreferencesGroup,
         listenbrainz_hero: adw::PreferencesGroup,
         librefm_hero: adw::PreferencesGroup,
@@ -227,7 +233,7 @@ pub(super) fn page(
         &tr("Remote folders on a Windows share or NAS"),
     );
 
-    let entries: [(&gtk::ListBox, &str, String); 10] = [
+    let entries = [
         (&scrobbling_list, "lastfm", "Last.fm".into()),
         (&scrobbling_list, "listenbrainz", "ListenBrainz".into()),
         (&scrobbling_list, "librefm", "Libre.fm".into()),
@@ -238,6 +244,7 @@ pub(super) fn page(
         (&presence_list, "links", tr("Page links")),
         (&folders_list, "webdav", tr("WebDAV / Nextcloud")),
         (&folders_list, "smb", tr("SMB / Samba")),
+        (&network_list, "iroh_relay", tr("Iroh relay")),
     ];
     let mut items = Vec::new();
     for (list, id, name) in entries {
@@ -259,12 +266,19 @@ pub(super) fn page(
         list_scroller,
         separator: split_separator,
         details,
-        lists: [scrobbling_list, lookups_list, presence_list, folders_list],
+        lists: [
+            scrobbling_list,
+            lookups_list,
+            presence_list,
+            folders_list,
+            network_list,
+        ],
         titles: [
             scrobbling_title,
             lookups_title,
             presence_title,
             folders_title,
+            network_title,
         ],
         items: RefCell::new(items),
         servers: RefCell::new(Vec::new()),
@@ -319,12 +333,52 @@ pub(super) fn page(
     state.details.set_visible_child_name("lastfm");
     state.show_selection();
 
-    // The state lives while the page does: its refresh is the page's.
+    let address_row = relay_address.downgrade();
+    relay_mode.connect_selected_notify(move |mode| {
+        if let Some(address) = address_row.upgrade() {
+            address.set_visible(mode.selected() == 2);
+        }
+    });
+    let weak = Rc::downgrade(shell);
+    let mode = relay_mode.clone();
+    let address = relay_address.clone();
+    relay_save.connect_clicked(move |_| {
+        let Some(shell) = weak.upgrade() else { return };
+        let choice = match mode.selected() {
+            1 => IrohRelay::Rufin,
+            2 => IrohRelay::Custom {
+                url: address.text().trim().into(),
+            },
+            _ => IrohRelay::Off,
+        };
+        if let Err(error) = shell.products.settings.set_iroh_relay(choice) {
+            shell
+                .control_feedback
+                .show_feedback_toast(error.to_string());
+        }
+    });
+
+    // Other preference updates should leave the relay form's draft alone.
+    let shown_relay = RefCell::new(None);
     let refresh_state = Rc::clone(&state);
     super::refresh_while_mapped(
         shell,
         &navigation,
-        Rc::new(move |settings: &Settings| refresh_state.refresh(settings)),
+        Rc::new(move |settings: &Settings| {
+            refresh_state.refresh(settings);
+            let relay = refresh_state.shell.products.settings.iroh_relay();
+            if shown_relay.borrow().as_ref() != Some(&relay) {
+                let (mode, label) = match &relay {
+                    IrohRelay::Off => (0, tr("Off")),
+                    IrohRelay::Rufin => (1, "Rufin".into()),
+                    IrohRelay::Custom { .. } => (2, tr("Custom URL")),
+                };
+                relay_mode.set_selected(mode);
+                relay_address.set_text(relay.custom_url().unwrap_or_default());
+                refresh_state.item("iroh_relay").show(&label, mode != 0);
+                shown_relay.replace(Some(relay));
+            }
+        }),
     );
     navigation.upcast()
 }
@@ -399,8 +453,10 @@ impl Integrations {
                 while navigation.pop() {}
             }
             self.controls.set_nested_page_visible(false);
-            self.detail_page.set_child(None::<&gtk::Widget>);
-            self.split.append(&details);
+            if self.detail_page.child().is_some() {
+                self.detail_page.set_child(None::<&gtk::Widget>);
+                self.split.append(&details);
+            }
         }
         self.separator.set_visible(!narrow);
         self.list_scroller.set_hexpand(narrow);

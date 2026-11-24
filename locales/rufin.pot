@@ -1226,6 +1226,9 @@ msgstr ""
 msgid "Custom HTTP headers"
 msgstr ""
 
+msgid "Custom URL"
+msgstr ""
+
 msgid "Custom bands"
 msgstr ""
 
@@ -2119,6 +2122,9 @@ msgid "Integrations"
 msgstr ""
 
 msgid "Invite"
+msgstr ""
+
+msgid "Iroh relay"
 msgstr ""
 
 msgid "Item ID"

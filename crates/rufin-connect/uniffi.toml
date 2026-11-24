@@ -1,0 +1,4 @@
+[bindings.kotlin]
+android = true
+package_name = "app.rufin.rufin.shared.rufin_connect"
+cdylib_name = "rufin_android"

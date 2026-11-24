@@ -94,6 +94,45 @@ async fn exercise_desktop_controller(inputs: &rufin_core::runtime::RuntimeInputs
         .build()
         .unwrap();
     let url = format!("http://{address}/api/playback");
+    let relay_url = format!("http://{address}/api/integrations/iroh-relay");
+    let off = serde_json::json!({"mode": "off"});
+    for choice in [
+        serde_json::json!({"mode":"custom","url":"https://relay.example"}),
+        off.clone(),
+    ] {
+        client
+            .post(&relay_url)
+            .bearer_auth(&started.token)
+            .json(&choice)
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap();
+        client
+            .post(format!("http://{address}/api/connect"))
+            .bearer_auth(&started.token)
+            .json(&serde_json::json!({"action":"nearby","enabled": choice == off}))
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap();
+        let saved: serde_json::Value = client
+            .get(&relay_url)
+            .bearer_auth(&started.token)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert_eq!(saved, choice);
+    }
+    assert_eq!(
+        inputs.products.settings.iroh_relay(),
+        rufin_core::settings::IrohRelay::Off
+    );
     assert_eq!(
         client.get(&url).send().await.unwrap().status(),
         reqwest::StatusCode::UNAUTHORIZED
@@ -316,6 +355,24 @@ async fn exercise_http_api(
     assert_eq!(page.status(), reqwest::StatusCode::OK);
     let html = page.text().await.unwrap();
     assert!(html.contains("id=\"login-dialog\""));
+    let integrations = html
+        .split_once("id=\"pref-integrations\"")
+        .unwrap()
+        .1
+        .split_once("</section>")
+        .unwrap()
+        .0;
+    assert!(integrations.contains("data-integration=\"iroh_relay\""));
+    assert!(integrations.contains("id=\"integration-relay-address\""));
+    let connect = html
+        .split_once("id=\"connect-dialog\"")
+        .unwrap()
+        .1
+        .split_once("</dialog>")
+        .unwrap()
+        .0;
+    assert!(connect.contains("id=\"connect-nearby\""));
+    assert!(!connect.contains("Relay address"));
     assert!(!html.contains(token));
     for path in [
         "events",

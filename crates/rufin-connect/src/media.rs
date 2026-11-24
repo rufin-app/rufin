@@ -17,6 +17,12 @@ pub struct PeerByteResponse {
     pub reader: Pin<Box<dyn AsyncRead + Send + Unpin>>,
 }
 
+/// The sender decides whether a response contains media before writing any bytes.
+pub enum StreamReply {
+    Control(PeerByteResponse),
+    Media(PeerByteResponse),
+}
+
 pub struct FileMetadata {
     pub length: u64,
     pub validator: Option<String>,

@@ -10,7 +10,7 @@ use futures_util::{
     stream::{self, BoxStream},
 };
 use iroh::{
-    Endpoint, EndpointAddr, EndpointId, RelayMode, SecretKey, TransportAddr, Watcher,
+    Endpoint, EndpointAddr, EndpointId, SecretKey, TransportAddr, Watcher,
     address_lookup::{AddressLookup, Error, Item},
     endpoint::{ConnectOptions, Connection, ConnectionError, VarInt, presets},
     protocol::{AcceptError, ProtocolHandler, Router},
@@ -21,7 +21,8 @@ use tokio::sync::{Mutex, RwLock, mpsc, oneshot, watch};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    media::PeerByteResponse,
+    IrohRelay,
+    media::{PeerByteResponse, StreamReply},
     nearby::{Discovery, Nearby},
     pairing,
     store::Store,
@@ -36,6 +37,8 @@ const INVITE_PROTOCOL: &[u8] = b"rufin/connect/invite/2";
 const PREVIOUS_PAIR_PROTOCOL: &[u8] = b"rufin/connect/pair/3";
 const PREVIOUS_INVITE_PROTOCOL: &[u8] = b"rufin/connect/invite/1";
 const MEDIA_PROTOCOL: &[u8] = b"rufin/connect/media/3";
+// A receiver using the hosted relay requests media only from a sender that can pin it.
+const DIRECT_MEDIA_PROTOCOL: &[u8] = b"rufin/connect/media-direct/1";
 // This device answers the previous media version too, to tell a paired device that asks on
 // it that it is incompatible.
 const PREVIOUS_MEDIA_PROTOCOL: &[u8] = b"rufin/connect/media/2";
@@ -58,14 +61,6 @@ static DNS_RESOLVER: OnceLock<fn() -> iroh::dns::DnsResolver> = OnceLock::new();
 /// Supply the platform's DNS resolver before creating Connect endpoints.
 pub fn install_dns_resolver(resolver: fn() -> iroh::dns::DnsResolver) {
     let _ = DNS_RESOLVER.set(resolver);
-}
-
-/// The relay a person entered, the only one Connect uses; none without one.
-fn relay_mode(address: Option<&str>) -> Result<RelayMode> {
-    Ok(match address {
-        Some(address) => RelayMode::custom([canonical_relay(address.parse()?)]),
-        None => RelayMode::Disabled,
-    })
 }
 
 pub(super) fn canonical_relay(relay: iroh::RelayUrl) -> iroh::RelayUrl {
@@ -182,7 +177,7 @@ impl AddressLookup for Routes {
 pub struct NetworkConfig {
     pub name: String,
     pub nearby: bool,
-    pub relay: Option<String>,
+    pub relay: IrohRelay,
 }
 
 /// What this device serves while Connect is on.
@@ -230,7 +225,7 @@ pub enum NetworkEvent {
     StreamRequest {
         peer: String,
         body: Vec<u8>,
-        reply: oneshot::Sender<Result<PeerByteResponse, String>>,
+        reply: oneshot::Sender<Result<StreamReply, String>>,
     },
     /// `peer`'s records reached `sequence`. The device that pushed waits until `pulled` is
     /// answered or dropped.
@@ -272,7 +267,7 @@ pub struct ConnectNetwork {
     routes: Routes,
     nearby: bool,
     stop: CancellationToken,
-    relay: RelayMode,
+    relay: IrohRelay,
     router: Mutex<Option<Router>>,
     pairing_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
     // The devices already reported as incompatible.
@@ -285,11 +280,11 @@ impl ConnectNetwork {
         credentials: SecretKey,
     ) -> Result<(Arc<Self>, mpsc::Receiver<NetworkEvent>)> {
         let routes = Routes::default();
-        let relay = relay_mode(config.relay.as_deref())?;
+        let relay = config.relay;
         let mut builder = Endpoint::builder(presets::Minimal)
             .secret_key(credentials.clone())
             .address_lookup(routes.clone())
-            .relay_mode(relay.clone());
+            .relay_mode(relay.mode()?);
         if let Some(resolver) = DNS_RESOLVER.get() {
             builder = builder.dns_resolver(resolver());
         }
@@ -335,6 +330,7 @@ impl ConnectNetwork {
             .accept(INVITE_PROTOCOL, pairing::PairProtocol(weak.clone(), true))
             .accept(SYNC_PROTOCOL, SyncProtocol(weak.clone()))
             .accept(MEDIA_PROTOCOL, MediaProtocol(weak.clone()))
+            .accept(DIRECT_MEDIA_PROTOCOL, MediaProtocol(weak.clone()))
             .accept(PREVIOUS_MEDIA_PROTOCOL, PreviousMediaProtocol(weak.clone()))
             .spawn();
         // A device is given the first protocol on this list that it offers, and the router
@@ -347,6 +343,7 @@ impl ConnectNetwork {
                 INVITE_PROTOCOL,
                 SYNC_PROTOCOL,
                 MEDIA_PROTOCOL,
+                DIRECT_MEDIA_PROTOCOL,
                 PREVIOUS_MEDIA_PROTOCOL,
             ]
             .map(<[u8]>::to_vec)
@@ -422,8 +419,8 @@ impl ConnectNetwork {
         *self.name.write().await = name;
     }
 
-    pub fn matches_configuration(&self, nearby: bool, relay: Option<&str>) -> Result<bool> {
-        Ok(self.nearby == nearby && self.relay == relay_mode(relay)?)
+    pub fn matches_configuration(&self, nearby: bool, relay: &IrohRelay) -> bool {
+        self.nearby == nearby && &self.relay == relay
     }
 
     pub async fn invitation(&self) -> Result<String> {
@@ -745,8 +742,27 @@ impl ConnectNetwork {
     }
 
     pub async fn stream_request(&self, peer: &str, body: Vec<u8>) -> Result<PeerByteResponse> {
+        self.request_stream(peer, body, MEDIA_PROTOCOL).await
+    }
+
+    pub async fn fetch_media(&self, peer: &str, body: Vec<u8>) -> Result<PeerByteResponse> {
+        let protocol = if self.relay != IrohRelay::Off && self.relay.custom_media_relay()?.is_none()
+        {
+            DIRECT_MEDIA_PROTOCOL
+        } else {
+            MEDIA_PROTOCOL
+        };
+        self.request_stream(peer, body, protocol).await
+    }
+
+    async fn request_stream(
+        &self,
+        peer: &str,
+        body: Vec<u8>,
+        protocol: &[u8],
+    ) -> Result<PeerByteResponse> {
         let connection =
-            tokio::time::timeout(Duration::from_secs(30), self.connect(peer, MEDIA_PROTOCOL))
+            tokio::time::timeout(Duration::from_secs(30), self.connect(peer, protocol))
                 .await
                 .context("Device is unreachable")??;
         let answered = async {
@@ -856,18 +872,17 @@ impl ProtocolHandler for MediaProtocol {
                 .map_err(|_| anyhow::anyhow!("Connect stopped"))?;
             let transfer = async {
                 match response.await? {
-                    Ok(mut audio) => {
-                        write_frame(&mut send, &Ok::<_, String>(audio.metadata), MAX_FRAME).await?;
-                        tokio::io::copy(&mut audio.reader, &mut send).await?;
+                    Ok(StreamReply::Media(response)) => {
+                        let relay = if connection.alpn() == DIRECT_MEDIA_PROTOCOL {
+                            &IrohRelay::Off
+                        } else {
+                            &network.relay
+                        };
+                        relay.send_media(&connection, &mut send, response).await
                     }
-                    Err(error) => {
-                        write_frame(&mut send, &Err::<serde_json::Value, _>(error), MAX_FRAME)
-                            .await?
-                    }
+                    Ok(StreamReply::Control(response)) => send_response(&mut send, response).await,
+                    Err(error) => send_error(&mut send, &error).await,
                 }
-                send.finish()?;
-                let _ = send.stopped().await;
-                Ok::<_, anyhow::Error>(())
             };
             tokio::select! {
                 result = transfer => result,
@@ -880,6 +895,24 @@ impl ProtocolHandler for MediaProtocol {
         }
         Ok(())
     }
+}
+
+pub(crate) async fn send_response(
+    send: &mut iroh::endpoint::SendStream,
+    mut response: PeerByteResponse,
+) -> Result<()> {
+    write_frame(send, &Ok::<_, String>(response.metadata), MAX_FRAME).await?;
+    tokio::io::copy(&mut response.reader, send).await?;
+    send.finish()?;
+    let _ = send.stopped().await;
+    Ok(())
+}
+
+pub(crate) async fn send_error(send: &mut iroh::endpoint::SendStream, error: &str) -> Result<()> {
+    write_frame(send, &Err::<(), _>(error), MAX_FRAME).await?;
+    send.finish()?;
+    let _ = send.stopped().await;
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -989,14 +1022,14 @@ mod tests {
             NetworkConfig {
                 name: "Direct device".into(),
                 nearby: false,
-                relay: None,
+                relay: IrohRelay::Off,
             },
             SecretKey::generate(),
         )
         .await
         .unwrap();
         let peer = Endpoint::builder(presets::Minimal)
-            .relay_mode(RelayMode::Disabled)
+            .relay_mode(iroh::RelayMode::Disabled)
             .alpns(vec![RPC_PROTOCOL.to_vec()])
             .bind()
             .await

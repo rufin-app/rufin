@@ -10,8 +10,8 @@ use crate::{playback::PlaybackOwner, settings::SettingsOwner, source::SourceOwne
 use age::secrecy::ExposeSecret;
 use records::{DeviceValue, Receiving, Records};
 use rufin_connect::{
-    ConnectNetwork, Credentials, NetworkConfig, NetworkEvent, Store, network::REMOVED_FROM_PROFILE,
-    store::Cursor, sync::Frame,
+    ConnectNetwork, Credentials, IrohRelay, NetworkConfig, NetworkEvent, Store,
+    network::REMOVED_FROM_PROFILE, store::Cursor, sync::Frame,
 };
 use secrets::{SecretKey, SecretStore};
 use serde::{Deserialize, Serialize};
@@ -65,7 +65,8 @@ struct DeviceConfig {
     name: String,
     identity_ref: Option<String>,
     nearby: bool,
-    relay: Option<String>,
+    #[serde(rename = "relay", skip_serializing_if = "Option::is_none")]
+    legacy_relay: Option<String>,
 }
 
 impl Default for DeviceConfig {
@@ -79,7 +80,7 @@ impl Default for DeviceConfig {
             .into(),
             identity_ref: None,
             nearby: true,
-            relay: None,
+            legacy_relay: None,
         }
     }
 }
@@ -177,6 +178,10 @@ pub enum Action {
     TestConnection {
         peer: String,
     },
+    Nearby {
+        enabled: bool,
+    },
+    /// Older controllers sent the custom relay together with nearby discovery.
     Network {
         nearby: bool,
         relay: Option<String>,
@@ -332,6 +337,12 @@ enum Stream {
     Observe,
 }
 
+impl Stream {
+    fn carries_media(&self) -> bool {
+        matches!(self, Self::Audio { .. } | Self::Image { .. })
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct Presence {
     sequence: i64,
@@ -381,7 +392,8 @@ impl ConnectOwner {
         lyrics: crate::lyrics::LyricsHandle,
         runtime: tokio::runtime::Handle,
     ) -> Arc<Self> {
-        let (config, error) = match std::fs::read(directory.join("device.json")) {
+        let path = directory.join("device.json");
+        let (mut config, mut error) = match std::fs::read(&path) {
             Ok(bytes) => match serde_json::from_slice(&bytes) {
                 Ok(config) => (config, None),
                 Err(error) => (DeviceConfig::default(), Some(error.to_string())),
@@ -391,6 +403,20 @@ impl ConnectOwner {
             }
             Err(error) => (DeviceConfig::default(), Some(error.to_string())),
         };
+        if let Some(url) = config.legacy_relay.clone() {
+            match settings.import_connect_relay(url) {
+                Ok(true) => {
+                    config.legacy_relay = None;
+                    error = serde_json::to_vec(&config)
+                        .map_err(string_error)
+                        .and_then(|bytes| crate::settings::write_private(&path, &bytes))
+                        .err();
+                }
+                Ok(false) => {}
+                Err(failure) => error = Some(failure),
+            }
+        }
+        let relay = settings.iroh_relay();
         Arc::new(Self {
             directory,
             catalog,
@@ -400,7 +426,7 @@ impl ConnectOwner {
             lyrics,
             runtime,
             status: tokio::sync::watch::channel(Status {
-                settings: settings_of(&config, None, None),
+                settings: settings_of(&config, &relay, None, None),
                 identity: None,
                 invitation: None,
                 devices: Vec::new(),
@@ -424,6 +450,26 @@ impl ConnectOwner {
 
     /// Resumes Connect when it was on. With Connect off this is one `stat`.
     pub(crate) fn start(self: &Arc<Self>) {
+        crate::settings::follow(
+            &self.runtime,
+            self.settings.file(),
+            Arc::downgrade(self),
+            |owner, previous, current| {
+                let changed = previous.iroh_relay != current.iroh_relay;
+                async move {
+                    if changed {
+                        let _action = owner.actions.lock().await;
+                        owner.status.send_modify(|status| {
+                            status.settings.relay =
+                                owner.settings.iroh_relay().custom_url().map(str::to_owned);
+                        });
+                        if let Err(error) = owner.configure_network().await {
+                            owner.failed(error);
+                        }
+                    }
+                }
+            },
+        );
         let owner = Arc::clone(self);
         self.runtime.spawn(async move {
             let _action = owner.actions.lock().await;
@@ -487,6 +533,7 @@ impl ConnectOwner {
         self.status.send_modify(|status| {
             status.settings = settings_of(
                 &config,
+                &self.settings.iroh_relay(),
                 status.settings.profile.clone(),
                 status.settings.folder.clone(),
             );
@@ -586,7 +633,7 @@ impl ConnectOwner {
                 NetworkConfig {
                     name: config.name,
                     nearby: config.nearby,
-                    relay: config.relay,
+                    relay: self.settings.iroh_relay(),
                 },
                 credentials,
             )
@@ -659,7 +706,8 @@ impl ConnectOwner {
         *self.session.lock().unwrap_or_else(|p| p.into_inner()) = Some(Arc::clone(&session));
         let config = self.device_config();
         self.status.send_modify(|status| {
-            status.settings = settings_of(&config, Some(profile), folder);
+            status.settings =
+                settings_of(&config, &self.settings.iroh_relay(), Some(profile), folder);
             status.error = None;
             status.profile_status = localization::tr("Profile up to date");
         });
@@ -1072,7 +1120,7 @@ impl ConnectOwner {
         };
         let config = self.device_config();
         self.status.send_modify(|status| {
-            status.settings = settings_of(&config, None, None);
+            status.settings = settings_of(&config, &self.settings.iroh_relay(), None, None);
             status.devices.clear();
             status.pairing = None;
             status.connecting = false;
@@ -1257,19 +1305,6 @@ impl ConnectOwner {
         self.failed(localization::tr(REMOVED_FROM_PROFILE));
     }
 
-    /// The relay record changed the shared relay choice.
-    async fn relay_changed(self: &Arc<Self>, relay: Option<String>) {
-        let _action = self.actions.lock().await;
-        let result = async {
-            self.save(|config| config.relay = relay)?;
-            self.configure_network().await
-        }
-        .await;
-        if let Err(error) = result {
-            self.failed(error);
-        }
-    }
-
     /// Iroh fixes its transports at bind time, so a changed network setting starts it again.
     async fn configure_network(self: &Arc<Self>) -> Result<(), String> {
         let config = self.device_config();
@@ -1277,10 +1312,7 @@ impl ConnectOwner {
         let Some(network) = current.as_ref() else {
             return Ok(());
         };
-        if network
-            .matches_configuration(config.nearby, config.relay.as_deref())
-            .map_err(string_error)?
-        {
+        if network.matches_configuration(config.nearby, &self.settings.iroh_relay()) {
             return Ok(());
         }
         current
@@ -1748,14 +1780,17 @@ impl ConnectOwner {
                 self.network().await?;
             }
             Action::TestConnection { peer } => self.meet(&peer).await?,
+            Action::Nearby { enabled } => {
+                self.save(|config| config.nearby = enabled)?;
+                self.configure_network().await?;
+            }
             Action::Network { nearby, relay } => {
-                if let Some(relay) = &relay {
-                    reqwest::Url::parse(relay).map_err(string_error)?;
+                if relay.as_deref() != self.settings.iroh_relay().custom_url() {
+                    self.settings
+                        .set_iroh_relay(IrohRelay::from_custom(relay))
+                        .map_err(string_error)?;
                 }
-                self.save(|config| {
-                    config.nearby = nearby;
-                    config.relay = relay;
-                })?;
+                self.save(|config| config.nearby = nearby)?;
                 self.configure_network().await?;
                 self.settings_changed().await;
             }
@@ -1794,6 +1829,7 @@ impl ConnectOwner {
 
 fn settings_of(
     config: &DeviceConfig,
+    relay: &IrohRelay,
     profile: Option<String>,
     folder: Option<SyncFolder>,
 ) -> ConnectSettings {
@@ -1802,7 +1838,7 @@ fn settings_of(
         name: config.name.clone(),
         profile,
         nearby: config.nearby,
-        relay: config.relay.clone(),
+        relay: relay.custom_url().map(str::to_owned),
         folder,
     }
 }

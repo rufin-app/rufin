@@ -10,6 +10,7 @@ pub use player::{
     ExternalLyricsProvider, PlayerPreferenceOptions, PlayerPreferences, SettingsError,
 };
 pub use preferences::{CommittedPreferences, PreferenceSubscription};
+pub use rufin_connect::IrohRelay;
 pub mod app;
 pub mod context_menu;
 pub mod layout;
@@ -163,6 +164,8 @@ pub struct StoredSettings {
     pub(crate) scrobbling_credentials: std::collections::BTreeMap<String, Credential>,
     #[serde(default)]
     pub(crate) sources: SourceSettings,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) iroh_relay: Option<rufin_connect::IrohRelay>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub(crate) secret_scope_id: String,
     #[serde(default)]
@@ -191,6 +194,7 @@ impl Default for StoredSettings {
             scrobbling_secrets_present: false,
             scrobbling_credentials: Default::default(),
             sources: SourceSettings::default(),
+            iroh_relay: None,
             secret_scope_id: String::new(),
             jellyfin_device_id: String::new(),
             visualizer_preset_bar_counts_updated: true,
@@ -317,9 +321,9 @@ where
     Done: std::future::Future<Output = ()> + Send,
 {
     let mut committed = settings.changes();
+    let mut previous = Arc::clone(&committed.borrow_and_update());
     runtime
         .spawn(async move {
-            let mut previous = Arc::clone(&committed.borrow_and_update());
             while committed.changed().await.is_ok() {
                 let current = Arc::clone(&committed.borrow_and_update());
                 let Some(owner) = owner.upgrade() else {
@@ -600,7 +604,32 @@ pub struct SettingsOwner {
     secrets: Arc<SwitchableSecretStore>,
 }
 
+#[cfg_attr(feature = "bindings", uniffi::export)]
 impl SettingsOwner {
+    pub fn iroh_relay(&self) -> rufin_connect::IrohRelay {
+        self.file.load().iroh_relay.clone().unwrap_or_default()
+    }
+
+    pub fn set_iroh_relay(&self, relay: rufin_connect::IrohRelay) -> Result<(), SettingsError> {
+        relay.validate().map_err(crate::string_error)?;
+        self.file
+            .update(|stored| {
+                stored.iroh_relay = Some(relay);
+                Ok(())
+            })
+            .map_err(Into::into)
+    }
+}
+
+impl SettingsOwner {
+    pub(crate) fn import_connect_relay(&self, url: String) -> Result<bool, String> {
+        self.file.update(|stored| {
+            stored.iroh_relay.get_or_insert(IrohRelay::Custom { url });
+            Ok(())
+        })?;
+        Ok(self.file.path.is_some())
+    }
+
     pub fn local_configuration(&self) -> Option<sources::SourceConfiguration> {
         self.file.local_configuration()
     }

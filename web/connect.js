@@ -128,17 +128,14 @@ function textNode(tag, text, className = "") {
 }
 function show(value) {
   const pairingChanged = value.pairing?.session !== state?.pairing?.session;
-  const networkChanged = state && (state.settings.nearby !== value.settings.nearby || state.settings.relay !== value.settings.relay);
+  const nearbyChanged = state && state.settings.nearby !== value.settings.nearby;
   const completed = state && state.completed_pairings !== value.completed_pairings;
   const folderChanged = JSON.stringify(state?.settings.folder) !== JSON.stringify(value.settings.folder);
   state = value;
   if (folderChanged) run(() => showFolder(value.settings.folder));
   const counter = showCollectionProgress(value);
-  if (networkChanged) {
+  if (nearbyChanged) {
     element("nearby").checked = value.settings.nearby;
-    element("relay").value = value.settings.relay || "";
-    element("relay-enabled").checked = Boolean(value.settings.relay);
-    showRelay();
   }
   if (completed) {
     mode = "invite";
@@ -273,11 +270,6 @@ async function showFolder(folder) {
   await showStorageConnection(connections);
 }
 
-function showRelay() {
-  const enabled = element("relay-enabled").checked;
-  element("relay").hidden = !enabled;
-}
-
 function showDisableConfirmation() {
   element("disable-dialog").returnValue = "cancel";
   element("disable-dialog").showModal();
@@ -286,9 +278,6 @@ function showDisableConfirmation() {
 function present(value) {
   element("name").value = value.settings.name;
   element("nearby").checked = value.settings.nearby;
-  element("relay").value = value.settings.relay || "";
-  element("relay-enabled").checked = Boolean(value.settings.relay);
-  showRelay();
   updateView();
   element("dialog").showModal();
   if (!value.pairing && !value.connecting) run(refreshContinuation);
@@ -389,11 +378,8 @@ export function init() {
     await action({ action: "pair", session: state.pairing.session, approve: true });
   });
   click("reject", () => action({ action: "pair", session: state.pairing.session, approve: false }));
-  element("relay-enabled").addEventListener("change", showRelay);
-  click("network", () => action({
-    action: "network", nearby: element("nearby").checked,
-    relay: element("relay-enabled").checked ? element("relay").value.trim() : null,
-  }));
+  element("nearby").addEventListener("change", () =>
+    run(() => action({ action: "nearby", enabled: element("nearby").checked })));
   click("folder-save", () => {
     const path = element("folder").value.trim();
     const folder = !path ? null : storageConnection ? { connection: storageConnection, path } : { path };

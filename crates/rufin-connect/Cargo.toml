@@ -6,12 +6,17 @@ license.workspace = true
 rust-version = "1.96"
 publish = false
 
+[features]
+bindings = ["dep:uniffi"]
+
 [dependencies]
 anyhow = "1"
+app-identity.workspace = true
 blake3.workspace = true
 data-encoding = "2"
 futures-util.workspace = true
-iroh = { version = "1.0.3", default-features = false, features = ["tls-aws-lc-rs"] }
+iroh = { version = "1.5.0", default-features = false, features = ["tls-aws-lc-rs"] }
+noq = { version = "1.5", default-features = false }
 localization.workspace = true
 rustls = { workspace = true, features = ["prefer-post-quantum"] }
 serde = { workspace = true, features = ["derive"] }
@@ -23,8 +28,10 @@ tokio-util = { version = "0.7", features = ["rt"] }
 tracing.workspace = true
 vodozemac = { version = "=0.10.0", default-features = false }
 url.workspace = true
+uniffi = { workspace = true, optional = true }
 
 [dev-dependencies]
+iroh-relay = { version = "1.5", default-features = false, features = ["server"] }
 tempfile.workspace = true
 
 [lints]

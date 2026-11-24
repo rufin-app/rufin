@@ -221,6 +221,7 @@ pub(super) const CHOICES: &[(&str, &str)] = &[
     ("discord.links", "/discord_links"),
     ("discord.show_as_listening", "/discord_show_as_listening"),
     ("discord.show_paused", "/discord_show_paused"),
+    ("integrations.iroh_relay", "/iroh_relay"),
     ("web_controller.enabled", "/web_controller/enabled"),
     ("web_controller.address", "/web_controller/address"),
     ("web_controller.port", "/web_controller/port"),

@@ -139,6 +139,10 @@
               {% call m::integration_row("webdav", localization::tr("WebDAV / Nextcloud")) %}{% endcall %}
               {% call m::integration_row("smb", localization::tr("SMB / Samba")) %}{% endcall %}
             </div>
+            <h5>{{ localization::tr("Connection settings") }}</h5>
+            <div class="integration-group">
+              {% call m::integration_row("iroh_relay", localization::tr("Iroh relay")) %}{% endcall %}
+            </div>
           </nav>
           <div class="integration-detail">
             <div class="integration-page" data-integration-page="lastfm" data-account="lastfm">
@@ -246,6 +250,23 @@
                 <label class="pref-row"><span class="pref-label"><span>{{ name }}</span></span><input type="checkbox" role="switch" data-setting="{{ path }}" /></label>
                 {% endfor %}
                 <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Server") }}</span></span><input type="checkbox" role="switch" data-setting="/external_site_links/server" /></label>
+              </div>
+            </div>
+            <div class="integration-page" data-integration-page="iroh_relay" hidden>
+              <div class="pref-group">
+                <label class="pref-row"><span class="pref-label">{{ localization::tr("Relay") }}</span>
+                  <select id="integration-relay-mode">
+                    <option value="off">{{ localization::tr("Off") }}</option>
+                    <option value="rufin">Rufin</option>
+                    <option value="custom">{{ localization::tr("Custom URL") }}</option>
+                  </select>
+                </label>
+                <label class="pref-row" id="integration-relay-address-row" hidden><span class="pref-label">{{ localization::tr("Relay address") }}</span><input id="integration-relay-address" type="url" autocomplete="off" /></label>
+                <button type="button" id="integration-relay-save">{{ localization::tr("Save") }}</button>
+              </div>
+              <div class="pref-group">
+                {% call m::link_row("https://docs.iroh.computer/iroh-services/relays/self-hosted", localization::tr("Self-host an Iroh Relay"), "") %}{% endcall %}
+                {% call m::link_row("https://github.com/n0-computer/iroh/blob/v1.5.0/iroh/src/defaults.rs", localization::tr("Use a public relay"), "") %}{% endcall %}
               </div>
             </div>
             {% for (kind, name, status, add) in [("webdav", "WebDAV / Nextcloud", "Remote folders over WebDAV", "Add WebDAV folder"), ("smb", "SMB / Samba", "Remote folders on a Windows share or NAS", "Add SMB folder")] %}

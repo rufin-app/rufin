@@ -363,8 +363,7 @@ pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog) -> gtk::Widg
         devices: adw::PreferencesGroup, nearby_devices: adw::PreferencesGroup,
         no_nearby_devices: adw::ActionRow, verification: adw::PreferencesGroup,
         pair_name: gtk::Label, emoji: gtk::Label,
-        peer: adw::EntryRow, nearby: adw::SwitchRow, relay: adw::EntryRow,
-        relay_enabled: gtk::Switch,
+        peer: adw::EntryRow, nearby: adw::SwitchRow,
         sync_folder: adw::PreferencesGroup, storage: adw::ComboRow,
         choose_connection: gtk::Button,
         folder: adw::EntryRow,
@@ -383,9 +382,6 @@ pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog) -> gtk::Widg
     let initial = shell.products.connect.status();
     device_name.set_text(&initial.settings.name);
     nearby.set_active(initial.settings.nearby);
-    relay.set_text(initial.settings.relay.as_deref().unwrap_or_default());
-    relay_enabled.set_active(initial.settings.relay.is_some());
-    relay.set_visible(relay_enabled.is_active());
     let updating_network = Rc::new(Cell::new(false));
     let accounts = Rc::new(RefCell::new(shell.products.source.file_integrations()));
     let storage_draft = Rc::new(RefCell::new(StorageDraft::default()));
@@ -708,45 +704,10 @@ pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog) -> gtk::Widg
             return;
         }
         if let Some(shell) = weak.upgrade() {
-            let settings = shell.products.connect.status().settings;
             run(
                 &shell,
-                Action::Network {
-                    nearby: row.is_active(),
-                    relay: settings.relay,
-                },
-            );
-        }
-    });
-    let weak = Rc::downgrade(shell);
-    relay.connect_apply(move |row| {
-        if let Some(shell) = weak.upgrade() {
-            run(
-                &shell,
-                Action::Network {
-                    nearby: shell.products.connect.status().settings.nearby,
-                    relay: Some(row.text().trim().into()),
-                },
-            );
-        }
-    });
-    let weak = Rc::downgrade(shell);
-    let relay_row = relay.downgrade();
-    let updating = updating_network.clone();
-    relay_enabled.connect_active_notify(move |row| {
-        let Some(relay) = relay_row.upgrade() else {
-            return;
-        };
-        relay.set_visible(row.is_active());
-        if !updating.get()
-            && (!row.is_active() || !relay.text().trim().is_empty())
-            && let Some(shell) = weak.upgrade()
-        {
-            run(
-                &shell,
-                Action::Network {
-                    nearby: shell.products.connect.status().settings.nearby,
-                    relay: row.is_active().then(|| relay.text().trim().into()),
+                Action::Nearby {
+                    enabled: row.is_active(),
                 },
             );
         }
@@ -803,8 +764,6 @@ pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog) -> gtk::Widg
         let update_view = update_view.clone();
         let updating_network = updating_network.clone();
         let nearby = nearby.clone();
-        let relay = relay.clone();
-        let relay_enabled = relay_enabled.clone();
         let storage = storage.clone();
         let folder = folder.clone();
         let accounts = accounts.clone();
@@ -824,7 +783,7 @@ pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog) -> gtk::Widg
         *running.borrow_mut() = Some(gtk::glib::spawn_future_local(async move {
             let mut previous_devices = None;
             let mut completed_pairings = initial.completed_pairings;
-            let mut previous_network = (initial.settings.nearby, initial.settings.relay);
+            let mut previous_nearby = initial.settings.nearby;
             let mut previous_folder = initial.settings.folder;
             loop {
                 let state = updates.borrow_and_update().clone();
@@ -838,16 +797,11 @@ pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog) -> gtk::Widg
                     return;
                 }
                 completed_pairings = state.completed_pairings;
-                let network = (state.settings.nearby, state.settings.relay.clone());
-                if previous_network != network {
+                if previous_nearby != state.settings.nearby {
                     updating_network.set(true);
-                    nearby.set_active(network.0);
-                    if let Some(address) = network.1.as_deref() {
-                        relay.set_text(address);
-                    }
-                    relay_enabled.set_active(network.1.is_some());
+                    nearby.set_active(state.settings.nearby);
                     updating_network.set(false);
-                    previous_network = network;
+                    previous_nearby = state.settings.nearby;
                 }
                 if previous_folder != state.settings.folder {
                     show_folder(

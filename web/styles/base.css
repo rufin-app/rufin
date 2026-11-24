@@ -300,10 +300,10 @@ dialog::backdrop {
 .connect-check input { width: 18px; height: 18px; accent-color: var(--blue); }
 .connect-check:has([role="switch"]) { flex-direction: row-reverse; justify-content: space-between; }
 #playlist-public-row:not([hidden]) { display: flex; align-items: center; gap: 8px; }
-:is(.connect-check, .connect-relay-heading, #playlist-public-row) input[role="switch"] { appearance: none; flex: 0 0 38px; width: 38px; height: 22px; padding: 3px; border: 0; border-radius: 11px; background: var(--muted); cursor: pointer; }
-:is(.connect-check, .connect-relay-heading, #playlist-public-row) input[role="switch"]::before { content: ""; display: block; width: 16px; height: 16px; border-radius: 50%; background: white; transition: transform 150ms; }
-:is(.connect-check, .connect-relay-heading, #playlist-public-row) input[role="switch"]:checked { background: var(--blue); }
-:is(.connect-check, .connect-relay-heading, #playlist-public-row) input[role="switch"]:checked::before { transform: translateX(16px); }
+:is(.connect-check, #playlist-public-row) input[role="switch"] { appearance: none; flex: 0 0 38px; width: 38px; height: 22px; padding: 3px; border: 0; border-radius: 11px; background: var(--muted); cursor: pointer; }
+:is(.connect-check, #playlist-public-row) input[role="switch"]::before { content: ""; display: block; width: 16px; height: 16px; border-radius: 50%; background: white; transition: transform 150ms; }
+:is(.connect-check, #playlist-public-row) input[role="switch"]:checked { background: var(--blue); }
+:is(.connect-check, #playlist-public-row) input[role="switch"]:checked::before { transform: translateX(16px); }
 #connect-dialog .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .connect-device-controls { display: flex; flex-wrap: wrap; gap: 8px; }
 .connect-device-controls button { flex: 1; }
@@ -637,9 +637,6 @@ a { color: inherit; text-decoration: none; }
 
 .connect-device-status { color: var(--red, #e05b5b); }
 .connect-device-status.reachable { color: var(--green, #57b87b); }
-.connect-relay-heading > span { flex: 0 0 auto; }
-.connect-relay-heading > input { margin-left: auto; }
-.connect-relay-heading a { color: inherit; }
 #connect-dialog [data-connect-section="start"] > [data-connect-section="invite"] { margin-top: 0; padding-top: 0; }
 
 #connect-continue { max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

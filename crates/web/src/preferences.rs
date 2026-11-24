@@ -4,7 +4,28 @@ use rufin_core::runtime::CacheKind;
 pub(super) fn routes() -> Router<ProductHandles> {
     Router::new()
         .route("/api/preferences", get(read).post(write))
+        .route(
+            "/api/integrations/iroh-relay",
+            get(iroh_relay).post(set_iroh_relay),
+        )
         .route("/api/preferences/storage", get(storage).post(clear))
+}
+
+async fn iroh_relay(
+    State(products): State<ProductHandles>,
+) -> axum::Json<rufin_core::settings::IrohRelay> {
+    axum::Json(products.settings.iroh_relay())
+}
+
+async fn set_iroh_relay(
+    State(products): State<ProductHandles>,
+    axum::Json(relay): axum::Json<rufin_core::settings::IrohRelay>,
+) -> Result<StatusCode, Error> {
+    tokio::task::spawn_blocking(move || products.settings.set_iroh_relay(relay))
+        .await
+        .map_err(bad_request)?
+        .map_err(bad_request)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// The settings the browser's Preferences show, as JSON pointers into the stored settings. The
@@ -143,7 +164,7 @@ async fn values(products: &ProductHandles) -> Result<Value, Error> {
         "can_add": quick_mix.can_add,
     });
     Ok(
-        json!({"values": values, "stream_quality": stream_quality, "routes": routes, "home_blocks": blocks, "quick_mix": quick_mix, "providers": providers, "themes": themes, "theme_errors": theme_errors, "server_recommendations_shown": server_recommendations_shown}),
+        json!({"values": values, "iroh_relay": products.settings.iroh_relay(), "stream_quality": stream_quality, "routes": routes, "home_blocks": blocks, "quick_mix": quick_mix, "providers": providers, "themes": themes, "theme_errors": theme_errors, "server_recommendations_shown": server_recommendations_shown}),
     )
 }
 

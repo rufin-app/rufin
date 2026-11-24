@@ -1260,7 +1260,7 @@ impl Records {
         let secrets = Arc::clone(owner.settings.secrets());
         let device = self.device.clone();
         let key = blake3::derive_key("Rufin Connect setting digests", self.key_text().as_bytes());
-        let mut items = tokio::task::spawn_blocking(move || {
+        tokio::task::spawn_blocking(move || {
             let mut items = Vec::new();
             for (kind, sources) in [
                 ("source", &stored.sources.configured),
@@ -1289,19 +1289,21 @@ impl Records {
                     &key,
                 )?);
             }
+            items.push(Item::new(
+                "setting:relay".into(),
+                None,
+                &RelayValue {
+                    relay: stored
+                        .iroh_relay
+                        .as_ref()
+                        .and_then(rufin_connect::IrohRelay::custom_url)
+                        .map(str::to_owned),
+                },
+            )?);
             Ok::<_, String>(items)
         })
         .await
-        .map_err(string_error)??;
-        let config = owner.device_config();
-        items.push(Item::new(
-            "setting:relay".into(),
-            None,
-            &RelayValue {
-                relay: config.relay,
-            },
-        )?);
-        Ok(items)
+        .map_err(string_error)?
     }
 
     /// Applies one page of received rows and stores those that applied, then moves the
@@ -1866,14 +1868,16 @@ impl Records {
                     let value = (!row.deleted).then(|| decode(row)).transpose()?;
                     self.apply_scrobbling(&owner, name, value).await?;
                 }
-                // The network starts again once a running join or action ends.
                 "relay" if !row.deleted => {
                     let value: RelayValue = decode(row)?;
-                    let owner = Arc::clone(&owner);
-                    owner
-                        .runtime
-                        .clone()
-                        .spawn(async move { owner.relay_changed(value.relay).await });
+                    // The legacy record shares custom addresses. A device's explicit choice
+                    // of the built-in relay has no address to publish to older clients.
+                    if owner.settings.iroh_relay().custom_url() != value.relay.as_deref() {
+                        owner
+                            .settings
+                            .set_iroh_relay(rufin_connect::IrohRelay::from_custom(value.relay))
+                            .map_err(string_error)?;
+                    }
                 }
                 _ => {}
             }
@@ -2349,6 +2353,10 @@ pub(super) fn shared_settings(stored: &crate::settings::StoredSettings) -> Optio
     store::digest(&(
         &stored.sources.configured,
         &stored.sources.integrations,
+        stored
+            .iroh_relay
+            .as_ref()
+            .and_then(rufin_connect::IrohRelay::custom_url),
         preferences,
         &stored.scrobbling,
         &stored.scrobbling_credentials,

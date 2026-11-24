@@ -6,6 +6,7 @@ use super::{PlayerPreferences, SettingsError, SettingsOwner, StoredSettings, app
 #[cfg_attr(feature = "bindings", derive(uniffi::Record))]
 pub struct CommittedPreferences {
     pub player: PlayerPreferences,
+    pub iroh_relay: super::IrohRelay,
     pub cast_network_interface: Option<String>,
     /// The sidebar routes the tabs show, and the pins the Pins page shows.
     pub route_items: Vec<super::SidebarRouteItemSettings>,
@@ -29,6 +30,7 @@ impl PreferenceSubscription {
         let settings = Arc::clone(&changes.borrow_and_update());
         Ok(CommittedPreferences {
             player: PlayerPreferences::from(&settings.ui),
+            iroh_relay: settings.iroh_relay.clone().unwrap_or_default(),
             cast_network_interface: settings.ui.cast_network_interface.clone(),
             route_items: settings.ui.sidebar.route_items.clone(),
             pins: (settings.ui.sidebar.pins_visible)

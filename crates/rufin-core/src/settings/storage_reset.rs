@@ -124,6 +124,7 @@ pub(crate) fn device_secrets(stored: &StoredSettings) -> Vec<secrets::SecretKey>
 fn retained_connections(previous: StoredSettings) -> StoredSettings {
     let mut next = StoredSettings {
         sources: previous.sources,
+        iroh_relay: previous.iroh_relay,
         scrobbling: previous.scrobbling,
         scrobbling_secrets_present: previous.scrobbling_secrets_present,
         scrobbling_credentials: previous.scrobbling_credentials,

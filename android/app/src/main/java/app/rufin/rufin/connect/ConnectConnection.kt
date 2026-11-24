@@ -103,7 +103,7 @@ internal class ConnectConnection(private val model: RufinConnection) {
         val needsLocalNetwork = when (action) {
             ConnectAction.Discover -> true
             is ConnectAction.Invite -> state?.settings?.nearby == true
-            is ConnectAction.Network -> action.nearby && state?.settings?.nearby != true
+            is ConnectAction.Nearby -> action.enabled && state?.settings?.nearby != true
             else -> false
         }
         val confirmed: (suspend (ConnectOwner) -> ConnectStatus)? =

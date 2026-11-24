@@ -299,57 +299,6 @@
                                     <property name="subtitle" translatable="yes">This can be turned off after pairing if you want</property>
                                   </object>
                                 </child>
-                                <child>
-                                  <object class="AdwActionRow">
-                                    <property name="activatable-widget">relay_enabled</property>
-                                    <child type="prefix">
-                                      <object class="GtkBox">
-                                        <property name="spacing">6</property>
-                                        <child>
-                                          <object class="GtkLabel" id="relay_label">
-                                            <property name="label" translatable="yes">Relay</property>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkLinkButton">
-                                            <style>
-                                              <class name="connect-relay-link" />
-                                            </style>
-                                            <property name="icon-name">rufin-external-link-symbolic</property>
-                                            <property name="tooltip-text" translatable="yes">Self-host an Iroh Relay</property>
-                                            <property name="uri">https://docs.iroh.computer/iroh-services/relays/self-hosted</property>
-                                            <property name="valign">center</property>
-                                          </object>
-                                        </child>
-                                        <child>
-                                          <object class="GtkLinkButton">
-                                            <style>
-                                              <class name="connect-relay-link" />
-                                            </style>
-                                            <property name="icon-name">rufin-external-link-symbolic</property>
-                                            <property name="tooltip-text" translatable="yes">Use a public relay</property>
-                                            <property name="uri">https://github.com/n0-computer/iroh/blob/v1.0.3/iroh/src/defaults.rs#L25-L33</property>
-                                            <property name="valign">center</property>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                    <child type="suffix">
-                                      <object class="GtkSwitch" id="relay_enabled">
-                                        <property name="valign">center</property>
-                                        <accessibility>
-                                          <relation name="labelled-by">relay_label</relation>
-                                        </accessibility>
-                                      </object>
-                                    </child>
-                                  </object>
-                                </child>
-                                <child>
-                                  <object class="AdwEntryRow" id="relay">
-                                    <property name="title" translatable="yes">Relay address</property>
-                                    <property name="show-apply-button">true</property>
-                                  </object>
-                                </child>
                                 <property name="title" translatable="yes">Connection settings</property>
                               </object>
                             </child>

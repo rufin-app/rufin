@@ -20,7 +20,7 @@ Rufin Connect syncs a profile between your own devices. Devices talk to each oth
 
 Server and scrobbling credentials belong to a profile key before they leave a device, and a sync folder only holds data encrypted to that key. Paired devices can read them, as with any synced setting.
 
-Relay is disabled by default. A relay is used only after you enter its address, and Connect then contacts no other server for it; no public address directory is used. Once a relay is configured, the relay sees each device's IP address and forwards encrypted traffic it can not read. The relay address applies to every device in the profile.
+The Iroh relay is off by default. Connect uses the relay selected in settings and exchanges addresses with the other device. The relay sees each connected device's IP address and forwards encrypted packets. Selecting the built-in relay allows control messages through it and keeps media transfers on direct connections. Development builds use n0’s public relays for that option. Selecting a custom relay also allows media through that relay. Connect shares custom addresses with paired devices. The built-in relay opt-in stays on the device.
 
 ## External Requests
 

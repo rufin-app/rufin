@@ -38,10 +38,13 @@ impl Link {
             .await
             .clone()
             .ok_or_else(|| SourceError::Network(localization::tr("Connect is not enabled")))?;
-        network
-            .stream_request(device, serde_json::to_vec(&request)?)
-            .await
-            .map_err(|failure| SourceError::Network(string_error(failure)))
+        let body = serde_json::to_vec(&request)?;
+        let result = if request.carries_media() {
+            network.fetch_media(device, body).await
+        } else {
+            network.stream_request(device, body).await
+        };
+        result.map_err(|failure| SourceError::Network(string_error(failure)))
     }
 
     async fn read<T: DeserializeOwned>(
@@ -190,12 +193,18 @@ impl sources::PeerLink for Link {
 
 impl ConnectOwner {
     /// Answers a request on the media protocol.
-    pub(super) async fn answer_stream(&self, body: &[u8]) -> Result<PeerByteResponse, String> {
-        match serde_json::from_slice(body).map_err(string_error)? {
+    pub(super) async fn answer_stream(
+        &self,
+        body: &[u8],
+    ) -> Result<rufin_connect::media::StreamReply, String> {
+        use rufin_connect::media::StreamReply;
+        let request: Stream = serde_json::from_slice(body).map_err(string_error)?;
+        let media = request.carries_media();
+        let response = match request {
             Stream::Catalog { source, read } => {
                 self.local_source(&source)?;
                 let answer = match read {
-                    Read::Watch => return self.watched(source),
+                    Read::Watch => return self.watched(source).map(StreamReply::Control),
                     Read::Marker => serde_json::to_vec(
                         self.catalog
                             .source_marker(&source)
@@ -279,7 +288,12 @@ impl ConnectOwner {
                     .await
             }
             Stream::Observe => self.observed(),
-        }
+        }?;
+        Ok(if media {
+            StreamReply::Media(response)
+        } else {
+            StreamReply::Control(response)
+        })
     }
 
     /// A line whenever the marker of this device's source moved, until the reader closes the

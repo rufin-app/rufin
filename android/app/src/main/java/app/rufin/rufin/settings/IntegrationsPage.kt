@@ -28,6 +28,7 @@ import app.rufin.rufin.player.PlayerConnection
 import app.rufin.rufin.shared.lyrics.ExternalLyricsProvider
 import app.rufin.rufin.shared.metadata_lookup.ArtistImageProvider
 import app.rufin.rufin.shared.metadata_lookup.CoverProvider
+import app.rufin.rufin.shared.rufin_connect.IrohRelay
 import app.rufin.rufin.shared.rufin_core.FileIntegration
 import app.rufin.rufin.shared.rufin_core.ScrobblingConnection
 import app.rufin.rufin.shared.rufin_core.ScrobblingConnectionEvent
@@ -162,15 +163,16 @@ internal fun IntegrationsPage(model: RufinConnection, preferences: PreferencesCo
     val application = preferences.applicationSettings
     val lyrics = player.settings?.lyrics
     val folders = rememberRemoteFolders(model, 0)
+    val relay = model.preferences?.irohRelay
     SettingsPage {
-        if (application == null || lyrics == null) Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        else IntegrationList(accounts.state, application, lyrics, folders, open)
+        if (application == null || lyrics == null || relay == null) Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        else IntegrationList(accounts.state, application, lyrics, folders, relay, open)
     }
 }
 
 @Composable
 private fun IntegrationList(state: ScrobblingPreferences?, application: app.rufin.rufin.shared.rufin_core.ApplicationPreferences,
-    lyrics: app.rufin.rufin.shared.lyrics.UserPreferences, folders: List<FileIntegration>, open: (IntegrationPage) -> Unit) {
+    lyrics: app.rufin.rufin.shared.lyrics.UserPreferences, folders: List<FileIntegration>, relay: IrohRelay, open: (IntegrationPage) -> Unit) {
     SettingsGroup(translate("Scrobbling")) {
         state?.let { current ->
             IntegrationRow(IntegrationPage("lastfm", "Last.fm"),
@@ -207,6 +209,9 @@ private fun IntegrationList(state: ScrobblingPreferences?, application: app.rufi
             val count = folders.count { (it.kind == "smb") == (kind == "smb") }
             IntegrationRow(IntegrationPage(kind, name), folderCountText(count.toULong()), count > 0, open)
         }
+    }
+    SettingsGroup(translate("Connection settings")) {
+        IntegrationRow(IntegrationPage("iroh_relay", translate("Iroh relay")), relayLabel(relay), relay != IrohRelay.Off, open)
     }
 }
 
@@ -280,6 +285,7 @@ internal fun IntegrationDetailPage(model: RufinConnection, preferences: Preferen
             page.id == "metadata" -> MetadataPage(preferences, player)
             page.id == "lyrics" -> LyricsPage(player)
             page.id == "links" -> LinksPage(preferences)
+            page.id == "iroh_relay" -> model.preferences?.irohRelay?.let { RelayPage(preferences, it) }
             page.id == "webdav" || page.id == "smb" -> RemoteFoldersPage(model, page.id)
             page.id == "add_server" -> AddServerPage(accounts, open)
             else -> accounts.state?.let { state -> when {
@@ -291,6 +297,37 @@ internal fun IntegrationDetailPage(model: RufinConnection, preferences: Preferen
                     ?: LaunchedEffect(Unit) { back() }
             } } ?: Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         }
+    }
+}
+
+private fun relayLabel(relay: IrohRelay): String = when (relay) {
+    IrohRelay.Off -> translate("Off")
+    IrohRelay.Rufin -> "Rufin"
+    is IrohRelay.Custom -> translate("Custom URL")
+}
+
+@Composable
+private fun RelayPage(preferences: PreferencesConnection, saved: IrohRelay) {
+    val custom = IrohRelay.Custom("")
+    val currentMode = if (saved is IrohRelay.Custom) custom else saved
+    var mode by remember(saved) { mutableStateOf(currentMode) }
+    val savedAddress = (saved as? IrohRelay.Custom)?.url.orEmpty()
+    var address by rememberSaveable(savedAddress) { mutableStateOf(savedAddress) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SegmentedPill(listOf(IrohRelay.Off, IrohRelay.Rufin, custom), mode, { mode = it },
+            Modifier.fillMaxWidth(), equal = true) { option, _ -> Text(relayLabel(option)) }
+        if (mode is IrohRelay.Custom) {
+            OutlinedTextField(address, { address = it }, Modifier.fillMaxWidth(), singleLine = true,
+                label = { Text(translate("Relay address")) }, colors = settingsTextFieldColors())
+        }
+        Button(onClick = {
+            val choice = if (mode is IrohRelay.Custom) IrohRelay.Custom(address.trim()) else mode
+            preferences.changePreference { setIrohRelay(choice) }
+        }, modifier = Modifier.align(Alignment.End)) { Text(translate("Save")) }
+    }
+    SettingsGroup {
+        LinkRow(preferences, translate("Self-host an Iroh Relay"), null, "https://docs.iroh.computer/iroh-services/relays/self-hosted")
+        LinkRow(preferences, translate("Use a public relay"), null, "https://github.com/n0-computer/iroh/blob/v1.5.0/iroh/src/defaults.rs")
     }
 }
 

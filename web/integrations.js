@@ -10,6 +10,7 @@ let providers = {};
 let scrobbling = null;
 let folders = [];
 let folderStatus = {};
+let savedRelay = null;
 let selected = "lastfm";
 // The server whose page is open.
 let server = null;
@@ -213,8 +214,18 @@ function showScrobbling(preferences) {
   showStatus();
 }
 
+function showRelay(relay) {
+  if (savedRelay?.mode === relay.mode && savedRelay?.url === relay.url) return;
+  savedRelay = relay;
+  $("integration-relay-mode").value = relay.mode;
+  $("integration-relay-address").value = relay.url || "";
+  $("integration-relay-address-row").hidden = relay.mode !== "custom";
+  showRow("iroh_relay", relay.mode === "custom" ? tr("Custom URL") : relay.mode === "rufin" ? "Rufin" : tr("Off"), relay.mode !== "off");
+}
+
 // The Preferences values reached the page: what Integrations shows from them.
 function showIntegrations(preferences) {
+  showRelay(preferences.iroh_relay);
   values = preferences.values;
   providers = preferences.providers;
   showProviders();
@@ -363,6 +374,19 @@ async function addServer() {
 }
 
 function init() {
+  const mode = $("integration-relay-mode");
+  mode.addEventListener("change", () => { $("integration-relay-address-row").hidden = mode.value !== "custom"; });
+  $("integration-relay-save").addEventListener("click", (event) => {
+    const button = event.currentTarget;
+    const choice = mode.value === "custom" ? { mode: "custom", url: $("integration-relay-address").value.trim() } : { mode: mode.value };
+    button.disabled = true;
+    run(async () => {
+      try {
+        await api("/integrations/iroh-relay", "POST", choice);
+        showRelay(choice);
+      } finally { button.disabled = false; }
+    });
+  });
   for (const row of document.querySelectorAll(".integration-row")) row.addEventListener("click", () => open(row.dataset.integration));
   for (const input of document.querySelectorAll("[data-scrobbling-switch]"))
     input.addEventListener("change", () => run(() => scrobblingEdit({

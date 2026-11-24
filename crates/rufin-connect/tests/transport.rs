@@ -39,7 +39,7 @@ async fn node(name: &str, credentials: Credentials) -> (Arc<ConnectNetwork>, Eve
         NetworkConfig {
             name: name.into(),
             nearby: false,
-            relay: None,
+            relay: rufin_connect::IrohRelay::Off,
         },
         credentials,
     )
@@ -316,7 +316,7 @@ async fn enrollment_records_media_and_removal() {
             let offset = request["offset"].as_u64().unwrap();
             let (file, reader) = rufin_connect::media::open_file(&original, offset).await.unwrap();
             let metadata = rufin_connect::media::PeerByteMetadata { length: Some(file.length), offset, content_type: None, validator: file.validator };
-            assert!(reply.send(Ok(rufin_connect::media::PeerByteResponse { metadata: serde_json::to_value(metadata).unwrap(), reader: Box::pin(reader) })).is_ok());
+            assert!(reply.send(Ok(rufin_connect::media::StreamReply::Media(rufin_connect::media::PeerByteResponse { metadata: serde_json::to_value(metadata).unwrap(), reader: Box::pin(reader) }))).is_ok());
             assert_eq!(transfer.await.unwrap(), &b"original media bytes"[offset as usize..]);
         }
 

@@ -42,11 +42,6 @@
       <label class="connect-check"><input id="connect-enabled" type="checkbox" /><span>{{ localization::tr("Enable Rufin Connect") }}</span></label>
       <label class="connect-check"><input id="connect-nearby" type="checkbox" role="switch" aria-describedby="connect-nearby-help" /><span>{{ localization::tr("Nearby discovery") }}</span></label>
       <p id="connect-nearby-help">{{ localization::tr("This can be turned off after pairing if you want") }}</p>
-      <div class="connect-inline connect-relay-heading"><span>{{ localization::tr("Relay") }}</span><a class="icon-button" href="https://docs.iroh.computer/iroh-services/relays/self-hosted" target="_blank" rel="noopener" title="{{ localization::tr("Self-host an Iroh Relay") }}" aria-label="{{ localization::tr("Self-host an Iroh Relay") }}">{% call m::icon("rufin-external-link-compact-symbolic") %}{% endcall %}</a><a class="icon-button" href="https://github.com/n0-computer/iroh/blob/v1.0.3/iroh/src/defaults.rs#L25-L33" target="_blank" rel="noopener" title="{{ localization::tr("Use a public relay") }}" aria-label="{{ localization::tr("Use a public relay") }}">{% call m::icon("rufin-external-link-compact-symbolic") %}{% endcall %}</a><input id="connect-relay-enabled" type="checkbox" role="switch" aria-label="{{ localization::tr("Relay") }}" /></div>
-      <div class="connect-inline">
-        <label class="visually-hidden" for="connect-relay">{{ localization::tr("Relay address") }}</label><input id="connect-relay" type="url" placeholder="{{ localization::tr("Relay address") }}" /><button id="connect-network">{{ localization::tr("Save") }}</button>
-      </div>
-
     </section>
     <section data-connect-section="folder" hidden>
       <strong>{{ localization::tr("Sync folder") }}</strong>

@@ -62,6 +62,7 @@ async function api(path, method = "GET", data, signal = session?.signal) {
       tr("The API token was not accepted. Please connect again."),
     );
   }
+  if (response.status === 204) return;
   const result = await response.json();
   if (!response.ok)
     throw Object.assign(new Error(

@@ -25,6 +25,13 @@ fn application_starts_on_a_worker_and_reopens_saved_settings_without_a_ui() {
         state: directory.path().join("state"),
     };
     let (diagnostics, _stderr) = Diagnostics::install(paths.state_dir());
+    let legacy_device = paths.connect_dir().join("device.json");
+    std::fs::create_dir_all(paths.connect_dir()).unwrap();
+    std::fs::write(
+        &legacy_device,
+        br#"{"name":"Saved device","relay":"https://relay.example"}"#,
+    )
+    .unwrap();
     std::fs::create_dir_all(paths.store_file().parent().unwrap()).unwrap();
     std::fs::write(paths.store_file(), b"unreadable database").unwrap();
     for reopening in [false, true] {
@@ -41,6 +48,20 @@ fn application_starts_on_a_worker_and_reopens_saved_settings_without_a_ui() {
                 .unwrap()
                 .unwrap();
             assert!(!inputs.temporary_store);
+            let relay = if reopening {
+                rufin_connect::IrohRelay::Off
+            } else {
+                rufin_connect::IrohRelay::Custom {
+                    url: "https://relay.example".into(),
+                }
+            };
+            let connect = inputs.products.connect.status();
+            assert_eq!(connect.settings.name, "Saved device");
+            assert_eq!(connect.settings.relay.as_deref(), relay.custom_url());
+            assert_eq!(inputs.products.settings.iroh_relay(), relay);
+            let device: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&legacy_device).unwrap()).unwrap();
+            assert!(device.get("relay").is_none());
             assert_eq!(
                 inputs.products.settings.load().application.private_mode,
                 reopening
@@ -49,6 +70,9 @@ fn application_starts_on_a_worker_and_reopens_saved_settings_without_a_ui() {
             runtime
                 .block_on(runtime.spawn_blocking(move || {
                     settings.set_private_mode(true).unwrap();
+                    settings
+                        .set_iroh_relay(rufin_connect::IrohRelay::Off)
+                        .unwrap();
                     settings.flush().unwrap();
                 }))
                 .unwrap();
