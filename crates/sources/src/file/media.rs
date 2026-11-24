@@ -363,13 +363,19 @@ fn artist_names(tags: &Tags, single: &str, plural: &str, grouping: FileGrouping)
     names
 }
 
-/// A credit as it shows: its singular tag's values, else its plural one's.
+/// A credit as it shows: its singular tag's values, else its plural one's, each once.
 fn display_names(tags: &Tags, single: &str, plural: &str) -> Option<String> {
-    [single, plural]
+    let values = [single, plural]
         .into_iter()
         .map(|name| tags.all(name))
-        .find(|values| !values.is_empty())
-        .map(|values| values.join("; "))
+        .find(|values| !values.is_empty())?;
+    let mut shown = Vec::<&str>::new();
+    for value in values {
+        if !shown.iter().any(|known| known.eq_ignore_ascii_case(value)) {
+            shown.push(value);
+        }
+    }
+    Some(shown.join("; "))
 }
 
 /// The number a track or disc tag leads with, as `3` and `3/12` do.
@@ -578,7 +584,7 @@ fn tagged_track(
         ),
         ..Default::default()
     };
-    let album_id = album_id(&metadata, owner, released(tags), path, None);
+    let album_id = album_id(&metadata, owner, path, None);
     let mut track = scanned_track(path, metadata, album_id, facts.user_rating, local_artwork);
     track.track.tags = tags.stored();
     track
@@ -631,31 +637,23 @@ pub(crate) fn regroup(
             album_artist,
             owner: Owner::AlbumArtists,
         };
-        (
-            grouped,
-            (None, scanned_path(sheet, relative[1].as_ref()), true),
-        )
+        (grouped, (scanned_path(sheet, relative[1].as_ref()), true))
     } else {
         let Some(path) = track.source_path.as_deref() else {
             return false;
         };
         let tags = Tags::kept(&track.tags);
         let grouped = grouped(&tags, &metadata.artist, compilation, grouping);
-        let released = released(&tags).map(str::to_owned);
-        (
-            grouped,
-            (released, scanned_path(path, relative[0].as_ref()), false),
-        )
+        (grouped, (scanned_path(path, relative[0].as_ref()), false))
     };
     let mut metadata = metadata.clone();
     metadata.artists = grouped.artists;
     metadata.album_artists = grouped.album_artists;
     metadata.album_display_artist = Some(grouped.album_artist);
-    let (released, path, sheet) = album;
+    let (path, sheet) = album;
     let album = Some(album_id(
         &metadata,
         grouped.owner,
-        released.as_deref(),
         &path,
         sheet.then_some(path.as_path()),
     ));
@@ -811,12 +809,11 @@ pub(crate) enum Owner {
     Folder,
 }
 
-/// An album is its MusicBrainz release, or else its owner with its title, version and
-/// release date, wherever its files are. A cue sheet's album is its sheet's.
+/// An album is its MusicBrainz release, or else its owner with its title, version and the
+/// years it shows, wherever its files are, as in fooyin. A cue sheet's album is its sheet's.
 pub(crate) fn album_id(
     metadata: &library::TrackMetadata,
     owner: Owner,
-    released: Option<&str>,
     path: &Path,
     cue_path: Option<&Path>,
 ) -> String {
@@ -850,10 +847,14 @@ pub(crate) fn album_id(
         format!("musicbrainz:{release}")
     } else if matches!(owner, Owner::Folder) {
         format!(":{name}:{}", album_folder(path).to_string_lossy())
-    } else if let Some(released) = released {
-        format!("{credits}:{name}:{released}")
     } else {
-        format!("{credits}:{name}")
+        let reissued = (metadata.album_tags.as_ref())
+            .and_then(|tags| tags.reissued.as_deref())
+            .and_then(date_year)
+            .map(i64::from);
+        let [year, reissued] = [metadata.year, reissued]
+            .map(|year| year.map(|year| year.to_string()).unwrap_or_default());
+        format!("{credits}:{name}:{year}:{reissued}")
     };
     local_id("album", &identity)
 }
@@ -1447,22 +1448,40 @@ mod tests {
             ["One feat. Two", "Three"]
         );
 
-        // A release date names an album; a plain date does not.
-        let dated = |key, value| {
+        // The years an album shows name it, whichever tags give them.
+        let dated = |dates: &[(&'static str, &'static str)]| {
             [
                 ("albumartist", "One"),
                 ("album", "Album"),
-                (key, value),
                 ("artist", "One"),
             ]
+            .into_iter()
+            .chain(dates.iter().copied())
+            .collect::<Vec<_>>()
         };
         assert_ne!(
-            album("/m/a.flac", &dated("year", "2001"), tags),
-            album("/m/b.flac", &dated("year", "2011"), tags)
+            album("/m/a.flac", &dated(&[("year", "2001")]), tags),
+            album("/m/b.flac", &dated(&[("year", "2011")]), tags)
+        );
+        assert_ne!(
+            album("/m/a.flac", &dated(&[("date", "2001")]), tags),
+            album("/m/b.flac", &dated(&[("date", "2011")]), tags)
         );
         assert_eq!(
-            album("/m/a.flac", &dated("date", "2001"), tags),
-            album("/m/b.flac", &dated("date", "2011"), tags)
+            album("/m/a.flac", &dated(&[("date", "2024")]), tags),
+            album(
+                "/m/b.flac",
+                &dated(&[("date", "2024-03-01"), ("releasedate", "2024")]),
+                tags
+            )
+        );
+        assert_ne!(
+            album("/m/a.flac", &dated(&[("originaldate", "1995")]), tags),
+            album(
+                "/m/b.flac",
+                &dated(&[("originaldate", "1995"), ("releasedate", "2015")]),
+                tags
+            )
         );
 
         // A file that names no album is in its artist's Unknown Album, wherever it is.

@@ -340,7 +340,6 @@ pub(crate) fn cue_track(
     track.album_object_id = Some(media::album_id(
         &track.metadata,
         media::Owner::AlbumArtists,
-        None,
         cue_path,
         Some(cue_path),
     ));
