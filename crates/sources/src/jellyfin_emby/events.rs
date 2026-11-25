@@ -16,12 +16,27 @@ use tracing::{debug, warn};
 use super::*;
 use crate::remote_json::{id, items};
 use crate::source::{FEED_SILENCE_LIMIT, LIVE_CHANGE_LIMIT};
-use crate::{RemoteItemChange, RemoteItemUpdate};
+use crate::{RemoteItemChange, RemoteItemUpdate, ServerControl};
 
 const KEEP_ALIVE_INTERVAL: Duration = Duration::from_secs(30);
 const JELLYFIN_WEBSOCKET_KEY_BYTES: usize = 16;
 const FEED_RETRY_MIN: Duration = Duration::from_secs(5);
 const FEED_RETRY_MAX: Duration = Duration::from_secs(60);
+/// The general commands the server may send, besides Playstate and Play.
+const SUPPORTED_COMMANDS: [&str; 10] = [
+    "VolumeUp",
+    "VolumeDown",
+    "Mute",
+    "Unmute",
+    "ToggleMute",
+    "SetVolume",
+    "SetRepeatMode",
+    "SetShuffleQueue",
+    "PlayState",
+    "PlayNext",
+];
+const SEEK_STEP_MILLIS: i64 = 10_000;
+const VOLUME_STEP: f64 = 0.05;
 
 impl JellyfinEmbySource {
     async fn connect_library_socket(&self) -> SourceResult<WebSocketStream<reqwest::Upgraded>> {
@@ -33,10 +48,19 @@ impl JellyfinEmbySource {
                 ServerKind::Emby => "embywebsocket",
             },
         )?;
+        // The socket carries the session's remote control, which the server offers while both
+        // stand.
+        self.send_unit(
+            self.client
+                .post(endpoint(&self.base_url(), "Sessions/Capabilities/Full")?)
+                .json(&serde_json::json!({
+                    "PlayableMediaTypes": ["Audio"],
+                    "SupportedCommands": SUPPORTED_COMMANDS,
+                    "SupportsMediaControl": true,
+                })),
+        )
+        .await?;
         if self.kind == ServerKind::Emby {
-            self.send_unit(self.client.post(endpoint(&self.base_url(), "Sessions/Capabilities/Full")?).json(&serde_json::json!({
-                "PlayableMediaTypes": ["Audio"], "SupportedCommands": [], "SupportsMediaControl": false, "SupportsSync": false
-            }))).await?;
             let token = self.session_access_token().await?;
             url.query_pairs_mut()
                 .append_pair("api_key", token)
@@ -84,10 +108,14 @@ impl JellyfinEmbySource {
         &self,
         on_ready: &mut (dyn FnMut() -> bool + Send),
         on_change: &mut (dyn FnMut(RemoteItemChange) -> bool + Send),
+        on_control: &mut (dyn FnMut(ServerControl) + Send),
     ) -> SourceResult<()> {
         let mut delay = FEED_RETRY_MIN;
         loop {
-            match self.listen_library_changes_once(on_ready, on_change).await {
+            match self
+                .listen_library_changes_once(on_ready, on_change, on_control)
+                .await
+            {
                 Ok(false) => return Ok(()),
                 Ok(true) => delay = FEED_RETRY_MIN,
                 Err(error) => {
@@ -105,6 +133,7 @@ impl JellyfinEmbySource {
         &self,
         on_ready: &mut (dyn FnMut() -> bool + Send),
         on_change: &mut (dyn FnMut(RemoteItemChange) -> bool + Send),
+        on_control: &mut (dyn FnMut(ServerControl) + Send),
     ) -> SourceResult<bool> {
         let mut socket = self.connect_library_socket().await?;
         if !on_ready() {
@@ -132,11 +161,15 @@ impl JellyfinEmbySource {
                     let Some(text) = message.as_text() else {
                         continue;
                     };
-                    match library_socket_message(text, &self.user_id)? {
+                    match library_socket_message(text, &self.user_id, self.kind)? {
                         JellyfinSocketMessage::Change(change) => {
                             if !on_change(change) {
                                 return Ok(false);
                             }
+                        }
+                        JellyfinSocketMessage::Control(control) => {
+                            tracing::info!(?control, "Received server playback control");
+                            on_control(control);
                         }
                         JellyfinSocketMessage::ForceKeepAlive => {
                             send_keep_alive(&mut socket).await?;
@@ -149,14 +182,19 @@ impl JellyfinEmbySource {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 enum JellyfinSocketMessage {
     Change(RemoteItemChange),
+    Control(ServerControl),
     ForceKeepAlive,
     Other,
 }
 
-fn library_socket_message(text: &str, user_id: &str) -> SourceResult<JellyfinSocketMessage> {
+fn library_socket_message(
+    text: &str,
+    user_id: &str,
+    kind: ServerKind,
+) -> SourceResult<JellyfinSocketMessage> {
     let message = serde_json::from_str::<Value>(text)
         .map_err(|error| SourceError::Other(error.to_string()))?;
     match message["MessageType"].as_str() {
@@ -227,7 +265,87 @@ fn library_socket_message(text: &str, user_id: &str) -> SourceResult<JellyfinSoc
             }
         }
         Some("ForceKeepAlive") => Ok(JellyfinSocketMessage::ForceKeepAlive),
+        Some(message_type @ ("Playstate" | "Play" | "GeneralCommand")) => {
+            Ok(server_control(message_type, &message["Data"], kind)
+                .map_or(JellyfinSocketMessage::Other, JellyfinSocketMessage::Control))
+        }
         _ => Ok(JellyfinSocketMessage::Other),
+    }
+}
+
+fn server_control(message_type: &str, data: &Value, kind: ServerKind) -> Option<ServerControl> {
+    match message_type {
+        "Playstate" => Some(match data["Command"].as_str()? {
+            "PlayPause" => ServerControl::PlayPause,
+            "Unpause" => ServerControl::Play,
+            "Pause" => ServerControl::Pause,
+            "Stop" => ServerControl::Stop,
+            "NextTrack" => ServerControl::Next,
+            "PreviousTrack" => ServerControl::Previous,
+            "Seek" => ServerControl::Seek {
+                millis: u64::try_from(data["SeekPositionTicks"].as_i64()?).ok()? / 10_000,
+            },
+            "Rewind" => ServerControl::SeekBy {
+                millis: -SEEK_STEP_MILLIS,
+            },
+            "FastForward" => ServerControl::SeekBy {
+                millis: SEEK_STEP_MILLIS,
+            },
+            _ => return None,
+        }),
+        "Play" => {
+            let track_object_ids = items(&data["ItemIds"])
+                .iter()
+                .filter_map(id)
+                .map(|raw| kind.object_id("track", &raw))
+                .collect::<Vec<_>>();
+            if track_object_ids.is_empty() {
+                return None;
+            }
+            let placement = match data["PlayCommand"].as_str()? {
+                "PlayNow" | "PlayShuffle" | "PlayInstantMix" => library::QueuePlacement::Replace {
+                    anchor_index: data["StartIndex"]
+                        .as_u64()
+                        .and_then(|index| usize::try_from(index).ok())
+                        .filter(|index| *index < track_object_ids.len())
+                        .unwrap_or(0),
+                },
+                "PlayNext" => library::QueuePlacement::AfterCurrent,
+                "PlayLast" => library::QueuePlacement::End,
+                _ => return None,
+            };
+            Some(ServerControl::Queue {
+                track_object_ids,
+                placement,
+            })
+        }
+        _ => {
+            let argument = |name: &str| data["Arguments"][name].as_str();
+            Some(match data["Name"].as_str()? {
+                "SetVolume" => ServerControl::Volume {
+                    value: (argument("Volume")?.parse::<f64>().ok()? / 100.0).clamp(0.0, 1.0),
+                },
+                "VolumeUp" => ServerControl::VolumeBy { value: VOLUME_STEP },
+                "VolumeDown" => ServerControl::VolumeBy {
+                    value: -VOLUME_STEP,
+                },
+                "Mute" => ServerControl::Mute { muted: Some(true) },
+                "Unmute" => ServerControl::Mute { muted: Some(false) },
+                "ToggleMute" => ServerControl::Mute { muted: None },
+                "SetRepeatMode" => ServerControl::Repeat {
+                    mode: match argument("RepeatMode")? {
+                        "RepeatNone" => playback::QueueRepeatMode::Off,
+                        "RepeatOne" => playback::QueueRepeatMode::One,
+                        "RepeatAll" => playback::QueueRepeatMode::All,
+                        _ => return None,
+                    },
+                },
+                "SetShuffleQueue" => ServerControl::Shuffle {
+                    enabled: argument("ShuffleMode")? == "Shuffle",
+                },
+                _ => return None,
+            })
+        }
     }
 }
 
@@ -261,7 +379,7 @@ mod tests {
     fn user_data_changes_preserve_only_the_connected_users_facts() {
         let event = r#"{"MessageType":"UserDataChanged","Data":{"UserId":"user","UserDataList":[{"ItemId":"album","IsFavorite":true},{"ItemId":42,"PlayCount":3},{"ItemId":"album"},{"ItemId":null}]}}"#;
         assert_eq!(
-            library_socket_message(event, "user").unwrap(),
+            library_socket_message(event, "user", ServerKind::Jellyfin).unwrap(),
             JellyfinSocketMessage::Change(RemoteItemChange::Items(
                 std::collections::BTreeMap::from([
                     (
@@ -282,7 +400,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            library_socket_message(event, "another-user").unwrap(),
+            library_socket_message(event, "another-user", ServerKind::Jellyfin).unwrap(),
             JellyfinSocketMessage::Other
         );
         for event in [
@@ -290,7 +408,7 @@ mod tests {
             r#"{"MessageType":"UserDataChanged","Data":{"UserDataList":[{"ItemId":"album"}]}}"#,
         ] {
             assert_eq!(
-                library_socket_message(event, "user").unwrap(),
+                library_socket_message(event, "user", ServerKind::Jellyfin).unwrap(),
                 JellyfinSocketMessage::Other
             );
         }
@@ -397,7 +515,7 @@ mod tests {
             let event = r#"{"MessageType":"UserDataChanged","Data":{"UserId":"user","UserDataList":[{"ItemId":"3272","IsFavorite":true},{"ItemId":"track","PlayCount":8}]}}"#;
             for repeated in [false, true] {
                 let JellyfinSocketMessage::Change(RemoteItemChange::Items(items)) =
-                    library_socket_message(event, "user").unwrap()
+                    library_socket_message(event, "user", ServerKind::Jellyfin).unwrap()
                 else {
                     panic!("user data must retain the item boundary");
                 };
@@ -636,7 +754,7 @@ mod tests {
     fn optional_notification_fields_do_not_discard_usable_changes() {
         let message = library_socket_message(
             r#"{"MessageType":"LibraryChanged","Data":{"ItemsAdded":[null,"added",{},42],"ItemsUpdated":false,"ItemsRemoved":[false,"removed", ""],"CollectionFolders":{},"FoldersAddedTo":[null]}}"#,
-            "user",
+            "user", ServerKind::Jellyfin,
         )
         .unwrap();
         assert_eq!(
@@ -652,23 +770,27 @@ mod tests {
             r#"{"MessageType":"SomethingElse","Data":false}"#,
         ] {
             assert_eq!(
-                library_socket_message(text, "user").unwrap(),
+                library_socket_message(text, "user", ServerKind::Jellyfin).unwrap(),
                 JellyfinSocketMessage::Other
             );
         }
         assert_eq!(
-            library_socket_message(r#"{"MessageType":"ForceKeepAlive","Data":false}"#, "user")
-                .unwrap(),
+            library_socket_message(
+                r#"{"MessageType":"ForceKeepAlive","Data":false}"#,
+                "user",
+                ServerKind::Jellyfin
+            )
+            .unwrap(),
             JellyfinSocketMessage::ForceKeepAlive
         );
-        assert!(library_socket_message("not JSON", "user").is_err());
+        assert!(library_socket_message("not JSON", "user", ServerKind::Jellyfin).is_err());
     }
 
     #[test]
     fn exact_item_ids_remain_authoritative_with_folder_context() {
         let message = library_socket_message(
             r#"{"MessageType":"LibraryChanged","Data":{"ItemsAdded":["item-one"],"ItemsUpdated":["item-two","item-one"],"ItemsRemoved":["item-three"],"FoldersAddedTo":["folder-one"]}}"#,
-            "user",
+            "user", ServerKind::Jellyfin,
         )
         .expect("parse message");
 
@@ -686,6 +808,7 @@ mod tests {
         let message = library_socket_message(
             r#"{"MessageType":"LibraryChanged","Data":{"FoldersAddedTo":["folder-one"]}}"#,
             "user",
+            ServerKind::Jellyfin,
         )
         .expect("parse message");
 
@@ -699,7 +822,7 @@ mod tests {
     fn library_update_preserves_upserts_and_removals() {
         let message = library_socket_message(
             r#"{"MessageType":"LibraryChanged","Data":{"ItemsAdded":["item-one"],"ItemsUpdated":["item-two","item-one"],"ItemsRemoved":["item-three"]}}"#,
-            "user",
+            "user", ServerKind::Jellyfin,
         )
         .expect("parse message");
 
@@ -716,7 +839,7 @@ mod tests {
     fn conflicting_item_change_widens_to_full() {
         let message = library_socket_message(
             r#"{"MessageType":"LibraryChanged","Data":{"ItemsUpdated":["item-one"],"ItemsRemoved":["item-one"]}}"#,
-            "user",
+            "user", ServerKind::Jellyfin,
         )
         .expect("parse message");
 
@@ -730,7 +853,7 @@ mod tests {
     fn empty_library_update_emits_no_change() {
         let message = library_socket_message(
             r#"{"MessageType":"LibraryChanged","Data":{"ItemsAdded":[],"ItemsUpdated":[],"ItemsRemoved":[]}}"#,
-            "user",
+            "user", ServerKind::Jellyfin,
         )
         .expect("parse message");
 
@@ -746,6 +869,7 @@ mod tests {
         let message = library_socket_message(
             &format!(r#"{{"MessageType":"LibraryChanged","Data":{{"ItemsUpdated":[{ids}]}}}}"#),
             "user",
+            ServerKind::Jellyfin,
         )
         .expect("parse message");
 

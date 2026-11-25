@@ -44,6 +44,8 @@ use crate::settings::{
 };
 
 const SOURCE_CHECK_INTERVAL: Duration = Duration::from_secs(5 * 60);
+/// Server controls that wait for playback; a burst past it drops the newest.
+const SERVER_CONTROL_LIMIT: usize = 32;
 
 #[derive(Clone)]
 pub(crate) struct SourceOutputs {
@@ -135,6 +137,11 @@ pub(crate) struct Shared {
     /// The edits of each playlist, which run one at a time.
     playlist_edits: Mutex<HashMap<library::PlaylistKey, Arc<tokio::sync::Mutex<()>>>>,
     connect: Mutex<Weak<crate::connect::ConnectOwner>>,
+    /// What the selected library's server asks of playback, which the playback owner takes.
+    server_controls: (
+        async_channel::Sender<(SourceId, sources::ServerControl)>,
+        async_channel::Receiver<(SourceId, sources::ServerControl)>,
+    ),
     pub(crate) started: AtomicBool,
 }
 
@@ -504,6 +511,7 @@ impl SourceOwner {
                 album_release: Mutex::new(None),
                 playlist_edits: Mutex::new(HashMap::new()),
                 connect: Mutex::new(Weak::new()),
+                server_controls: async_channel::bounded(SERVER_CONTROL_LIMIT),
                 started: AtomicBool::new(false),
             });
             shared.runtime.spawn(feed::run(
@@ -1064,7 +1072,11 @@ impl SourceOwner {
         if cached.observer.is_some() {
             return false;
         }
-        let observer = source.start_selected_feed(&self.shared.runtime, initial_scan_pending);
+        let observer = source.start_selected_feed(
+            &self.shared.runtime,
+            initial_scan_pending,
+            self.shared.server_controls.0.clone(),
+        );
         let shared = Arc::downgrade(&self.shared);
         let task = self.shared.runtime.spawn(Self::consume_selected_feed(
             shared,
@@ -2823,6 +2835,12 @@ impl SourceOwner {
             .connect
             .lock()
             .unwrap_or_else(|p| p.into_inner()) = Arc::downgrade(connect);
+    }
+
+    pub(crate) fn server_controls(
+        &self,
+    ) -> async_channel::Receiver<(SourceId, sources::ServerControl)> {
+        self.shared.server_controls.1.clone()
     }
 
     pub(crate) fn connect(&self) -> Option<Arc<crate::connect::ConnectOwner>> {

@@ -583,6 +583,43 @@ where
     Ok(())
 }
 
+/// What a server's dashboard or another of its clients asks this device's playback to do.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ServerControl {
+    PlayPause,
+    Play,
+    Pause,
+    Stop,
+    Next,
+    Previous,
+    Seek {
+        millis: u64,
+    },
+    SeekBy {
+        millis: i64,
+    },
+    Volume {
+        value: f64,
+    },
+    VolumeBy {
+        value: f64,
+    },
+    /// None toggles.
+    Mute {
+        muted: Option<bool>,
+    },
+    Repeat {
+        mode: playback::QueueRepeatMode,
+    },
+    Shuffle {
+        enabled: bool,
+    },
+    Queue {
+        track_object_ids: Vec<String>,
+        placement: library::QueuePlacement,
+    },
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RemoteItemUpdate {
     Metadata,
@@ -2540,6 +2577,7 @@ impl Source {
         self: &Arc<Self>,
         runtime: &tokio::runtime::Handle,
         mut initial_scan_pending: bool,
+        controls: Sender<(SourceId, ServerControl)>,
     ) -> Arc<SelectedFeed> {
         let (wake, receiver) = async_channel::bounded(1);
         let feed = Arc::new(SelectedFeed {
@@ -2605,10 +2643,14 @@ impl Source {
                     let change_feed = Arc::clone(&producer);
                     let mut changed =
                         move |change| change_feed.submit(SelectedFeedChange::Remote(change));
+                    let source_id = producer.source.source_id.clone();
+                    let mut controlled = move |control| {
+                        let _ = controls.try_send((source_id.clone(), control));
+                    };
                     let result = match &producer.source.implementation {
                         Implementation::JellyfinEmby(provider) => {
                             provider
-                                .listen_library_changes(&mut ready, &mut changed)
+                                .listen_library_changes(&mut ready, &mut changed, &mut controlled)
                                 .await
                         }
                         _ => return,
@@ -3099,7 +3141,11 @@ mod refresh_laws {
             provider_payload:serde_json::json!({"version":1,"base_url":format!("http://{address}"),"server_id":"server","user_id":"user","username":"listener","trust_invalid_cert":false,"use_jellyfin_instant_mix":false}).to_string(),
         }, Some("token".into()), Some("device".into()), None).unwrap());
         let weak = Arc::downgrade(&source);
-        let feed = source.start_selected_feed(&tokio::runtime::Handle::current(), false);
+        let feed = source.start_selected_feed(
+            &tokio::runtime::Handle::current(),
+            false,
+            async_channel::unbounded().0,
+        );
         tokio::time::timeout(std::time::Duration::from_secs(2), pending)
             .await
             .unwrap()
