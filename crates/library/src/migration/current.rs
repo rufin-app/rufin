@@ -567,8 +567,8 @@ async fn copy_tracks(connection: &mut SqliteConnection) -> LibraryResult<()> {
             let flags = picture_flag(artwork.as_deref())
                 | i64::from(cue_path.is_some()) * crate::schema::TRACK_CUE;
             let first_seen = number(row, "first_seen_at");
-            sqlx::query("INSERT INTO tracks(track_key,source_key,object_id,media_uri,album_key,indexed,native_metadata,title,display_artist,display_album,sort_text,duration_millis,disc_number,track_number,year,release_date,date_added,first_seen_at,bpm,comment,source_format,flags,native_favorite,native_rating,released,added_at)
-                VALUES(?1,?2,?3,?4,?5,1,1,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24)")
+            sqlx::query("INSERT INTO tracks(track_key,source_key,object_id,media_uri,album_key,indexed,native_metadata,title,display_artist,display_album,sort_text,duration_millis,disc_number,track_number,year,release_date,date_added,first_seen_at,bpm,comment,source_format,flags,native_favorite,native_rating,released,added_at,bitrate_kbps,sample_rate_hz,bit_depth,channels)
+                VALUES(?1,?2,?3,?4,?5,1,1,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28)")
                 .bind(entity.key)
                 .bind(row.try_get::<i64, _>("migration_source_key")?)
                 .bind(row.try_get::<String, _>("object_id")?)
@@ -593,6 +593,10 @@ async fn copy_tracks(connection: &mut SqliteConnection) -> LibraryResult<()> {
                 .bind(number(row, "source_rating"))
                 .bind(i64::from(release(metadata.release_date.as_deref())))
                 .bind(added(metadata.date_added.as_deref(), first_seen))
+                .bind(metadata.audio_properties.bitrate_kbps)
+                .bind(metadata.audio_properties.sample_rate_hz)
+                .bind(metadata.audio_properties.bit_depth)
+                .bind(metadata.audio_properties.channels)
                 .execute(&mut *connection)
                 .await?;
             sqlx::query("INSERT INTO track_details(track_key,metadata,native_artwork,source_path,cue_path,cue_start_millis,cue_end_millis) VALUES(?1,jsonb(?2),?3,?4,?5,?6,?7)")

@@ -803,30 +803,36 @@ fn search_collection(
                     .library_list(category.key())
                     .row_fields;
                 let activate_shell = Rc::clone(&shell);
-                LibraryPresentationProjection::Row(dynamic_collection_table(
-                    &shell,
-                    category.key(),
-                    model.clone(),
-                    &fields,
-                    Vec::new(),
-                    {
-                        let column_shell = Rc::clone(&shell);
-                        let playing = playing.clone();
-                        move |field| search_column(&column_shell, category, field, playing.as_ref())
-                    },
-                    move |field| {
-                        if category == CollectionCategory::Tracks {
-                            super::columns::track_column_fit_width(category.key(), field)
-                        } else {
-                            column_fit_width(field, column_width(field))
-                        }
-                    },
-                    Some(Box::new(move |_, item: SearchItem| {
-                        item.activate(&activate_shell)
-                    })),
-                    Some(selection.clone().upcast()),
-                    shell.table_initial_width(0),
-                ))
+                LibraryPresentationProjection::Row(
+                    dynamic_collection_table(
+                        &shell,
+                        category.key(),
+                        model.clone(),
+                        &fields,
+                        Vec::new(),
+                        {
+                            let column_shell = Rc::clone(&shell);
+                            let playing = playing.clone();
+                            move |field| {
+                                search_column(&column_shell, category, field, playing.as_ref())
+                            }
+                        },
+                        move |field| {
+                            if category == CollectionCategory::Tracks {
+                                super::columns::track_column_fit_width(category.key(), field)
+                            } else {
+                                column_fit_width(field, column_width(field))
+                            }
+                        },
+                        Some(Box::new(move |_, item: SearchItem| {
+                            item.activate(&activate_shell)
+                        })),
+                        Some(selection.clone().upcast()),
+                        shell.table_initial_width(0),
+                    )
+                    // Search results keep their ranking.
+                    .without_header_sort(),
+                )
             }
         }),
     )

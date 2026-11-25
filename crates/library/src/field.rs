@@ -17,6 +17,7 @@ pub enum LibraryField {
     Year,
     ReleaseDate,
     DateAdded,
+    DateModified,
     LastPlayed,
     PlayCount,
     UserRating,
@@ -48,18 +49,9 @@ impl LibraryField {
     /// The sort this field orders by: a field no list sorts by orders by title.
     pub(crate) fn sort(self) -> Self {
         match self {
-            Self::Image
-            | Self::TitleMerged
-            | Self::Bitrate
-            | Self::SampleRate
-            | Self::BitDepth
-            | Self::Channels
-            | Self::Format
-            | Self::FilePath
-            | Self::Grouping
-            | Self::Source
-            | Self::DiscNumber
-            | Self::Tools => Self::Title,
+            Self::Image | Self::TitleMerged | Self::FilePath | Self::Grouping | Self::Tools => {
+                Self::Title
+            }
             field => field,
         }
     }

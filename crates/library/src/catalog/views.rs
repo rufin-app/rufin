@@ -43,6 +43,11 @@ pub(crate) fn known(value: u32) -> Option<u32> {
     (value != NONE).then_some(value)
 }
 
+/// An audio property a track record holds, which is zero when it is not known.
+fn measured(value: u32) -> Option<u32> {
+    (value != 0).then_some(value)
+}
+
 /// The favorite a row shows: the user's own, else the one its source reports.
 pub(crate) fn favorite(flags: u16) -> bool {
     if flags & FAVORITE_KNOWN != 0 {
@@ -185,13 +190,18 @@ impl<'a> Context<'a> {
 
     /// The sort text of a track's first genre.
     fn genre_sort(&self, record: &TrackRec) -> Option<Cow<'a, str>> {
-        self.snapshot.track_runs(record)[2].iter().find_map(|slot| {
-            self.snapshot
-                .tags
-                .live(*slot)
-                .filter(|tag| tag.kind() == TagKind::Genre)
-                .map(|tag| self.snapshot.name_sort(tag.name, tag.sort))
-        })
+        self.snapshot.track_runs(record)[2]
+            .iter()
+            .find_map(|slot| self.tag_sort(*slot))
+    }
+
+    /// The sort text of the genre in tag slot `slot`; none for a mood.
+    fn tag_sort(&self, slot: u32) -> Option<Cow<'a, str>> {
+        self.snapshot
+            .tags
+            .live(slot)
+            .filter(|tag| tag.kind() == TagKind::Genre)
+            .map(|tag| self.snapshot.name_sort(tag.name, tag.sort))
     }
 }
 
@@ -806,7 +816,12 @@ impl Context<'_> {
         let record = &snapshot.tracks.records[member.0 as usize];
         let album = matches!(sort, S::Artist | S::AlbumArtist | S::Album | S::TrackNumber)
             .then(|| snapshot.albums.live(record.album))
-            .flatten();
+            .flatten()
+            .map(|album| AlbumSort {
+                sort: snapshot.album_sort(album),
+                year: year_of(album.year),
+                key: i64::from(album.key),
+            });
         Sorted {
             member,
             position,
@@ -818,12 +833,13 @@ impl Context<'_> {
             } else {
                 Played::default()
             },
-            album: album.map(|album| AlbumSort {
-                sort: snapshot.album_sort(album),
-                year: year_of(album.year),
-                key: i64::from(album.key),
-            }),
             text: match sort {
+                // A track a source lists without its album sorts by the album title it shows.
+                S::Album => album.as_ref().map(|album| album.sort.clone()).or_else(|| {
+                    Some(snapshot.text(record.album_title))
+                        .filter(|title| !title.is_empty())
+                        .map(super::snapshot::plain_sort)
+                }),
                 S::Artist => snapshot.track_runs(record)[0]
                     .iter()
                     .find_map(|slot| self.artist_sort(*slot)),
@@ -832,8 +848,16 @@ impl Context<'_> {
                     .live(record.album)
                     .and_then(|_| self.album_artist_sort(record.album)),
                 S::Genre => self.genre_sort(record),
+                S::Format => Some(snapshot.text(record.format))
+                    .filter(|format| !format.is_empty())
+                    .map(|format| Cow::Owned(format.to_lowercase())),
+                S::Source => snapshot
+                    .source_key(record.source)
+                    .and_then(|key| snapshot.source(key))
+                    .map(|source| Cow::Owned(source.name.to_lowercase())),
                 _ => None,
             },
+            album,
         }
     }
 
@@ -843,8 +867,9 @@ impl Context<'_> {
         use LibraryField as S;
         Some(bucket(match sort {
             S::Title => &row.sort,
-            S::Artist | S::AlbumArtist | S::Genre => row.text.as_deref().unwrap_or_default(),
-            S::Album => row.album.as_ref().map_or("", |album| album.sort.as_ref()),
+            S::Artist | S::AlbumArtist | S::Genre | S::Album => {
+                row.text.as_deref().unwrap_or_default()
+            }
             _ => return None,
         }))
     }
@@ -888,7 +913,7 @@ fn compare_tracks(
         S::AlbumArtist => {
             nulls_last(a.text.as_deref(), b.text.as_deref(), descending).then_with(album_tail)
         }
-        S::Album => first(album_sort(a).cmp(&album_sort(b)))
+        S::Album => nulls_last(a.text.as_deref(), b.text.as_deref(), descending)
             .then_with(|| nulls_last(album_key(a), album_key(b), false))
             .then(disc)
             .then(number),
@@ -899,6 +924,7 @@ fn compare_tracks(
             descending,
         ),
         S::DateAdded => nulls_last(known(left.added), known(right.added), descending),
+        S::DateModified => nulls_last(known(left.modified), known(right.modified), descending),
         S::LastPlayed => nulls_last(a.played.last, b.played.last, descending),
         S::PlayCount => first(a.played.plays.cmp(&b.played.plays)),
         S::UserRating => nulls_last(
@@ -906,7 +932,30 @@ fn compare_tracks(
             rating(right.rating, right.native_rating),
             descending,
         ),
-        S::Genre => nulls_last(a.text.as_deref(), b.text.as_deref(), descending),
+        S::Genre | S::Format | S::Source => {
+            nulls_last(a.text.as_deref(), b.text.as_deref(), descending)
+        }
+        S::DiscNumber => first(disc).then_with(|| album_order()).then(number),
+        S::Bitrate => nulls_last(
+            measured(left.bitrate_kbps),
+            measured(right.bitrate_kbps),
+            descending,
+        ),
+        S::SampleRate => nulls_last(
+            measured(left.sample_rate_hz),
+            measured(right.sample_rate_hz),
+            descending,
+        ),
+        S::BitDepth => nulls_last(
+            measured(u32::from(left.bit_depth)),
+            measured(u32::from(right.bit_depth)),
+            descending,
+        ),
+        S::Channels => nulls_last(
+            measured(u32::from(left.channels)),
+            measured(u32::from(right.channels)),
+            descending,
+        ),
         S::Bpm => nulls_last(
             (left.bpm != u16::MAX).then_some(left.bpm),
             (right.bpm != u16::MAX).then_some(right.bpm),
@@ -1353,11 +1402,12 @@ struct ListRow<'a> {
     totals: Totals,
     rating: Option<u8>,
     favorite: bool,
-    /// Albums: year, release, added and the first artist's sort text.
+    /// Albums: year, release, added and the first artist's and genre's sort texts.
     year: Option<i16>,
     release: Option<u32>,
     added: Option<u32>,
     artist: Option<Cow<'a, str>>,
+    genre: Option<Cow<'a, str>>,
     class: usize,
 }
 
@@ -1373,6 +1423,7 @@ impl ListRow<'_> {
             release: None,
             added: None,
             artist: None,
+            genre: None,
             class: 0,
         }
     }
@@ -1399,6 +1450,7 @@ fn compare_albums(
         S::Year => nulls_last(a.year, b.year, descending),
         S::ReleaseDate => nulls_last(a.release, b.release, descending),
         S::DateAdded => nulls_last(a.added, b.added, descending),
+        S::Genre => nulls_last(a.genre.as_deref(), b.genre.as_deref(), descending),
         S::LastPlayed => nulls_last(a.totals.last_played, b.totals.last_played, descending),
         S::PlayCount => directed(a.totals.plays.cmp(&b.totals.plays), descending),
         S::UserRating => nulls_last(a.rating, b.rating, descending),
@@ -1700,6 +1752,9 @@ impl Context<'_> {
         row.release = release_of(record.release);
         row.added = known(record.added);
         row.artist = self.album_artist_sort(slot);
+        row.genre = self.snapshot.album_runs(record)[1]
+            .iter()
+            .find_map(|slot| self.tag_sort(*slot));
         row
     }
 

@@ -45,7 +45,7 @@
 {% endmacro %}
 {% macro tracks(rows, columns, album_tracks) %}
   <table class="track-list" role="presentation">
-    <thead role="rowgroup"><tr role="row">{% for column in columns %}{% if column.icon != "" %}<th role="columnheader" class="{{ column.class }}" aria-label="{{ column.title }}" title="{{ column.title }}">{% call icon(column.icon) %}{% endcall %}</th>{% else if column.field == LibraryField::Tools %}<th role="columnheader" class="actions" aria-label="{{ localization::tr("Actions") }}"></th>{% else %}<th role="columnheader"{% if column.class != "" %} class="{{ column.class }}"{% endif %}>{{ column.title }}</th>{% endif %}{% endfor %}</tr></thead>
+    <thead role="rowgroup"><tr role="row">{% for column in columns %}{% if column.field == LibraryField::Tools %}<th role="columnheader" class="actions" aria-label="{{ localization::tr("Actions") }}"></th>{% else %}<th role="columnheader"{% if column.class != "" %} class="{{ column.class }}"{% endif %}{% if column.icon != "" %} aria-label="{{ column.title }}" title="{{ column.title }}"{% endif %}{% if let Some(sort) = column.sort %} data-sort="{{ sort.name }}" data-descending="{{ sort.descending }}" aria-sort="{{ sort.aria() }}"{% endif %}>{% if column.icon != "" %}{% call icon(column.icon) %}{% endcall %}{% else %}{{ column.title }}{% endif %}</th>{% endif %}{% endfor %}</tr></thead>
     <tbody role="rowgroup">{% for row in rows %}
       {% if let Some(heading) = row.heading %}
       <tr role="row" class="disc-header"><th role="rowheader" colspan="{{ columns.len() }}">{{ heading }}</th></tr>

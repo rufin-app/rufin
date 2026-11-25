@@ -25,7 +25,7 @@ use crate::{
 const RANGE_TRACKS: i64 = 8_192;
 const MAX_RANGES: usize = 4;
 
-const TRACKS: &str = "SELECT track_key,source_key,album_key,indexed,native_metadata,flags,title,display_artist,display_album,sort_text,comment,source_format,duration_millis,disc_number,track_number,year,released,added_at,bpm,native_favorite,native_rating,native_play_count,native_last_played FROM tracks WHERE track_key>?1 AND track_key<=?2 ORDER BY track_key";
+const TRACKS: &str = "SELECT track_key,source_key,album_key,indexed,native_metadata,flags,title,display_artist,display_album,sort_text,comment,source_format,duration_millis,disc_number,track_number,year,released,added_at,bpm,native_favorite,native_rating,native_play_count,native_last_played,bitrate_kbps,sample_rate_hz,bit_depth,channels,modified_at FROM tracks WHERE track_key>?1 AND track_key<=?2 ORDER BY track_key";
 const LINKS: &str = "SELECT track_key,role,target FROM track_links WHERE track_key>?1 AND track_key<=?2 ORDER BY track_key,role,position";
 
 fn native_state(row: &Rows<'_>, start: i32) -> NativeState {
@@ -99,6 +99,8 @@ async fn read_range(
                     release: tracks.int(16) as u32,
                     added: tracks.optional_int(17),
                     bpm: tracks.optional_int(18),
+                    audio: [23, 24, 25, 26].map(|column| tracks.optional_int(column)),
+                    modified: tracks.optional_int(27),
                     state: &native_state(&tracks, 19),
                     links: [&runs[0], &runs[1], &runs[2], &runs[3]],
                 },

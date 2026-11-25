@@ -121,6 +121,7 @@ impl From<TrackView> for crate::TrackRow {
                 .as_deref()
                 .and_then(|day| time::Date::parse(day, crate::catalog::records::DAY).ok())
                 .map(|day| day.midnight().assume_utc().unix_timestamp()),
+            date_modified: track.metadata.modified_at,
             source_format: track.metadata.source_format,
             state: track.state,
             is_downloaded: track.access.is_downloaded,

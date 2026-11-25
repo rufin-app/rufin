@@ -1262,6 +1262,9 @@ msgstr ""
 msgid "Date added"
 msgstr ""
 
+msgid "Date modified"
+msgstr ""
+
 msgid "Date"
 msgstr ""
 

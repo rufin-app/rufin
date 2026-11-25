@@ -34,13 +34,7 @@ impl FileSource {
     ) -> SourceResult<LocalFileWrite> {
         match self.stat_entry(input, relative).await? {
             (_, Some((path, document))) => self.document_observation(&path, document),
-            (entry, None) => self.observation(
-                relative,
-                entry.directory,
-                entry.size.and_then(|size| u64::try_from(size).ok()),
-                entry.revision,
-                entry.native_id,
-            ),
+            (entry, None) => self.observation(relative, &entry),
         }
     }
 
@@ -71,6 +65,7 @@ impl FileSource {
                     size: document.size.and_then(|size| i64::try_from(size).ok()),
                     native_id: Some(document.native_id.clone()),
                     revision: document.revision.clone(),
+                    mtime_ns: document.modified_ns(),
                     ..Entry::default()
                 };
                 return Ok((entry, Some((path, document))));
@@ -83,6 +78,7 @@ impl FileSource {
                     size: i64::try_from(entry.size).ok(),
                     native_id: entry.native_id,
                     revision: Some(entry.revision),
+                    mtime_ns: entry.mtime_ns,
                     ..Entry::default()
                 }
             }
@@ -95,6 +91,7 @@ impl FileSource {
                     directory: entry.directory,
                     size: entry.size.and_then(|size| i64::try_from(size).ok()),
                     revision: entry.revision(),
+                    mtime_ns: entry.mtime_ns(),
                     native_id: entry.native_id,
                     ..Entry::default()
                 }
@@ -142,6 +139,7 @@ impl FileSource {
             relative.to_owned()
         };
         let mut track = media::read_saved_media(temporary, display_path.into()).await?;
+        track.track.metadata.modified_at = walk::modified_at(observation.mtime_ns);
         self.read_track_lyrics(None, relative, &mut track).await?;
         track.observe_images(&mut observation)?;
         observation.state = LocalFileState::Accepted;
@@ -275,10 +273,14 @@ impl FileSource {
         };
         let mut file = self.observation(
             &relative,
-            entry.directory,
-            entry.size,
-            entry.revision,
-            Some(entry.native_id),
+            &Entry {
+                directory: entry.directory,
+                size: entry.size.and_then(|size| i64::try_from(size).ok()),
+                mtime_ns: entry.modified_ns(),
+                native_id: Some(entry.native_id),
+                revision: entry.revision,
+                ..Entry::default()
+            },
         )?;
         file.relative_path = crate::file::documents::display_path(&relative);
         Ok(file)
@@ -287,11 +289,9 @@ impl FileSource {
     pub(crate) fn observation(
         &self,
         relative: &str,
-        directory: bool,
-        size: Option<u64>,
-        revision: Option<String>,
-        native_id: Option<String>,
+        entry: &Entry,
     ) -> SourceResult<LocalFileWrite> {
+        let directory = entry.directory;
         let display_path = crate::file::documents::relative_parts(relative).0;
         let extension = display_path
             .rsplit('.')
@@ -313,13 +313,13 @@ impl FileSource {
             root: self.location("")?,
             relative_path: relative.into(),
             kind,
-            size_bytes: size.and_then(|s| s.try_into().ok()),
-            mtime_ns: 0,
+            size_bytes: entry.size,
+            mtime_ns: entry.mtime_ns,
             device_id: None,
             inode: None,
             birth_ns: None,
-            native_id,
-            revision,
+            native_id: entry.native_id.clone(),
+            revision: entry.revision.clone(),
             picture_index: None,
             artist_pictures: None,
             parse_version: Some(if directory {
@@ -360,13 +360,7 @@ impl walk::FileSource for FileSource {
         native: &str,
         entry: &Entry,
     ) -> SourceResult<LocalFileWrite> {
-        let mut file = self.observation(
-            native,
-            entry.directory,
-            entry.size.and_then(|size| u64::try_from(size).ok()),
-            entry.revision.clone(),
-            entry.native_id.clone(),
-        )?;
+        let mut file = self.observation(native, entry)?;
         relative.clone_into(&mut file.relative_path);
         Ok(file)
     }
@@ -407,6 +401,7 @@ impl walk::FileSource for FileSource {
                             .await
                             .map_err(|error| SourceError::Other(error.to_string()))??;
                     for entry in page.entries {
+                        let mtime_ns = entry.modified_ns();
                         let name = match entry.folder.as_deref() {
                             Some(folder) if !folder.is_empty() => {
                                 format!("{folder}/{}", entry.name)
@@ -429,6 +424,7 @@ impl walk::FileSource for FileSource {
                             )
                         };
                         entries.push(Entry {
+                            mtime_ns,
                             name,
                             native,
                             directory: entry.directory,
@@ -462,6 +458,7 @@ impl walk::FileSource for FileSource {
                                     .flatten(),
                                 native_id: entry.native_id,
                                 revision: Some(entry.revision),
+                                mtime_ns: entry.mtime_ns,
                                 ..Entry::default()
                             });
                         std::future::ready(Ok(()))
@@ -513,6 +510,7 @@ impl walk::FileSource for FileSource {
                                     directory: entry.directory,
                                     size: entry.size.and_then(|size| i64::try_from(size).ok()),
                                     revision: entry.revision(),
+                                    mtime_ns: entry.mtime_ns(),
                                     native_id: entry.native_id.clone(),
                                     ..Entry::default()
                                 });

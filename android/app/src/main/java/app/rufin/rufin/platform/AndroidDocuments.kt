@@ -311,6 +311,7 @@ class AndroidDocuments(
             .put("directory", type == DocumentsContract.Document.MIME_TYPE_DIR).put("mime_type", type)
             .put("size", size ?: JSONObject.NULL)
             .put("revision", if (modified != null && modified > 0) "$modified:${size ?: -1}" else JSONObject.NULL)
+            .put("modified", if (modified != null && modified > 0) modified else JSONObject.NULL)
             .put("writable", writable).put("deletable", media || flags and DocumentsContract.Document.FLAG_SUPPORTS_DELETE != 0)
             .put("can_create", flags and DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE != 0)
     }

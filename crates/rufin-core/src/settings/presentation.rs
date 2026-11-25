@@ -272,6 +272,7 @@ pub fn library_field_title(value: LibraryField) -> &'static str {
         LibraryField::Year => msgid("Year"),
         LibraryField::ReleaseDate => msgid("Release date"),
         LibraryField::DateAdded => msgid("Date added"),
+        LibraryField::DateModified => msgid("Date modified"),
         LibraryField::LastPlayed => msgid("Last played"),
         LibraryField::PlayCount => msgid("Plays"),
         LibraryField::UserRating => msgid("Rating"),
@@ -452,12 +453,16 @@ pub fn track_row_field(row: &TrackRow, field: LibraryField) -> String {
         LibraryField::AlbumArtist => joined_credits(&row.links.album_artists),
         LibraryField::Year => optional_year(row.year),
         LibraryField::ReleaseDate => row.release_date.clone().unwrap_or_default(),
-        LibraryField::DateAdded => row
-            .date_added
-            .and_then(|seconds| glib::DateTime::from_unix_utc(seconds).ok())
-            .and_then(|date| date.format("%Y-%m-%d").ok())
-            .map(|date| date.to_string())
-            .unwrap_or_default(),
+        LibraryField::DateAdded | LibraryField::DateModified => if field == LibraryField::DateAdded
+        {
+            row.date_added
+        } else {
+            row.date_modified
+        }
+        .and_then(|seconds| glib::DateTime::from_unix_utc(seconds).ok())
+        .and_then(|date| date.format("%Y-%m-%d").ok())
+        .map(|date| date.to_string())
+        .unwrap_or_default(),
         LibraryField::LastPlayed => display_unix_date(row.state.last_played),
         LibraryField::PlayCount => count(row.state.play_count),
         LibraryField::UserRating => stored_rating(row.state.rating),

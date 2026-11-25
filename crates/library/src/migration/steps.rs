@@ -48,6 +48,9 @@ pub(crate) async fn upgrade(path: &Path) -> LibraryResult<Option<bool>> {
         if version < 66 {
             to_66(&mut *transaction).await?;
         }
+        if version < 67 {
+            to_67(&mut *transaction).await?;
+        }
         sqlx::query(sqlx::AssertSqlSafe(format!(
             "PRAGMA user_version={STORE_VERSION}"
         )))
@@ -243,6 +246,49 @@ async fn to_66(connection: &mut SqliteConnection) -> LibraryResult<()> {
     sqlx::raw_sql("UPDATE sources SET synced_at=NULL, freshness=NULL WHERE kind='peer';")
         .execute(connection)
         .await?;
+    Ok(())
+}
+
+/// Lists sort by the audio properties, so they move from the details JSON to typed columns
+/// the Catalog holds; the file size stays in the JSON. Tracks take their file's modified time:
+/// SMB and document listings carry it in their revisions, which the files take, and Navidrome
+/// lists it again in a full sync. WebDAV gives it with its next listing.
+async fn to_67(connection: &mut SqliteConnection) -> LibraryResult<()> {
+    sqlx::raw_sql(
+        "ALTER TABLE tracks ADD COLUMN bitrate_kbps INTEGER;
+        ALTER TABLE tracks ADD COLUMN sample_rate_hz INTEGER;
+        ALTER TABLE tracks ADD COLUMN bit_depth INTEGER;
+        ALTER TABLE tracks ADD COLUMN channels INTEGER;
+        UPDATE tracks SET (bitrate_kbps,sample_rate_hz,bit_depth,channels)=(
+            SELECT json_extract(metadata,'$.audio_properties.bitrate_kbps'),
+                json_extract(metadata,'$.audio_properties.sample_rate_hz'),
+                json_extract(metadata,'$.audio_properties.bit_depth'),
+                json_extract(metadata,'$.audio_properties.channels')
+            FROM track_details WHERE track_details.track_key=tracks.track_key)
+        WHERE track_key IN (SELECT track_key FROM track_details
+            WHERE json_type(metadata,'$.audio_properties')='object');
+        UPDATE track_details SET metadata=jsonb_remove(metadata,
+            '$.audio_properties.bitrate_kbps','$.audio_properties.sample_rate_hz',
+            '$.audio_properties.bit_depth','$.audio_properties.channels')
+        WHERE json_type(metadata,'$.audio_properties')='object';
+        UPDATE track_details SET metadata=jsonb_remove(metadata,'$.audio_properties')
+        WHERE json(json_extract(metadata,'$.audio_properties'))='{}';
+        ALTER TABLE tracks ADD COLUMN modified_at INTEGER;
+        UPDATE files SET mtime_ns=(CAST(substr(revision,1,instr(revision,':')-1) AS INTEGER)
+            -116444736000000000)*100
+        WHERE mtime_ns=0 AND instr(revision,':')>0
+            AND CAST(substr(revision,1,instr(revision,':')-1) AS INTEGER)>116444736000000000
+            AND source_key IN (SELECT source_key FROM sources WHERE kind='smb');
+        UPDATE files SET mtime_ns=CAST(substr(revision,1,instr(revision,':')-1) AS INTEGER)*1000000
+        WHERE mtime_ns=0 AND path LIKE 'content:%' AND instr(revision,':')>0;
+        UPDATE tracks SET modified_at=(SELECT file.mtime_ns/1000000000
+            FROM track_details details JOIN files file ON file.source_key=tracks.source_key
+                AND file.path=coalesce(details.cue_path,details.source_path)
+            WHERE details.track_key=tracks.track_key AND file.mtime_ns>0);
+        UPDATE sources SET synced_at=NULL, freshness=NULL WHERE kind='navidrome';",
+    )
+    .execute(connection)
+    .await?;
     Ok(())
 }
 

@@ -21,6 +21,23 @@ pub(crate) struct Entry {
 }
 
 impl Entry {
+    /// The last modification the server reports, in nanoseconds since the Unix epoch; zero
+    /// when it reports none.
+    pub fn mtime_ns(&self) -> i64 {
+        self.modified
+            .as_deref()
+            .and_then(|modified| {
+                time::OffsetDateTime::parse(
+                    modified.trim(),
+                    &time::format_description::well_known::Rfc2822,
+                )
+                .ok()
+            })
+            .and_then(|modified| i64::try_from(modified.unix_timestamp_nanos()).ok())
+            .filter(|modified| *modified > 0)
+            .unwrap_or_default()
+    }
+
     pub fn revision(&self) -> Option<String> {
         self.etag.clone().or_else(|| {
             self.modified

@@ -147,6 +147,9 @@ pub(crate) struct TrackFacts {
     pub(crate) bpm: Option<i64>,
     pub(crate) comment: Option<String>,
     pub(crate) format: Option<String>,
+    /// Bitrate in kbps, sample rate in Hz, bit depth and channels.
+    pub(crate) audio: [Option<i64>; 4],
+    pub(crate) modified: Option<i64>,
 }
 
 impl TrackFacts {
@@ -165,6 +168,14 @@ impl TrackFacts {
             bpm: metadata.bpm,
             comment: metadata.comment.clone(),
             format: metadata.source_format.clone(),
+            audio: [
+                metadata.audio_properties.bitrate_kbps,
+                metadata.audio_properties.sample_rate_hz,
+                metadata.audio_properties.bit_depth,
+                metadata.audio_properties.channels,
+            ]
+            .map(|value| value.map(i64::from)),
+            modified: metadata.modified_at,
         }
     }
 }

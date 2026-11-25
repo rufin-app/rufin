@@ -17,7 +17,7 @@ use crate::{LibraryResult, SourceKey};
 
 const MAGIC: &[u8; 8] = b"RUFINCAT";
 /// Raised when the meaning of a record's fields or flags changes, or its fields are reordered.
-const REVISION: u8 = 8;
+const REVISION: u8 = 9;
 /// Records are written as they are in memory, so their sizes are part of the format.
 const FORMAT: [u8; 8] = [
     REVISION,

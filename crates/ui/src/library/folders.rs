@@ -146,6 +146,7 @@ fn folder_page(
             let name_changed = folder_name_field(&previous_fields.borrow())
                 != folder_name_field(&settings.row_fields);
             table.apply_fields(&settings.row_fields);
+            table.apply_sort(&settings);
             crate::widgets::display::apply(&table.widget(), &settings.display);
             if name_changed {
                 rows.update(|row| matches!(row, Row::Folder(_)), |_| {});

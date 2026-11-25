@@ -17,6 +17,8 @@ pub struct TrackMetadata {
     pub year: Option<i64>,
     pub release_date: Option<String>,
     pub date_added: Option<String>,
+    /// When the track's file last changed, in unix seconds, as its source lists it.
+    pub modified_at: Option<i64>,
     pub source_format: Option<String>,
     pub audio_properties: AudioProperties,
     pub comment: Option<String>,
@@ -38,7 +40,7 @@ pub struct TrackMetadata {
 
 /// The TrackMetadata fields stored as typed `tracks` columns. `track_details.metadata` holds
 /// the rest.
-const THIN_TRACK_FIELDS: [&str; 13] = [
+const THIN_TRACK_FIELDS: [&str; 14] = [
     "title",
     "artist",
     "album",
@@ -49,10 +51,14 @@ const THIN_TRACK_FIELDS: [&str; 13] = [
     "year",
     "release_date",
     "date_added",
+    "modified_at",
     "source_format",
     "comment",
     "bpm",
 ];
+
+/// The AudioProperties fields stored as typed `tracks` columns, so lists sort by them.
+const THIN_AUDIO_FIELDS: [&str; 4] = ["bitrate_kbps", "sample_rate_hz", "bit_depth", "channels"];
 
 /// The AlbumMetadata fields stored as typed `albums` columns.
 const THIN_ALBUM_FIELDS: [&str; 7] = [
@@ -83,7 +89,16 @@ fn strip(mut value: serde_json::Value, fields: &[&str]) -> serde_json::Value {
 
 /// The details row's JSON of whole TrackMetadata JSON, unknown fields included.
 pub(crate) fn track_details_value(value: serde_json::Value) -> serde_json::Value {
-    strip(value, &THIN_TRACK_FIELDS)
+    let mut value = strip(value, &THIN_TRACK_FIELDS);
+    if let Some(object) = value.as_object_mut()
+        && let Some(audio) = object.remove("audio_properties")
+    {
+        let audio = strip(audio, &THIN_AUDIO_FIELDS);
+        if audio.as_object().is_none_or(|audio| !audio.is_empty()) {
+            object.insert("audio_properties".into(), audio);
+        }
+    }
+    value
 }
 
 /// The album row's metadata JSON of whole AlbumMetadata JSON, unknown fields included.
@@ -94,7 +109,7 @@ pub(crate) fn album_details_value(value: serde_json::Value) -> serde_json::Value
 impl TrackMetadata {
     /// The details row's JSON: everything the typed columns do not hold.
     pub(crate) fn details_json(&self) -> serde_json::Result<String> {
-        without(self, &THIN_TRACK_FIELDS)
+        serde_json::to_string(&track_details_value(serde_json::to_value(self)?))
     }
 }
 
@@ -108,7 +123,7 @@ impl AlbumMetadata {
 /// SQL for the whole TrackMetadata JSON of a track row and its LEFT JOINed details row.
 pub(crate) fn track_metadata_sql(track: &str, details: &str) -> String {
     format!(
-        "json_patch(coalesce(json({details}.metadata),'{{}}'),json_object('title',{track}.title,'artist',{track}.display_artist,'album',{track}.display_album,'sort_text',{track}.sort_text,'duration_millis',{track}.duration_millis,'disc_number',{track}.disc_number,'track_number',{track}.track_number,'year',{track}.year,'release_date',{track}.release_date,'date_added',{track}.date_added,'source_format',{track}.source_format,'comment',{track}.comment,'bpm',{track}.bpm))"
+        "json_patch(coalesce(json({details}.metadata),'{{}}'),json_object('title',{track}.title,'artist',{track}.display_artist,'album',{track}.display_album,'sort_text',{track}.sort_text,'duration_millis',{track}.duration_millis,'disc_number',{track}.disc_number,'track_number',{track}.track_number,'year',{track}.year,'release_date',{track}.release_date,'date_added',{track}.date_added,'modified_at',{track}.modified_at,'source_format',{track}.source_format,'comment',{track}.comment,'bpm',{track}.bpm,'audio_properties',json_object('bitrate_kbps',{track}.bitrate_kbps,'sample_rate_hz',{track}.sample_rate_hz,'bit_depth',{track}.bit_depth,'channels',{track}.channels)))"
     )
 }
 

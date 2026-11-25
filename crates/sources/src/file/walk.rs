@@ -59,6 +59,11 @@ pub(crate) struct Entry {
     pub revision: Option<String>,
 }
 
+/// When a listed file last changed, in unix seconds; none when its listing gave no time.
+pub(crate) fn modified_at(mtime_ns: i64) -> Option<i64> {
+    (mtime_ns > 0).then(|| mtime_ns / 1_000_000_000)
+}
+
 /// A root a full walk lists, from the given (relative, native) starts.
 pub(crate) struct Root {
     pub root: String,
@@ -948,7 +953,11 @@ impl<F: FileSource> Walker<'_, '_, F> {
                 )
                 .await;
             staged.row.state = match read {
-                Ok(CueRead::Accepted { inputs, tracks }) => {
+                Ok(CueRead::Accepted { inputs, mut tracks }) => {
+                    // A sheet's tracks change with the sheet that defines them.
+                    for track in &mut tracks {
+                        track.metadata.modified_at = modified_at(staged.row.mtime_ns);
+                    }
                     taken.extend(inputs.iter().cloned());
                     sheets.push((staged.row.path.clone(), inputs, tracks));
                     LocalFileState::Accepted
@@ -1019,7 +1028,8 @@ impl<F: FileSource> Walker<'_, '_, F> {
         while let Some((mut staged, read)) = reads.next().await {
             self.check()?;
             staged.row.state = match read {
-                Ok(MediaRead::Accepted(track)) => {
+                Ok(MediaRead::Accepted(mut track)) => {
+                    track.track.metadata.modified_at = modified_at(staged.row.mtime_ns);
                     track.observe_images(&mut staged.row)?;
                     accepted.push((staged, track.into_observation(media::accepted_at())));
                     continue;

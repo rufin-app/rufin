@@ -54,6 +54,12 @@ fn clamp_u32(value: i64) -> u32 {
     value.clamp(0, i64::from(NONE - 1)) as u32
 }
 
+/// An audio property as a record holds it: zero when it is not known, and a bit depth or
+/// channel count past a byte is not one.
+fn audio_value(value: Option<i64>) -> u32 {
+    value.map_or(0, |value| value.clamp(0, i64::from(u32::MAX)) as u32)
+}
+
 fn clamp_u16(value: i64) -> u16 {
     value.clamp(0, i64::from(u16::MAX - 1)) as u16
 }
@@ -180,7 +186,13 @@ pub(crate) struct TrackRec {
     pub(crate) flags: u16,
     pub(crate) native_rating: u8,
     pub(crate) rating: u8,
-    pub(crate) padding: u16,
+    /// The audio properties a list sorts by; zero is not known.
+    pub(crate) bit_depth: u8,
+    pub(crate) channels: u8,
+    pub(crate) bitrate_kbps: u32,
+    pub(crate) sample_rate_hz: u32,
+    /// When the track's file last changed, in unix seconds.
+    pub(crate) modified: u32,
 }
 
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
@@ -501,7 +513,7 @@ fn latin(name: &str) -> bool {
 }
 
 /// A name as it sorts without sort tags: folded, past a leading article.
-fn plain_sort(name: &str) -> std::borrow::Cow<'_, str> {
+pub(crate) fn plain_sort(name: &str) -> std::borrow::Cow<'_, str> {
     let lower = names::folded(name);
     match lower.split_once(' ') {
         Some((article, rest)) if ARTICLES.contains(&article) && !rest.trim().is_empty() => {
@@ -795,6 +807,8 @@ impl Snapshot {
             disc: facts.disc,
             number: facts.number,
             bpm: facts.bpm,
+            audio: facts.audio,
+            modified: facts.modified,
             state: &track.state,
             links: [&artists, &album_artists, &tags, &folders],
         });
@@ -1632,7 +1646,11 @@ impl Packing<'_> {
                 | kept,
             native_rating: rating(input.state.rating),
             rating: previous.map_or(UNRATED, |record| record.rating),
-            padding: 0,
+            bit_depth: u8::try_from(audio_value(input.audio[2])).unwrap_or(0),
+            channels: u8::try_from(audio_value(input.audio[3])).unwrap_or(0),
+            bitrate_kbps: audio_value(input.audio[0]),
+            sample_rate_hz: audio_value(input.audio[1]),
+            modified: optional_u32(input.modified),
         };
         let slot = self.tracks.place(record);
         let stats = self.stats.entry(slot).or_default();
@@ -1702,6 +1720,9 @@ pub(crate) struct TrackInput<'a> {
     pub(crate) disc: i64,
     pub(crate) number: i64,
     pub(crate) bpm: Option<i64>,
+    /// Bitrate in kbps, sample rate in Hz, bit depth and channels.
+    pub(crate) audio: [Option<i64>; 4],
+    pub(crate) modified: Option<i64>,
     pub(crate) state: &'a NativeState,
     /// Artists, album artists, tags and folders.
     pub(crate) links: [&'a [i64]; 4],

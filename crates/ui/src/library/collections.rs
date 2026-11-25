@@ -23,7 +23,7 @@ use crate::widgets::library_fields::{
     column_fit_width, column_width, compact_header_column_width, grid_label_with_label,
 };
 use crate::widgets::recycled_cells::TrackRowPlayingIndicator;
-use crate::widgets::table_header::{ColumnViewHeader, TableFrame};
+use crate::widgets::table_header::{ColumnViewHeader, HeaderSort, TableFrame};
 use crate::widgets::table_sizing::{ColumnViewWidthFit, install_column_view_width_fit};
 use rufin_core::route::Route;
 
@@ -37,9 +37,30 @@ pub struct CollectionTableProjection {
     width_for_field: Rc<dyn Fn(LibraryField) -> i32>,
     field_columns: Rc<RefCell<Vec<(LibraryField, gtk::ColumnViewColumn)>>>,
     width_fit: ColumnViewWidthFit,
+    key: LibraryListKey,
+    /// Sorts the list by a column, as a click on its header does; none for a table whose rows
+    /// keep another order.
+    sort_by: Option<Rc<dyn Fn(LibraryField)>>,
 }
 
 impl CollectionTableProjection {
+    /// Leaves the rows in their own order: column headers do not sort them.
+    pub fn without_header_sort(mut self) -> Self {
+        self.sort_by = None;
+        self.header.set_sort(None);
+        self
+    }
+
+    /// Shows the list's sort on its column headers.
+    pub fn apply_sort(&self, settings: &crate::library::LibraryListSettings) {
+        self.header
+            .set_sort(self.sort_by.as_ref().map(|sort_by| HeaderSort {
+                key: self.key,
+                sort_by: Rc::clone(sort_by),
+                current: (settings.sort_key, settings.descending),
+            }));
+    }
+
     pub fn widget(&self) -> gtk::Widget {
         self.table.clone().upcast()
     }
@@ -148,6 +169,7 @@ impl LibraryPresentationProjection {
     fn apply_fields(&self, settings: &crate::library::LibraryListSettings) {
         if let Self::Row(table) = self {
             table.apply_display(&settings.display);
+            table.apply_sort(settings);
         } else {
             crate::widgets::display::apply(&self.widget(), &settings.display);
         }
@@ -696,6 +718,14 @@ where
     let (table, width_fit, navigation) =
         collection_table_with_width(model, active, initial_width, activate, selection);
     table.add_css_class("external-header");
+    let sort_shell = Rc::downgrade(shell);
+    let sort_by = Rc::new(move |field| {
+        if let Some(shell) = sort_shell.upgrade() {
+            shell.update_library_list_settings(key, |settings| {
+                settings.sort_by_column(key, field);
+            });
+        }
+    }) as Rc<dyn Fn(LibraryField)>;
     let projection = CollectionTableProjection {
         table,
         header: ColumnViewHeader::new(),
@@ -705,6 +735,8 @@ where
         width_for_field,
         field_columns: Rc::new(RefCell::new(field_columns)),
         width_fit,
+        key,
+        sort_by: Some(sort_by),
     };
     projection.update_header();
     projection
@@ -713,7 +745,9 @@ where
             .header
             .widget()
             .upcast_ref()])]);
-    projection.apply_display(&shell.settings.current.borrow().library_list(key).display);
+    let settings = shell.settings.current.borrow().library_list(key);
+    projection.apply_display(&settings.display);
+    projection.apply_sort(&settings);
     projection
 }
 

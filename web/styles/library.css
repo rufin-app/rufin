@@ -369,6 +369,14 @@ html.fit-covers :is(.cover img, .cover-quadrant img, .pin-cover img, .quick-mix-
   vertical-align: middle;
 }
 
+.track-list th[data-sort] {
+  cursor: pointer;
+}
+
+.track-list th[data-sort]:hover {
+  color: var(--text);
+}
+
 .cover-wrap {
   position: relative;
 }

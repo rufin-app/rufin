@@ -62,6 +62,25 @@ struct Column {
     title: String,
     class: &'static str,
     icon: &'static str,
+    /// The order a click on the header reads the list in; none when the column does not sort it.
+    sort: Option<ColumnSort>,
+}
+
+struct ColumnSort {
+    name: &'static str,
+    descending: bool,
+    /// Whether the list reads in this column's order now, and descending.
+    current: Option<bool>,
+}
+
+impl ColumnSort {
+    fn aria(&self) -> &'static str {
+        match self.current {
+            Some(true) => "descending",
+            Some(false) => "ascending",
+            None => "none",
+        }
+    }
 }
 
 impl Column {
@@ -81,7 +100,22 @@ impl Column {
                 .unwrap_or_default(),
             class,
             icon,
+            sort: None,
         }
+    }
+
+    /// Lets the header sort list `list`, which reads in `order`, as GTK's does.
+    fn sorting(mut self, list: LibraryListKey, order: (LibraryField, bool)) -> Self {
+        let mut settings = rufin_core::settings::LibraryListSettings::for_key(list);
+        (settings.sort_key, settings.descending) = order;
+        if settings.sort_by_column(list, self.field) {
+            self.sort = Some(ColumnSort {
+                name: sort_name(list, settings.sort_key),
+                descending: settings.descending,
+                current: (settings.sort_key == order.0).then_some(order.1),
+            });
+        }
+        self
     }
 }
 
@@ -825,12 +859,21 @@ struct Library<'a> {
 }
 
 /// A track list's columns: its list's row fields. Track rows carry no artwork, so an Image
-/// field shows no column.
-fn columns(fields: &[LibraryField]) -> Vec<Column> {
+/// field shows no column. With `sorting`, the list and its order, the headers sort it.
+fn columns(
+    fields: &[LibraryField],
+    sorting: Option<(LibraryListKey, (LibraryField, bool))>,
+) -> Vec<Column> {
     fields
         .iter()
         .filter(|field| **field != LibraryField::Image)
-        .map(|field| Column::new(*field))
+        .map(|field| {
+            let column = Column::new(*field);
+            match sorting {
+                Some((list, order)) => column.sorting(list, order),
+                None => column,
+            }
+        })
         .collect()
 }
 
@@ -892,7 +935,7 @@ pub(super) fn library(
             let fields = page::fields(products, &page);
             Favorites {
                 rows: shown(&page, &opened.favorites, &fields, 0, "favorite"),
-                columns: columns(&fields),
+                columns: columns(&fields, None),
                 href: link(&HashMap::from([("page".to_owned(), page.anew().json())])),
                 page: page.json(),
             }
@@ -903,7 +946,16 @@ pub(super) fn library(
         head: page_head(products, &settings, opened, form),
         favorites,
         rows,
-        columns: if cards { Vec::new() } else { columns(&fields) },
+        // Search results keep their ranking.
+        columns: if cards {
+            Vec::new()
+        } else {
+            columns(
+                &fields,
+                (token.route != rufin_core::route::Route::Search)
+                    .then_some((list, (sort, descending))),
+            )
+        },
         cards,
         album_tracks: matches!(token.route, rufin_core::route::Route::AlbumDetail(_)),
         page: token.json(),

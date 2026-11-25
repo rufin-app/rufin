@@ -44,9 +44,23 @@ pub struct DocumentEntry {
     pub mime_type: String,
     pub size: Option<u64>,
     pub revision: Option<String>,
+    /// The last modification, in milliseconds since the Unix epoch.
+    #[serde(default)]
+    pub modified: Option<i64>,
     pub writable: bool,
     pub deletable: bool,
     pub can_create: bool,
+}
+
+impl DocumentEntry {
+    /// The last modification in nanoseconds since the Unix epoch, as a listing stores it;
+    /// zero when the provider gives none.
+    pub(crate) fn modified_ns(&self) -> i64 {
+        self.modified
+            .filter(|modified| *modified > 0)
+            .and_then(|modified| modified.checked_mul(1_000_000))
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Deserialize, Serialize)]

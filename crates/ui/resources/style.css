@@ -49,6 +49,10 @@ columnview > header {
   border-bottom: 1px solid color-mix(in srgb, var(--border-color) 78%, transparent);
 }
 
+.table-header.sortable:hover {
+  color: var(--window-fg-color);
+}
+
 .collection-table-header {
   border-bottom: 1px solid color-mix(in srgb, var(--border-color) 78%, transparent);
   padding: 6px 0;

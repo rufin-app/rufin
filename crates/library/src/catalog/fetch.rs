@@ -81,7 +81,7 @@ impl Part {
                     "track.object_id".into(),
                     "track.release_date".into(),
                     source_path.into(),
-                    "json_extract(details.metadata,'$.audio_properties')".into(),
+                    "json_patch(coalesce(json_extract(details.metadata,'$.audio_properties'),'{}'),json_object('bitrate_kbps',track.bitrate_kbps,'sample_rate_hz',track.sample_rate_hz,'bit_depth',track.bit_depth,'channels',track.channels))".into(),
                     "json_extract(details.metadata,'$.groupings')".into(),
                 ],
                 "JOIN tracks track ON track.track_key=requested.value LEFT JOIN track_details details ON details.track_key=track.track_key LEFT JOIN sources source ON source.source_key=track.source_key".into(),

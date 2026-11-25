@@ -116,9 +116,10 @@ pub fn add_field_skeleton_class(widget: &impl IsA<gtk::Widget>, field: LibraryFi
         | LibraryField::DiscNumber => "skeleton-short-value",
         LibraryField::TrackNumber => "skeleton-track-number",
         LibraryField::Duration => "skeleton-duration",
-        LibraryField::ReleaseDate | LibraryField::DateAdded | LibraryField::LastPlayed => {
-            "skeleton-date"
-        }
+        LibraryField::ReleaseDate
+        | LibraryField::DateAdded
+        | LibraryField::DateModified
+        | LibraryField::LastPlayed => "skeleton-date",
         _ => return,
     };
     widget.add_css_class(class);
@@ -239,7 +240,7 @@ pub fn column_width(field: LibraryField) -> i32 {
         | LibraryField::AlbumArtist
         | LibraryField::Genre
         | LibraryField::Grouping => 220,
-        LibraryField::ReleaseDate | LibraryField::DateAdded => 118,
+        LibraryField::ReleaseDate | LibraryField::DateAdded | LibraryField::DateModified => 118,
         LibraryField::LastPlayed => 148,
         LibraryField::PlayCount => play_count_column_width(),
         LibraryField::UserRating | LibraryField::SongCount | LibraryField::AlbumCount => 96,

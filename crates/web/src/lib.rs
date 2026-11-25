@@ -670,7 +670,7 @@ fn boolean(parameters: &HashMap<String, String>, key: &str) -> Result<bool, Erro
 }
 
 /// The `sort` names help.json documents, and the field each one names.
-const SORTS: [(&str, LibraryField); 18] = [
+const SORTS: [(&str, LibraryField); 26] = [
     ("position", LibraryField::RowIndex),
     ("title", LibraryField::Title),
     ("track_number", LibraryField::TrackNumber),
@@ -680,11 +680,19 @@ const SORTS: [(&str, LibraryField); 18] = [
     ("year", LibraryField::Year),
     ("release_date", LibraryField::ReleaseDate),
     ("date_added", LibraryField::DateAdded),
+    ("date_modified", LibraryField::DateModified),
     ("last_played", LibraryField::LastPlayed),
     ("play_count", LibraryField::PlayCount),
     ("rating", LibraryField::UserRating),
     ("genre", LibraryField::Genre),
     ("bpm", LibraryField::Bpm),
+    ("bitrate", LibraryField::Bitrate),
+    ("sample_rate", LibraryField::SampleRate),
+    ("bit_depth", LibraryField::BitDepth),
+    ("channels", LibraryField::Channels),
+    ("format", LibraryField::Format),
+    ("source", LibraryField::Source),
+    ("disc_number", LibraryField::DiscNumber),
     ("duration", LibraryField::Duration),
     ("favorite", LibraryField::Favorite),
     ("track_count", LibraryField::SongCount),

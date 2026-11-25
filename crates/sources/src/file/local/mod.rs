@@ -1004,6 +1004,7 @@ impl walk::FileSource for LocalFiles<'_> {
                 .await
                 .map_err(|error| SourceError::Other(error.to_string()))??;
             return Ok(Entry {
+                mtime_ns: document.modified_ns(),
                 name: document.name.clone(),
                 native: document.name,
                 directory: document.directory,

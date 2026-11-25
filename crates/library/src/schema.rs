@@ -13,7 +13,7 @@ pub(crate) async fn pragma(
             .await?,
     )
 }
-pub(crate) const STORE_VERSION: i64 = 66;
+pub(crate) const STORE_VERSION: i64 = 67;
 
 /// Bits of the `flags` column of tracks, albums, artists, tags and folders, copied from the
 /// artwork binding and the details row so the Catalog load reads neither.
@@ -31,7 +31,7 @@ pub(crate) const LINK_GENRE: i64 = 2;
 pub(crate) const LINK_MOOD: i64 = 3;
 pub(crate) const LINK_FOLDER: i64 = 4;
 
-pub(crate) const STORE_SCHEMA: &str = r#"PRAGMA user_version = 66;
+pub(crate) const STORE_SCHEMA: &str = r#"PRAGMA user_version = 67;
 
 CREATE TABLE sources (
     source_key INTEGER PRIMARY KEY,
@@ -111,6 +111,11 @@ CREATE TABLE tracks (
     native_rating INTEGER,
     native_play_count INTEGER,
     native_last_played INTEGER,
+    bitrate_kbps INTEGER,
+    sample_rate_hz INTEGER,
+    bit_depth INTEGER,
+    channels INTEGER,
+    modified_at INTEGER,
     UNIQUE(source_key,object_id)
 ) STRICT;
 CREATE INDEX tracks_album_idx ON tracks(album_key) WHERE album_key IS NOT NULL;

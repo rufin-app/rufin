@@ -732,6 +732,17 @@ fn track_from_navidrome(
             year: positive_u16(field(track, "year")).map(i64::from),
             release_date: item_release_date(track),
             date_added: normalized_date(field(track, "createdAt")),
+            // Navidrome's updatedAt is the file's modification time.
+            modified_at: field::<String>(track, "updatedAt")
+                .and_then(|updated| {
+                    time::OffsetDateTime::parse(
+                        &updated,
+                        &time::format_description::well_known::Rfc3339,
+                    )
+                    .ok()
+                })
+                .map(time::OffsetDateTime::unix_timestamp)
+                .filter(|modified| *modified > 0),
             duration_millis: i64::from(duration_seconds) * 1000,
             disc_number: i64::from(positive_u16(field(track, "discNumber")).unwrap_or_default()),
             track_number: i64::from(positive_u16(field(track, "trackNumber")).unwrap_or_default()),

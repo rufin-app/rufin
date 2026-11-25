@@ -215,7 +215,7 @@ impl Catalog {
                 (SELECT json_array(origin,path,root,relative_path,access_uri) FROM local_locators WHERE media_uri=track.media_uri
                     ORDER BY local_access_file_key LIMIT 1),
                 details.audio_hash,
-                json_extract(details.metadata,'$.audio_properties.channels'),
+                track.channels,
                 CASE WHEN json_type(details.metadata,'$.source_loudness')='object' THEN json(json_extract(details.metadata,'$.source_loudness')) END,
                 CASE WHEN {own} THEN json(json_extract(details.metadata,'$.album_loudness')) ELSE (
                     SELECT json(json_extract(member_details.metadata,'$.album_loudness')) FROM tracks member JOIN track_details member_details USING(track_key)
@@ -224,7 +224,7 @@ impl Catalog {
                 measured.integrated_lufs,measured.true_peak,album.integrated_lufs,album.true_peak,details.audio_revision,track.track_key,
                 json_extract(details.metadata,'$.audio_properties.size_bytes'),
                 CASE WHEN track.title='' THEN track.media_uri ELSE track.title END,track.display_artist,track.display_album,track.disc_number,track.track_number,
-                json_extract(details.metadata,'$.audio_properties.bitrate_kbps'),json_extract(details.metadata,'$.audio_properties.bit_depth')
+                track.bitrate_kbps,track.bit_depth
              FROM tracks track LEFT JOIN track_details details USING(track_key)
              LEFT JOIN files file ON file.source_key=track.source_key AND file.path=details.source_path
              LEFT JOIN loudness measured ON measured.audio_hash=details.audio_hash

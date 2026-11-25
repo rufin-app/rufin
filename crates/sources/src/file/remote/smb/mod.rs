@@ -75,6 +75,18 @@ pub(crate) struct Entry {
     pub size: u64,
     pub revision: String,
     pub native_id: Option<String>,
+    /// The last write, in nanoseconds since the Unix epoch; zero before it.
+    pub mtime_ns: i64,
+}
+
+/// A FILETIME, 100 ns intervals since 1601, in nanoseconds since the Unix epoch.
+fn unix_ns(filetime: u64) -> i64 {
+    const UNIX_EPOCH: u64 = 116_444_736_000_000_000;
+    filetime
+        .checked_sub(UNIX_EPOCH)
+        .and_then(|time| i64::try_from(time).ok())
+        .and_then(|time| time.checked_mul(100))
+        .unwrap_or_default()
 }
 
 impl SmbClient {
@@ -246,6 +258,7 @@ impl SmbClient {
                             ),
                             native_id: (entry.file_id != 0)
                                 .then(|| format!("{volume}:{}", entry.file_id)),
+                            mtime_ns: unix_ns(*entry.last_write_time),
                         })
                         .map_err(|_| SourceError::Cancelled)?;
                 }
@@ -556,6 +569,7 @@ fn facts(file: &protocol::resource::ResourceHandle, path: &str) -> SourceResult<
                 volume.volume_serial_number, info.internal.index_number
             )
         }),
+        mtime_ns: unix_ns(*info.basic.last_write_time),
     })
 }
 

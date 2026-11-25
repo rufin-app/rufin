@@ -386,6 +386,22 @@ impl LibraryListSettings {
         self.layout_version = LIBRARY_LIST_LAYOUT_VERSION;
     }
 
+    /// Sorts the list by the column of `field`, as a click on its header does: by that column
+    /// in ascending order, or the other way round when it already sorts by it. False when the
+    /// column does not sort the list.
+    pub fn sort_by_column(&mut self, key: LibraryListKey, field: LibraryField) -> bool {
+        let Some(sort) = library_column_sort(key, field) else {
+            return false;
+        };
+        if self.sort_key == sort {
+            self.descending = !self.descending;
+        } else {
+            self.sort_key = sort;
+            self.descending = false;
+        }
+        true
+    }
+
     /// The fields `layout` shows: row columns, grid labels or detail track columns.
     pub fn fields(&self, layout: LibraryLayout) -> &[LibraryField] {
         match layout {
@@ -776,6 +792,7 @@ pub fn available_row_fields(key: LibraryListKey) -> &'static [LibraryField] {
             LibraryField::Year,
             LibraryField::ReleaseDate,
             LibraryField::DateAdded,
+            LibraryField::DateModified,
             LibraryField::LastPlayed,
             LibraryField::PlayCount,
             LibraryField::UserRating,
@@ -848,6 +865,17 @@ pub fn available_grid_fields(key: LibraryListKey) -> &'static [LibraryField] {
     }
 }
 
+/// The sort a click on `field`'s column header picks in list `key`: none for a column the list
+/// does not sort by, or a list with one order.
+pub fn library_column_sort(key: LibraryListKey, field: LibraryField) -> Option<LibraryField> {
+    let sort = match field {
+        LibraryField::TitleMerged => LibraryField::Title,
+        field => field,
+    };
+    let fields = available_sort_fields(key);
+    (fields.len() > 1 && fields.contains(&sort)).then_some(sort)
+}
+
 pub fn available_sort_fields(key: LibraryListKey) -> &'static [LibraryField] {
     const TRACK_SORT_FIELDS: &[LibraryField] = &[
         LibraryField::RowIndex,
@@ -859,11 +887,19 @@ pub fn available_sort_fields(key: LibraryListKey) -> &'static [LibraryField] {
         LibraryField::Year,
         LibraryField::ReleaseDate,
         LibraryField::DateAdded,
+        LibraryField::DateModified,
         LibraryField::LastPlayed,
         LibraryField::PlayCount,
         LibraryField::UserRating,
         LibraryField::Genre,
         LibraryField::Bpm,
+        LibraryField::Bitrate,
+        LibraryField::SampleRate,
+        LibraryField::BitDepth,
+        LibraryField::Channels,
+        LibraryField::Format,
+        LibraryField::Source,
+        LibraryField::DiscNumber,
         LibraryField::Duration,
         LibraryField::Favorite,
     ];
@@ -878,6 +914,7 @@ pub fn available_sort_fields(key: LibraryListKey) -> &'static [LibraryField] {
             LibraryField::LastPlayed,
             LibraryField::PlayCount,
             LibraryField::UserRating,
+            LibraryField::Genre,
             LibraryField::SongCount,
             LibraryField::Duration,
             LibraryField::Favorite,
@@ -1063,6 +1100,7 @@ pub fn available_detail_track_fields() -> &'static [LibraryField] {
         LibraryField::Channels,
         LibraryField::Format,
         LibraryField::FilePath,
+        LibraryField::DateModified,
         LibraryField::Source,
         LibraryField::RowIndex,
         LibraryField::TrackNumber,

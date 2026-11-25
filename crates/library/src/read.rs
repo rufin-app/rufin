@@ -346,6 +346,8 @@ pub struct TrackRow {
     pub bpm: Option<i64>,
     /// Unix seconds; shown as its UTC date.
     pub date_added: Option<i64>,
+    /// When the track's file last changed, in unix seconds.
+    pub date_modified: Option<i64>,
     pub source_format: Option<String>,
     pub state: TrackState,
     pub is_downloaded: bool,
@@ -806,6 +808,7 @@ impl<'a> Builder<'a> {
             year: year_of(record.year).map(i64::from),
             bpm: (record.bpm != u16::MAX).then_some(i64::from(record.bpm)),
             date_added: known(record.added).map(i64::from),
+            date_modified: known(record.modified).map(i64::from),
             source_format: optional(snapshot, record.format),
             state: state(
                 record.flags,
@@ -1242,6 +1245,7 @@ impl<'a> Builder<'a> {
                     year: None,
                     bpm: None,
                     date_added: None,
+                    date_modified: None,
                     source_format: None,
                     state: TrackState::default(),
                     is_downloaded: false,

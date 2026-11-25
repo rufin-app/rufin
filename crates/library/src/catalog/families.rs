@@ -113,6 +113,7 @@ pub(crate) static TRACKS: Table = Table {
         Read track_number, Read year, Read release_date, Read date_added, Held released,
         Held added_at, Read first_seen_at, Read bpm, Held comment, Held source_format, Held flags, Read native_favorite,
         Read native_rating, Read native_play_count, Read native_last_played,
+        Read bitrate_kbps, Read sample_rate_hz, Read bit_depth, Read channels, Read modified_at,
     ],
     details: Some(&TRACK_DETAILS),
     tagged: false,
@@ -644,6 +645,8 @@ impl Row for Track {
             num(self.flags()),
         ];
         cells.extend(state_cells(&self.state));
+        cells.extend(facts.audio.map(int));
+        cells.push(int(facts.modified));
         cells.extend([
             blob(self.binding.as_deref()),
             text(self.source_path.as_deref()),
@@ -712,6 +715,13 @@ impl Row for Track {
                 bpm: row.try_get("bpm")?,
                 comment: snapshot.held_optional(record.comment),
                 format: snapshot.held_optional(record.format),
+                audio: [
+                    row.try_get("bitrate_kbps")?,
+                    row.try_get("sample_rate_hz")?,
+                    row.try_get("bit_depth")?,
+                    row.try_get("channels")?,
+                ],
+                modified: row.try_get("modified_at")?,
             },
             first_seen: row.try_get("first_seen_at")?,
             state: native_state(row)?,

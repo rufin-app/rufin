@@ -392,6 +392,34 @@ impl ArtistRouteListCell {
         self.set_layout_manager(Some(glib::Object::new::<ArtistTableLayout>()));
     }
 
+    /// Lets the header's columns sort the artist's albums.
+    fn apply_header_sort(&self, shell: &Rc<CatalogUi>, settings: &LibraryListSettings) {
+        let key = LibraryListKey::ArtistAlbums;
+        let shell = Rc::downgrade(shell);
+        let sort = crate::widgets::table_header::HeaderSort {
+            key,
+            sort_by: Rc::new(move |field| {
+                if let Some(shell) = shell.upgrade() {
+                    shell.update_library_list_settings(key, |settings| {
+                        settings.sort_by_column(key, field);
+                    });
+                }
+            }),
+            current: (settings.sort_key, settings.descending),
+        };
+        let imp = self.imp();
+        for (cell, field) in imp
+            .table_cells
+            .borrow()
+            .iter()
+            .zip(imp.table_fields.borrow().iter())
+        {
+            if let Some(cell) = cell.downcast_ref::<crate::widgets::table_header::HeaderCell>() {
+                sort.apply(cell, Some(*field));
+            }
+        }
+    }
+
     fn column_widths(&self, width: i32) -> Vec<i32> {
         let imp = self.imp();
         let fields = imp.table_fields.borrow();
@@ -951,6 +979,7 @@ fn artist_route_list(
                     &section.applied_settings.borrow().row_fields,
                     true,
                 );
+                state.apply_header_sort(&bind_shell, &section.applied_settings.borrow());
                 crate::widgets::display::apply(&state, &section.applied_settings.borrow().display);
                 state.set_margin_bottom(0);
             }

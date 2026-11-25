@@ -808,6 +808,13 @@ function init() {
     showOrder($("sort").value, $("descending").getAttribute("aria-pressed") !== "true");
     order();
   });
+  // A column header sorts the list by its column, or the other way round when it already does.
+  document.addEventListener("click", (event) => {
+    const header = event.target.closest?.(".track-list th[data-sort]");
+    if (!header) return;
+    showOrder(header.dataset.sort, header.dataset.descending === "true");
+    order();
+  });
   $("refresh").addEventListener("click", () =>
     run(async () => {
       $("main-menu").hidePopover();

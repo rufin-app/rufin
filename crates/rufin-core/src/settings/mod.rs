@@ -42,7 +42,7 @@ pub use layout::{
     MIN_LEFT_SIDEBAR_WIDTH, MIN_NARROW_LAYOUT_THRESHOLD, MIN_RIGHT_SIDEBAR_WIDTH,
     MIN_TABLE_COLUMN_WIDTH, RightSidebarMode, ThemePreference, available_detail_track_fields,
     available_grid_fields, available_row_fields, available_sort_fields,
-    default_library_list_settings, sanitized_window_size,
+    default_library_list_settings, library_column_sort, sanitized_window_size,
 };
 pub use sidebar::{
     HomeBlockOptions, HomeBlockRow, HomeSettings, MAX_HOME_BLOCK_ITEMS, MAX_HOME_BLOCK_ROWS,
