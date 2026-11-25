@@ -137,6 +137,7 @@ class RufinConnection(application: Application) : AndroidViewModel(application) 
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
             val connected = (binder as RufinService.Connection).service
             service = connected
+            connected.screenShown()
             observe(connected)
         }
         override fun onServiceDisconnected(name: ComponentName) {

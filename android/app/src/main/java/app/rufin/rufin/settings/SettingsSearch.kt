@@ -103,7 +103,7 @@ internal fun settingsSearchItems(model: RufinConnection, preferences: Preference
     page(MoreDestination.General) {
         rows(null, "Language")
         rows("Accessibility", "Reduce motion")
-        rows("App settings", "Starting page", "App icon", "Update check interval", "Listening overview")
+        rows("App settings", "Starting page", "App icon", "Keep running in the background", "Update check interval", "Listening overview")
         rows("Notifications", "Control notifications", "Release notifications")
         rows("Behavior", "Prefer distinct track covers", "Use sort tags", "Group albums by folder", "Split featured artists", "Show whole covers", "Allow permanently deleting tracks")
     }

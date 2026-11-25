@@ -296,6 +296,10 @@ pub(super) const CHOICES: &[(&str, &str)] = &[
         "/mobile_data_stream_quality",
     ),
     (
+        "android.keep_running_in_background",
+        "/keep_running_in_background",
+    ),
+    (
         "android.mobile_data_stream_cache_ahead",
         "/mobile_data_stream_cache_ahead",
     ),

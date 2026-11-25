@@ -640,6 +640,9 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
+msgid "Background"
+msgstr ""
+
 msgid "Backup Folder"
 msgstr ""
 
@@ -1373,6 +1376,9 @@ msgid "Diagnostic log"
 msgstr ""
 
 msgid "Direct"
+msgstr ""
+
+msgid "Disable battery optimization"
 msgstr ""
 
 msgid "Disable private mode"
@@ -2184,6 +2190,9 @@ msgstr ""
 msgid "Keep music available offline. Folder changes only affect new downloads"
 msgstr ""
 
+msgid "Keep running in the background"
+msgstr ""
+
 msgid "Keyboard Shortcuts"
 msgstr ""
 
@@ -2671,6 +2680,9 @@ msgid "Nearby devices"
 msgstr ""
 
 msgid "Nearby discovery"
+msgstr ""
+
+msgid "Needed to keep running in the background"
 msgstr ""
 
 msgid "Needs attention"
@@ -3699,6 +3711,9 @@ msgstr ""
 msgid "Rows"
 msgstr ""
 
+msgid "Rufin Connect stays reachable while the screen is off or Rufin is closed"
+msgstr ""
+
 msgid "Rufin Connect"
 msgstr ""
 
@@ -3716,6 +3731,9 @@ msgid "Rufin needs local access to {path}"
 msgstr ""
 
 msgid "Rule actions"
+msgstr ""
+
+msgid "Running in the background"
 msgstr ""
 
 msgid "SMB / Samba"

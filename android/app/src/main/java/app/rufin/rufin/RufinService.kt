@@ -285,6 +285,17 @@ class RufinService : MediaSessionService() {
                 } finally { source.destroy(); downloads.destroy() }
             }
             launch {
+                // It stops with the runtime it keeps open.
+                val settings = started.settings()
+                val preferences = settings.subscribePreferences()
+                try {
+                    while (isActive) keepRunning(withContext(Dispatchers.Default) { preferences.next() }.player.application.keepRunningInBackground)
+                } finally {
+                    keepRunning(false)
+                    preferences.destroy(); settings.destroy()
+                }
+            }
+            launch {
                 val source = started.source()
                 val sources = source.subscribe()
                 var documentSource: String? = null
@@ -353,6 +364,17 @@ class RufinService : MediaSessionService() {
         }
 
     }
+
+    /** What "Keep running in the background" asks, and whether Android started it. */
+    private var keepRunning = false
+    private var keptRunning = false
+    private fun keepRunning(keep: Boolean) {
+        keepRunning = keep
+        if (keep != keptRunning) keptRunning = BackgroundService.set(this, keep)
+    }
+    /** A screen of Rufin shows: Android now allows a start it refused while the runtime opened in the background,
+     *  as it does for the system's media controls after a restart. */
+    internal fun screenShown() = keepRunning(keepRunning)
 
     private fun releaseSyncFolder(started: AndroidRuntime, document: String) {
         val uri = android.net.Uri.parse(document)

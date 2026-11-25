@@ -298,6 +298,9 @@ preference_group!(#[cfg_attr(feature = "bindings", derive(uniffi::Record))] Appl
     /// Android: how many tracks ahead the stream cache fetches on mobile data.
     #[serde(default = "default_mobile_data_stream_cache_ahead")]
     mobile_data_stream_cache_ahead: u32 = default_mobile_data_stream_cache_ahead() => set_mobile_data_stream_cache_ahead;
+    /// Android: whether Rufin stays running, with a notification, while none of its screens shows.
+    #[serde(default)]
+    keep_running_in_background: bool = false => set_keep_running_in_background;
     #[serde(default = "default_auto_dj_refill_threshold")]
     auto_dj_refill_threshold: u8 = DEFAULT_AUTO_DJ_REFILL_THRESHOLD => set_auto_dj_refill_threshold;
     /// How many tracks one Auto DJ refill adds.

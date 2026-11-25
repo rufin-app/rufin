@@ -21,6 +21,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import android.content.Intent
+import android.content.res.Configuration
+import android.net.Uri
+import android.os.PowerManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
@@ -167,6 +173,10 @@ internal fun AppSettingsPage(destination: MoreDestination, model: RufinConnectio
                         browse.routes.map { it.item.name to it.title },
                         select = { page -> preferences.changePreference { setStartingPage(SidebarRouteItem.valueOf(page)) } })
                     AppIconChoice()
+                    SettingsSwitch(translate("Keep running in the background"), state.keepRunningInBackground,
+                        translate("Rufin Connect stays reachable while the screen is off or Rufin is closed")) { preferences.changePreference { setKeepRunningInBackground(it) } }
+                    // A TV has no battery to spare and no prompt for it.
+                    if (state.keepRunningInBackground && LocalConfiguration.current.uiMode and Configuration.UI_MODE_TYPE_MASK != Configuration.UI_MODE_TYPE_TELEVISION) BatteryOptimizationRow()
                     PreferenceChoice(translate("Update check interval"), state.releaseCheckIntervalHours.toString(),
                         listOf("1" to translate("1 hour"), "6" to translate("6 hours"), "12" to translate("12 hours"), "24" to translate("24 hours")),
                         select = { preferences.changePreference { setReleaseCheckIntervalHours(it.toUInt()) } })
@@ -200,6 +210,23 @@ internal fun AppSettingsPage(destination: MoreDestination, model: RufinConnectio
         }
     }
 
+}
+
+/** While Android optimizes Rufin's battery use, which can stop it in the background: Android's own prompt to stop.
+ *  Once allowed, it changes back only in Android's settings. */
+@Composable
+private fun BatteryOptimizationRow() {
+    val context = LocalContext.current
+    val power = remember(context) { context.getSystemService(PowerManager::class.java) }
+    var optimized by remember { mutableStateOf(!power.isIgnoringBatteryOptimizations(context.packageName)) }
+    LifecycleResumeEffect(power) {
+        optimized = !power.isIgnoringBatteryOptimizations(context.packageName)
+        onPauseOrDispose { }
+    }
+    if (optimized) SettingsLink(null, translate("Disable battery optimization"), translate("Needed to keep running in the background")) {
+        context.startActivity(Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+            Uri.fromParts("package", context.packageName, null)))
+    }
 }
 
 /** The launcher icon; the symbolic tiles suit phone themes that leave the colored icon as is. */
