@@ -31,7 +31,7 @@ class RufinPlayerTest {
             metadata = TrackMetadata(
                 title = "Track", artist = "", album = "", albumDisplayArtist = null, sortText = "track",
                 durationMillis = 60_000L, discNumber = 0L, trackNumber = 0L, year = null,
-                releaseDate = null, dateAdded = null, sourceFormat = null,
+                releaseDate = null, dateAdded = null, modifiedAt = null, sourceFormat = null,
                 audioProperties = AudioProperties(null, null, null, null), comment = null, bpm = null,
                 musicbrainzRecordingId = null, musicbrainzReleaseTrackId = null, musicbrainzAlbumId = null,
                 musicbrainzReleaseGroupId = null, primaryArtistMusicbrainzId = null,
