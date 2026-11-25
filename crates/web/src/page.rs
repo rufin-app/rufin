@@ -184,14 +184,26 @@ pub(super) async fn selection(
     token: PageToken,
     ranges: Option<Vec<std::ops::Range<usize>>>,
 ) -> Result<Option<library::MemberSelection>, Error> {
+    let Some(ranges) = ranges else {
+        let selected = scope(products, token.source.as_ref(), token.folder.as_deref()).await?;
+        return products
+            .source
+            .selection(
+                &token.route,
+                selected.as_ref(),
+                &token.options,
+                &ReadCancellation::new(),
+            )
+            .await
+            .map_err(read_error);
+    };
     let view = open(products, token, 0, 0).await?.view;
-    Ok(match (ranges, view.members(), view.list()) {
-        (None, _, _) => view.selection(),
-        (ranges, Some(read), _) => Some(library::MemberSelection::Members {
+    Ok(match view.members() {
+        Some(read) => Some(library::MemberSelection::Members {
             read: read.clone(),
-            ranges,
+            ranges: Some(ranges),
         }),
-        (Some(ranges), None, list) => list.map(|read| {
+        None => view.list().map(|read| {
             let scope = rufin_core::view::SelectionScope::Page;
             products.source.list_selection(read.clone(), ranges, scope)
         }),

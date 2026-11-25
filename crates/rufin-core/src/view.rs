@@ -470,8 +470,9 @@ impl SourceOwner {
     }
 
     /// Everything `route` lists, in the order and filter `options` ask, without reading its rows
-    /// or header. None when the route lists nothing or its collection is gone or empty.
-    async fn selection(
+    /// or header; a folder with its child folders whole. None when the route lists nothing or
+    /// its collection is gone or empty.
+    pub async fn selection(
         &self,
         route: &Route,
         selected: Option<&SelectedLibrary>,
@@ -491,6 +492,26 @@ impl SourceOwner {
             })
         };
         Ok(Some(match plan {
+            Plan::Folders {
+                projection: projection @ FolderProjection::Live { .. },
+                tracks,
+            } => {
+                let selected = selected
+                    .ok_or_else(|| LibraryError::InvalidRequest("No source selected".into()))?;
+                let walk = FolderWalk {
+                    owner: self,
+                    route,
+                    selected,
+                    options: OpenOptions {
+                        filter: String::new(),
+                        ..options.clone()
+                    },
+                    settings: &settings,
+                    requests: tokio::sync::Semaphore::new(8),
+                    cancel,
+                };
+                walk.selection(projection, tracks).await?
+            }
             Plan::Rows(Read::Members(read)) | Plan::Folders { tracks: read, .. } => {
                 if empty(read.folder) {
                     return Ok(None);
@@ -2736,6 +2757,62 @@ fn folder_tracks(
         settings,
         projection.collection(selected.source_key),
     )
+}
+
+/// A live folder played whole, as Feishin plays one: each child folder whole in the order its
+/// page lists them, then the folder's own tracks. A cached folder's tracks already hold its
+/// child folders'. Only the played page's filter applies; its child folders play whole.
+struct FolderWalk<'a> {
+    owner: &'a SourceOwner,
+    route: &'a Route,
+    selected: &'a SelectedLibrary,
+    options: OpenOptions,
+    settings: &'a Settings,
+    /// Bounds the folders browsed at once, as a remote source answers each with a request.
+    requests: tokio::sync::Semaphore,
+    cancel: &'a ReadCancellation,
+}
+
+impl FolderWalk<'_> {
+    fn selection(
+        &self,
+        projection: FolderProjection,
+        tracks: MemberRead,
+    ) -> futures_util::future::BoxFuture<'_, LibraryResult<MemberSelection>> {
+        Box::pin(async move {
+            let children = projection
+                .live_folders(&tracks.filter, tracks.descending)
+                .map(|child| self.child(child.object_id.clone()));
+            let mut parts = futures_util::future::try_join_all(children).await?;
+            parts.push(tracks.selection());
+            Ok(MemberSelection::Concat(parts))
+        })
+    }
+
+    async fn child(&self, object_id: String) -> LibraryResult<MemberSelection> {
+        let projection = {
+            let _request = self.requests.acquire().await.expect("open semaphore");
+            crate::source::folders::resolve_folder(
+                self.owner,
+                &self.owner.shared.catalog,
+                self.selected,
+                Some(&object_id),
+                self.cancel,
+            )
+            .await?
+        };
+        let tracks = folder_tracks(
+            self.route,
+            self.selected,
+            &projection,
+            &self.options,
+            self.settings,
+        );
+        match projection {
+            FolderProjection::Live { .. } => self.selection(projection, tracks).await,
+            FolderProjection::Cached(_) => Ok(tracks.selection()),
+        }
+    }
 }
 
 /// An artist's releases, searched, ordered and with the plays `options` and the release list
