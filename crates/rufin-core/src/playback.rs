@@ -214,6 +214,91 @@ impl PlaybackOwner {
         self.send(Command::Insert { input, target });
     }
 
+    /// What another device asks of this device's playback.
+    pub(crate) fn control(&self, control: crate::connect::Control) {
+        use crate::connect::Control;
+        match control {
+            Control::PlayPause => self.play_pause(),
+            Control::Play => self.play(),
+            Control::Pause => self.pause(),
+            Control::Stop => self.stop(),
+            Control::Next => self.next(),
+            Control::Previous => self.previous(),
+            Control::Seek { millis } => self.seek_millis(millis),
+            Control::Volume { value } => self.set_volume(value),
+            Control::PersistVolume { value } => self.persist_volume(value),
+            Control::Mute { muted } => self.set_muted(muted),
+            Control::Repeat { mode } => self.set_repeat(mode),
+            Control::Shuffle { enabled } => self.set_shuffle(enabled),
+            Control::AutoDj { enabled } => self.send_cast_auto_dj(enabled),
+            Control::Activate { position } => self.activate(position),
+            Control::Remove { positions } => self.remove_many(QueueSelection::Positions(positions)),
+            Control::Reorder { positions, target } => {
+                self.reorder(QueueSelection::Positions(positions), target)
+            }
+            Control::MoveNext { positions } => {
+                self.move_selection_after_current(QueueSelection::Positions(positions))
+            }
+            Control::Clear { include_current } => self.clear(include_current),
+        }
+    }
+
+    /// What a server's session asks of this device's playback, in terms of what it plays now.
+    fn server_control(&self, source_id: &sources::SourceId, control: sources::ServerControl) {
+        use crate::connect::Control;
+        use sources::ServerControl as Server;
+        let view = || self.current_projection().map(|projection| projection.view);
+        self.control(match control {
+            Server::PlayPause => Control::PlayPause,
+            Server::Play => Control::Play,
+            Server::Pause => Control::Pause,
+            Server::Stop => Control::Stop,
+            Server::Next => Control::Next,
+            Server::Previous => Control::Previous,
+            Server::Seek { millis } => Control::Seek { millis },
+            Server::SeekBy { millis } => {
+                let Some(transport) = view()
+                    .map(|view| view.transport)
+                    .filter(|transport| transport.current.is_some())
+                else {
+                    return;
+                };
+                let target = transport.position_millis.saturating_add_signed(millis);
+                Control::Seek {
+                    millis: if transport.duration_millis > 0 {
+                        target.min(transport.duration_millis)
+                    } else {
+                        target
+                    },
+                }
+            }
+            Server::Volume { value } => Control::PersistVolume { value },
+            Server::VolumeBy { value } => {
+                let Some(view) = view() else {
+                    return;
+                };
+                Control::PersistVolume {
+                    value: (view.controls.volume + value).clamp(0.0, 1.0),
+                }
+            }
+            Server::Mute { muted } => Control::Mute {
+                muted: muted.unwrap_or_else(|| !view().is_some_and(|view| view.controls.muted)),
+            },
+            Server::Repeat { mode } => Control::Repeat { mode },
+            Server::Shuffle { enabled } => Control::Shuffle { enabled },
+            Server::Queue {
+                track_object_ids,
+                placement,
+            } => {
+                let uris = track_object_ids
+                    .iter()
+                    .map(|object_id| library::source_entity_uri(source_id, "track", object_id))
+                    .collect();
+                return self.play_selection(PlayRequest::uris(uris, placement));
+            }
+        })
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new<StartBackend>(
         catalog: Arc<Catalog>,
@@ -317,6 +402,16 @@ impl PlaybackOwner {
                 {
                     debug!(%error, "could not report playback to source");
                 }
+            }
+        });
+        let (controls, controlled) = (owner.source.server_controls(), Arc::downgrade(&owner));
+        owner.runtime.spawn(async move {
+            while let (Ok((source_id, control)), Some(owner)) =
+                (controls.recv().await, controlled.upgrade())
+            {
+                let _ =
+                    tokio::task::spawn_blocking(move || owner.server_control(&source_id, control))
+                        .await;
             }
         });
         crate::settings::follow(

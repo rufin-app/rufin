@@ -1376,35 +1376,9 @@ impl ConnectOwner {
             }
             Request::Control { command } => {
                 let playback = Arc::clone(&self.playback);
-                tokio::task::spawn_blocking(move || match command {
-                    Control::PlayPause => playback.play_pause(),
-                    Control::Play => playback.play(),
-                    Control::Pause => playback.pause(),
-                    Control::Stop => playback.stop(),
-                    Control::Next => playback.next(),
-                    Control::Previous => playback.previous(),
-                    Control::Seek { millis } => playback.seek_millis(millis),
-                    Control::Volume { value } => playback.set_volume(value),
-                    Control::PersistVolume { value } => playback.persist_volume(value),
-                    Control::Mute { muted } => playback.set_muted(muted),
-                    Control::Repeat { mode } => playback.set_repeat(mode),
-                    Control::Shuffle { enabled } => playback.set_shuffle(enabled),
-                    Control::AutoDj { enabled } => playback.send_cast_auto_dj(enabled),
-                    Control::Activate { position } => playback.activate(position),
-                    Control::Remove { positions } => {
-                        playback.remove_many(crate::playback::QueueSelection::Positions(positions))
-                    }
-                    Control::Reorder { positions, target } => playback.reorder(
-                        crate::playback::QueueSelection::Positions(positions),
-                        target,
-                    ),
-                    Control::MoveNext { positions } => playback.move_selection_after_current(
-                        crate::playback::QueueSelection::Positions(positions),
-                    ),
-                    Control::Clear { include_current } => playback.clear(include_current),
-                })
-                .await
-                .map_err(string_error)?;
+                tokio::task::spawn_blocking(move || playback.control(command))
+                    .await
+                    .map_err(string_error)?;
                 serde_json::Value::Null
             }
             Request::Cast(cast) => {
