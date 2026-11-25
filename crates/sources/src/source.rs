@@ -833,7 +833,7 @@ pub enum SourceEditResult {
     Connected(Box<ConnectedSource>),
 }
 
-pub enum Implementation {
+pub(crate) enum Implementation {
     Plex(crate::plex::PlexSource),
     Local(crate::file::local::LocalSource),
     Files(crate::file::remote::FileSource),
@@ -857,11 +857,13 @@ pub struct Source {
     chosen: AtomicU64,
     /// Held while a failed request chooses the address again, once for those failing together.
     choosing: tokio::sync::Mutex<()>,
-    pub implementation: Implementation,
+    pub(crate) implementation: Implementation,
 }
 
 /// How long an unreachable server answers its reads at once before one tries it again.
 const UNREACHABLE_RETRY: std::time::Duration = std::time::Duration::from_secs(30);
+
+const NO_SERVER_PLAYLISTS: SourceError = SourceError::InvalidRequest("Source keeps no playlists");
 
 impl Source {
     pub fn file_connection(&self) -> SourceResult<&crate::FileSource> {
@@ -1309,6 +1311,11 @@ impl Source {
 
     pub fn source_id(&self) -> &SourceId {
         &self.source_id
+    }
+
+    /// The music folders on this device, which Rufin reads itself.
+    pub fn is_local(&self) -> bool {
+        matches!(self.implementation, Implementation::Local(_))
     }
 
     /// Check file metadata without opening a stream or transferring audio.
@@ -2231,16 +2238,321 @@ impl Source {
     }
 
     /// Reads these playlists again after an edit, without the relations a feed update reads.
-    pub async fn apply_playlists(
+    pub async fn refresh_playlist(
         &self,
         catalog: &Catalog,
-        upserts: Vec<String>,
-        removals: Vec<String>,
+        affected: Option<&str>,
+        deleted: Option<&str>,
     ) -> SourceResult<()> {
+        let object = |id: &str| {
+            let raw = id.rsplit(':').next().unwrap_or(id);
+            if matches!(self.implementation, Implementation::OpenSubsonic(_)) {
+                format!("playlist:{raw}")
+            } else {
+                raw.to_owned()
+            }
+        };
+        let upserts = affected.into_iter().map(object).collect();
+        let removals = deleted.into_iter().map(object).collect();
         self.catalog_operation(catalog, async |changes| {
             self.acquire_items(changes, upserts, removals).await
         })
         .await
+    }
+
+    /// Creates the playlist on the server with these tracks and reads it into the Catalog.
+    pub async fn create_playlist(
+        &self,
+        catalog: &Catalog,
+        name: &str,
+        tracks: &[String],
+        public: Option<bool>,
+    ) -> SourceResult<String> {
+        let first = &tracks[..tracks.len().min(256)];
+        // Subsonic answers with the new playlist, which is written from it when the create
+        // carried every track.
+        let (object, sent, written) = match &self.implementation {
+            Implementation::OpenSubsonic(provider) => {
+                let (object, sent) = provider
+                    .create_playlist(catalog, self.source_id.as_str(), name, tracks, public)
+                    .await?;
+                (object, sent, sent == tracks.len())
+            }
+            Implementation::Plex(provider) => (
+                provider.create_playlist(name, first).await?,
+                first.len(),
+                false,
+            ),
+            Implementation::JellyfinEmby(provider) => (
+                provider.create_playlist(name, first, public).await?,
+                first.len(),
+                false,
+            ),
+            Implementation::Local(_) | Implementation::Files(_) | Implementation::Peer(_) => {
+                return Err(NO_SERVER_PLAYLISTS);
+            }
+        };
+        let appended = self.append_playlist_tracks(&object, &tracks[sent..]).await;
+        if !written {
+            self.refresh_playlist(catalog, Some(&object), None).await?;
+        }
+        appended.map_err(|(_, error)| error)?;
+        Ok(object)
+    }
+
+    pub async fn playlist_public(&self, playlist: &str) -> SourceResult<Option<bool>> {
+        match &self.implementation {
+            Implementation::JellyfinEmby(provider) => provider.playlist_public(playlist).await,
+            Implementation::OpenSubsonic(provider) => provider.playlist_public(playlist).await,
+            _ => Ok(None),
+        }
+    }
+
+    /// Renames the playlist and sets whether it is public; Plex playlists are never public.
+    pub async fn update_playlist(
+        &self,
+        playlist: &str,
+        name: Option<&str>,
+        public: Option<bool>,
+    ) -> SourceResult<()> {
+        match &self.implementation {
+            Implementation::Plex(provider) => match name {
+                Some(name) => provider.rename_playlist(playlist, name).await,
+                None => Ok(()),
+            },
+            Implementation::JellyfinEmby(provider) => {
+                provider.update_playlist(playlist, name, public).await
+            }
+            Implementation::OpenSubsonic(provider) => {
+                provider.update_playlist(playlist, name, public).await
+            }
+            Implementation::Local(_) | Implementation::Files(_) | Implementation::Peer(_) => {
+                Err(NO_SERVER_PLAYLISTS)
+            }
+        }
+    }
+
+    pub async fn change_playlist_artwork(
+        &self,
+        playlist: &str,
+        change: &crate::ArtworkChange,
+    ) -> SourceResult<()> {
+        match &self.implementation {
+            Implementation::Plex(provider) => provider.change_artwork(playlist, change).await,
+            Implementation::JellyfinEmby(provider) => {
+                provider.change_artwork(playlist, change).await
+            }
+            Implementation::OpenSubsonic(provider) => {
+                provider.change_playlist_artwork(playlist, change).await
+            }
+            Implementation::Local(_) | Implementation::Files(_) | Implementation::Peer(_) => {
+                Err(NO_SERVER_PLAYLISTS)
+            }
+        }
+    }
+
+    pub async fn delete_playlist(&self, playlist: &str) -> SourceResult<()> {
+        match &self.implementation {
+            Implementation::Plex(provider) => provider.delete_playlist(playlist).await,
+            Implementation::JellyfinEmby(provider) => provider.delete_item(playlist).await,
+            Implementation::OpenSubsonic(provider) => provider.delete_playlist(playlist).await,
+            Implementation::Local(_) | Implementation::Files(_) | Implementation::Peer(_) => {
+                Err(NO_SERVER_PLAYLISTS)
+            }
+        }
+    }
+
+    /// Appends these tracks to the server's playlist `object` and to its entries in the
+    /// Catalog, and answers how many went; an error stops the rest.
+    pub async fn add_playlist_tracks(
+        &self,
+        catalog: &Catalog,
+        playlist: library::PlaylistKey,
+        object: &str,
+        tracks: Vec<(library::TrackKey, String)>,
+    ) -> SourceResult<usize> {
+        let (mut tracks, ids): (Vec<_>, Vec<_>) = tracks.into_iter().unzip();
+        let appended = self.append_playlist_tracks(object, &ids).await;
+        tracks.truncate(appended.as_ref().err().map_or(ids.len(), |(sent, _)| *sent));
+        let count = tracks.len();
+        if count > 0 {
+            if matches!(self.implementation, Implementation::OpenSubsonic(_)) {
+                // Subsonic names no entries, so the resident order is the server's.
+                catalog
+                    .edit_source_playlist(playlist, library::SourceEntryEdit::Add { tracks })
+                    .await?;
+            } else {
+                // The server names the new entries, so they are read back.
+                self.refresh_playlist(catalog, Some(object), None).await?;
+            }
+        }
+        appended.map_err(|(_, error)| error)?;
+        Ok(count)
+    }
+
+    /// Sends `tracks` 256 at a time; an error says how many went before it.
+    async fn append_playlist_tracks(
+        &self,
+        playlist: &str,
+        tracks: &[String],
+    ) -> Result<(), (usize, SourceError)> {
+        for (index, chunk) in tracks.chunks(256).enumerate() {
+            match &self.implementation {
+                Implementation::Plex(provider) => {
+                    provider.add_playlist_tracks(playlist, chunk).await
+                }
+                Implementation::JellyfinEmby(provider) => {
+                    provider.add_playlist_tracks(playlist, chunk).await
+                }
+                Implementation::OpenSubsonic(provider) => {
+                    provider.edit_playlist_entries(playlist, &[], chunk).await
+                }
+                Implementation::Local(_) | Implementation::Files(_) | Implementation::Peer(_) => {
+                    Err(NO_SERVER_PLAYLISTS)
+                }
+            }
+            .map_err(|error| (index * 256, error))?;
+        }
+        Ok(())
+    }
+
+    /// Removes these entries from the server's playlist `object`.
+    pub async fn remove_playlist_entries(
+        &self,
+        object: &str,
+        entries: &[library::PlaylistEditEntry],
+    ) -> SourceResult<()> {
+        let ids = || {
+            entries
+                .iter()
+                .map(|entry| entry.object_id.clone())
+                .collect::<Vec<_>>()
+        };
+        match &self.implementation {
+            Implementation::OpenSubsonic(provider) => {
+                // Subsonic names entries by position, later ones first.
+                let positions = entries
+                    .iter()
+                    .rev()
+                    .map(|entry| entry.position)
+                    .collect::<Vec<_>>();
+                provider
+                    .edit_playlist_entries(object, &positions, &[])
+                    .await
+            }
+            Implementation::Plex(provider) => {
+                provider.remove_playlist_entries(object, &ids()).await
+            }
+            Implementation::JellyfinEmby(provider) => {
+                provider.remove_playlist_entries(object, &ids()).await
+            }
+            Implementation::Local(_) | Implementation::Files(_) | Implementation::Peer(_) => {
+                Err(NO_SERVER_PLAYLISTS)
+            }
+        }
+    }
+
+    /// Moves an entry of the server's playlist `object` to `position`.
+    pub async fn move_playlist_entry(
+        &self,
+        catalog: &Catalog,
+        playlist: library::PlaylistKey,
+        object: &str,
+        entry: &library::PlaylistEditEntry,
+        position: usize,
+    ) -> SourceResult<()> {
+        match &self.implementation {
+            Implementation::Plex(provider) => {
+                provider
+                    .move_playlist_entry(object, &entry.object_id, entry.position, position)
+                    .await
+            }
+            Implementation::JellyfinEmby(provider) => {
+                provider
+                    .move_playlist_entry(object, &entry.object_id, position)
+                    .await
+            }
+            Implementation::OpenSubsonic(provider) => {
+                // Subsonic appends only: the tail from the lower index goes and comes back in
+                // its new order.
+                let low = entry.position.min(position);
+                let mut tail = catalog.playlist_track_ids_from(playlist, low).await?;
+                let moved = tail.remove(entry.position - low);
+                tail.insert((position - low).min(tail.len()), moved);
+                let remove = (low..low + tail.len()).rev().collect::<Vec<_>>();
+                provider.edit_playlist_entries(object, &remove, &tail).await
+            }
+            Implementation::Local(_) | Implementation::Files(_) | Implementation::Peer(_) => {
+                Err(NO_SERVER_PLAYLISTS)
+            }
+        }
+    }
+
+    /// Whether tag edits go to the server rather than to the files.
+    pub fn edits_metadata_on_server(&self) -> bool {
+        matches!(
+            self.implementation,
+            Implementation::JellyfinEmby(_) | Implementation::Plex(_)
+        )
+    }
+
+    pub async fn read_track_metadata(
+        &self,
+        track: library::TrackView,
+    ) -> Result<crate::MetadataDraft, crate::SourceMetadataError> {
+        match &self.implementation {
+            Implementation::JellyfinEmby(provider) => provider.read_track_metadata(track).await,
+            Implementation::Plex(provider) => provider.read_track_metadata(track).await,
+            _ => Err(crate::SourceMetadataError::Unavailable),
+        }
+    }
+
+    pub async fn read_album_metadata(
+        &self,
+        album: library::AlbumView,
+    ) -> Result<crate::MetadataDraft, crate::SourceMetadataError> {
+        match &self.implementation {
+            Implementation::JellyfinEmby(provider) => provider.read_album_metadata(album).await,
+            Implementation::Plex(provider) => provider.read_album_metadata(album).await,
+            _ => Err(crate::SourceMetadataError::Unavailable),
+        }
+    }
+
+    pub async fn read_artist_metadata(
+        &self,
+        artist: library::ArtistView,
+    ) -> Result<crate::MetadataDraft, crate::SourceMetadataError> {
+        match &self.implementation {
+            Implementation::JellyfinEmby(provider) => provider.read_artist_metadata(artist).await,
+            Implementation::Plex(provider) => provider.read_artist_metadata(artist).await,
+            _ => Err(crate::SourceMetadataError::Unavailable),
+        }
+    }
+
+    /// Writes the tag edit and then its artwork to the server. Answers the object the server
+    /// keeps the item under now, and how the artwork went.
+    pub async fn write_metadata(
+        &self,
+        object: &str,
+        revision: &str,
+        edit: &crate::MetadataEdit,
+    ) -> Result<(String, Result<(), crate::SourceMetadataError>), crate::SourceMetadataError> {
+        match &self.implementation {
+            Implementation::Plex(provider) => {
+                provider.write_metadata(object, revision, edit).await?;
+                let artwork = provider.write_artwork(object, edit.artwork.as_ref()).await;
+                Ok((object.to_owned(), artwork))
+            }
+            Implementation::JellyfinEmby(provider) => {
+                let object = provider.write_metadata(object, revision, edit).await?;
+                let artwork = match edit.artwork.as_ref() {
+                    Some(artwork) => provider.write_artwork(&object, artwork).await,
+                    None => Ok(()),
+                };
+                Ok((object, artwork))
+            }
+            _ => Err(crate::SourceMetadataError::Unavailable),
+        }
     }
 
     pub(crate) async fn apply_changes(

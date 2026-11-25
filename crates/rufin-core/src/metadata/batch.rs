@@ -428,12 +428,10 @@ impl MetadataBatch {
                 },
                 None => None,
             };
-            if source.as_ref().is_some_and(|source| {
-                matches!(
-                    source.implementation,
-                    sources::Implementation::JellyfinEmby(_) | sources::Implementation::Plex(_)
-                )
-            }) {
+            if source
+                .as_ref()
+                .is_some_and(|source| source.edits_metadata_on_server())
+            {
                 for index in indices {
                     if let Err(error) = self.save_server(index).await {
                         failures.push(error);

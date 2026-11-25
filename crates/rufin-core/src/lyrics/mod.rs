@@ -749,7 +749,7 @@ impl LyricsService {
         // Without a source, or for a local file read already, only cached source lyrics are left.
         let source = (self.source(&request.context).await).filter(|source| {
             !((library::file_media_path(request.media_uri()).is_some() || request.cue_track)
-                && matches!(&source.implementation, sources::Implementation::Local(_)))
+                && source.is_local())
         });
         let cached = match source {
             Some(source) => {

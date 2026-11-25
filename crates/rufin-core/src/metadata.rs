@@ -26,7 +26,7 @@ pub use review::{
     MetadataLookupField, MetadataLookupItem, MetadataLookupProgress, MetadataLookupReview,
 };
 pub use sources::MetadataDraft;
-use sources::{Implementation, Source, SourceEntityKind, SourceMetadataError};
+use sources::{Source, SourceEntityKind, SourceMetadataError};
 use std::sync::Arc;
 use tokio::time::Instant;
 pub const MAX_ARTWORK_BYTES: usize = 32 * 1024 * 1024;
@@ -105,14 +105,10 @@ impl EditSession {
             ),
             None => None,
         };
-        let server = source.as_ref().is_some_and(|source| {
-            matches!(
-                source.implementation,
-                Implementation::JellyfinEmby(_) | Implementation::Plex(_)
-            )
-        });
-        let (destination, draft) = if server {
-            let source = source.as_ref().unwrap();
+        let server = source
+            .as_ref()
+            .filter(|source| source.edits_metadata_on_server());
+        let (destination, draft) = if let Some(source) = server {
             let error =
                 |error: library::LibraryError| SourceMetadataError::Write(error.to_string());
             let (object, mut draft, binding) = match item.kind() {
@@ -127,13 +123,7 @@ impl EditSession {
                         .object_id
                         .clone()
                         .ok_or(SourceMetadataError::Unavailable)?;
-                    let draft = match &source.implementation {
-                        Implementation::JellyfinEmby(provider) => {
-                            provider.read_track_metadata(row).await?
-                        }
-                        Implementation::Plex(provider) => provider.read_track_metadata(row).await?,
-                        _ => unreachable!(),
-                    };
+                    let draft = source.read_track_metadata(row).await?;
                     (object, draft, binding)
                 }
                 SourceEntityKind::Album => {
@@ -144,13 +134,7 @@ impl EditSession {
                         .ok_or(SourceMetadataError::Unavailable)?;
                     let binding = row.row.artwork_binding.clone();
                     let object = row.row.object_id.clone();
-                    let draft = match &source.implementation {
-                        Implementation::JellyfinEmby(provider) => {
-                            provider.read_album_metadata(row).await?
-                        }
-                        Implementation::Plex(provider) => provider.read_album_metadata(row).await?,
-                        _ => unreachable!(),
-                    };
+                    let draft = source.read_album_metadata(row).await?;
                     (object, draft, binding)
                 }
                 SourceEntityKind::Artist => {
@@ -161,15 +145,7 @@ impl EditSession {
                         .ok_or(SourceMetadataError::Unavailable)?;
                     let binding = row.row.artwork_binding.clone();
                     let object = row.row.object_id.clone();
-                    let draft = match &source.implementation {
-                        Implementation::JellyfinEmby(provider) => {
-                            provider.read_artist_metadata(row).await?
-                        }
-                        Implementation::Plex(provider) => {
-                            provider.read_artist_metadata(row).await?
-                        }
-                        _ => unreachable!(),
-                    };
+                    let draft = source.read_artist_metadata(row).await?;
                     (object, draft, binding)
                 }
             };
@@ -296,27 +272,8 @@ impl EditSession {
                         .source
                         .as_ref()
                         .ok_or(SourceMetadataError::Unavailable)?;
-                    let tags_saved = !edit.changes.is_empty();
-                    let (object, artwork, saved) = match &source.implementation {
-                        Implementation::Plex(provider) => {
-                            provider.write_metadata(object, revision, &edit).await?;
-                            (
-                                object.clone(),
-                                provider.write_artwork(object, edit.artwork.as_ref()).await,
-                                tags_saved,
-                            )
-                        }
-                        Implementation::JellyfinEmby(provider) => {
-                            let object = provider.write_metadata(object, revision, &edit).await?;
-                            let result = if let Some(artwork) = edit.artwork.as_ref() {
-                                provider.write_artwork(&object, artwork).await
-                            } else {
-                                Ok(())
-                            };
-                            (object, result, tags_saved)
-                        }
-                        _ => unreachable!(),
-                    };
+                    let saved = !edit.changes.is_empty();
+                    let (object, artwork) = source.write_metadata(object, revision, &edit).await?;
                     let invalidation = match previous_artwork.filter(|_| artwork.is_ok()) {
                         Some(previous) => Self::invalidate_artwork(owner, previous)
                             .await
