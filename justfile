@@ -29,11 +29,11 @@ build target="" architecture="":
         exit 2; \
     fi
 
-install target:
+install target device="":
     @if [[ "{{ target }}" == "android" ]]; then \
-        cargo run -p xtask -- android install; \
+        cargo run -p xtask -- android install {{ device }}; \
     else \
-        echo "usage: just install android" >&2; \
+        echo "usage: just install android [emulator]" >&2; \
         exit 2; \
     fi
 
@@ -418,9 +418,11 @@ _generate:
     @cargo run --locked -p xtask -- generate i18n-template
     @cargo run --locked -p xtask -- generate flatpak-sources
 
-# Check the commits since BASE: whitespace, dependency policy, formatting and Clippy for the crates they touch.
+# Check the commits since BASE: whitespace, dependency policy, formatting and Clippy for the crates
+# they touch, and the Android check when they touch the Android app.
 lint base="origin/master":
     @scripts/container run default none cargo run --locked -p xtask -- lint {{ base }}
+    @if ! git diff --quiet {{ base }}...HEAD -- android crates/rufin-android; then just test android; fi
 
 # Regenerate the shared desktop and web translation template, or pass --check.
 i18n *args:

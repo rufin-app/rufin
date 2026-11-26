@@ -24,18 +24,17 @@ pub(crate) fn run(args: Vec<String>) -> Result<()> {
     env::set_current_dir(&root)?;
     match args.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
         ["metadata"] => metadata(),
-        ["build", distribution @ ("stable" | "development")] => {
-            build(&root, distribution, None, false)
-        }
+        ["build", distribution @ ("stable" | "development")] => build(&root, distribution, None),
         ["build", distribution @ ("stable" | "development"), abi] => {
-            build(&root, distribution, Some(abi), false)
+            build(&root, distribution, Some(abi))
         }
         ["native", variant, distribution @ ("stable" | "development"), abis] => {
             native(&root, variant, distribution, abis)
         }
-        ["install"] => install(&root),
+        ["install"] => install(&root, false),
+        ["install", "emulator"] => install(&root, true),
         ["clippy"] => clippy(&root),
-        _ => Err("Usage: xtask android build stable|development [ABI]\n       xtask android install\n       xtask android clippy\n       xtask android native VARIANT stable|development ABIS".into()),
+        _ => Err("Usage: xtask android build stable|development [ABI]\n       xtask android install [emulator]\n       xtask android clippy\n       xtask android native VARIANT stable|development ABIS".into()),
     }
 }
 
@@ -204,9 +203,7 @@ fn execute(command: &mut Command) -> Result<()> {
     }
 }
 
-/// Builds the APKs of `distribution`; with `check`, the same Gradle run also runs CI's Android
-/// check, its unit tests and lint, on that build.
-fn build(root: &Path, distribution: &str, abi: Option<&str>, check: bool) -> Result<()> {
+fn build(root: &Path, distribution: &str, abi: Option<&str>) -> Result<()> {
     let android = root.join("android");
     let (variant, build_type, prefix) = if distribution == "development" {
         ("DevelopmentDebug", "debug", "Rufin.Devel")
@@ -229,9 +226,6 @@ fn build(root: &Path, distribution: &str, abi: Option<&str>, check: bool) -> Res
         .arg("-p")
         .arg(&android)
         .arg(format!("assemble{variant}"));
-    if check {
-        gradle.args([format!("test{variant}UnitTest"), format!("lint{variant}")]);
-    }
     if let Some(abi) = abi {
         gradle.arg(format!("-PandroidAbis={abi}"));
     }
@@ -801,7 +795,9 @@ fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
     Ok(())
 }
 
-fn install(root: &Path) -> Result<()> {
+/// Installs the Devel debug build on the connected device, or on the running emulator when asked:
+/// an emulator that happens to be up never takes the device's build.
+fn install(root: &Path, emulator: bool) -> Result<()> {
     let devices = command_stdout("adb", ["devices"])?;
     let online = devices
         .lines()
@@ -820,16 +816,20 @@ fn install(root: &Path) -> Result<()> {
         serial
     } else {
         *online
-            .first()
-            .ok_or("No authorized, online ADB connection is available.")?
+            .iter()
+            .find(|id| id.starts_with("emulator-") == emulator)
+            .ok_or(if emulator {
+                "No Android emulator is running."
+            } else {
+                "No authorized, online ADB device is connected."
+            })?
     };
     let abi = command_stdout(
         "adb",
         ["-s", serial, "shell", "getprop", "ro.product.cpu.abi"],
     )?;
     let abi = abi.trim();
-    // A device check runs the Devel debug build of its own ABI only, checked as CI checks it.
-    build(root, "development", Some(abi), true)?;
+    build(root, "development", Some(abi))?;
     let apk = root
         .join(".local/artifacts")
         .join(format!("Rufin.Devel-{abi}.apk"));

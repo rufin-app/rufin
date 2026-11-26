@@ -85,7 +85,8 @@ and reuses it afterward. To use an existing SDK, set `GSTREAMER_ROOT_ANDROID` or
 `gstreamer.dir` in `android/local.properties`.
 That file also accepts `sdk.dir` for the Android SDK.
 
-Run `just test android` for JVM unit tests and Android lint, without an emulator.
+Run `just test android` for JVM unit tests, Android lint and Clippy, without an emulator;
+`just lint` runs it when a change touches `android/` or `crates/rufin-android/`.
 Run `just build apk-dev` to build the development APK.
 
 ## Project structure
@@ -128,7 +129,8 @@ just build headless # builds the headless development executable
 just build apk # builds the optimized Android release APKs, one per ABI, with the stable app identity
 just build apk-dev # builds the debug Android APKs, one per ABI, with the development app identity
 just build apk arm64-v8a # builds only one ABI; apk-dev takes one too
-just install android # installs the most recently built APK, retaining app data
+just install android # builds the development APK for the connected device and installs it, retaining app data
+just install android emulator # the same on the running emulator
 just build arch # builds the Arch package
 just build flatpak # builds the Flatpak
 just build rpm # builds Fedora RPMs for x86_64
@@ -139,7 +141,7 @@ just debug headless # runs the headless development executable on the host
 just debug headless --listen # also enables browser and HTTP API access; requires RUFIN_API_TOKEN
 just fmt # formats Rust code
 just test # runs the test suite
-just test android # runs Android development unit tests and lint without an emulator
+just test android # runs Android development unit tests, lint and Clippy without an emulator
 just i18n # regenerates the shared desktop and web translation template
 just i18n --check # checks the translation template without changing it
 ```
