@@ -515,9 +515,9 @@ fn replace_primary_menu_model(menu: &gio::Menu, shell: &Rc<Shell>) {
     );
     append_menu_action(
         &information,
-        &tr("Troubleshooting"),
+        &tr("Logs"),
         "win.troubleshooting",
-        "rufin-utilities-terminal-symbolic",
+        "rufin-rich-text-symbolic",
     );
     append_menu_action(
         &information,

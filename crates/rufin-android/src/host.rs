@@ -93,6 +93,40 @@ pub fn install_catalogs(
         .map_err(error)
 }
 
+/// What the About page says about Rufin, and where its links lead.
+#[derive(uniffi::Record)]
+pub struct AndroidAbout {
+    pub website: String,
+    pub issues: String,
+    pub donate: String,
+    pub translate: String,
+    pub chat: String,
+    pub developers: Vec<String>,
+    pub translators: String,
+    pub copyright: String,
+    pub license: String,
+}
+
+#[uniffi::export]
+pub fn about() -> AndroidAbout {
+    use rufin_core::about;
+
+    AndroidAbout {
+        website: about::WEBSITE.into(),
+        issues: about::ISSUES.into(),
+        donate: about::DONATE.into(),
+        translate: about::TRANSLATE.into(),
+        chat: about::CHAT.into(),
+        developers: about::DEVELOPERS
+            .iter()
+            .map(|name| name.to_string())
+            .collect(),
+        translators: localization::TRANSLATOR_CREDITS.into(),
+        copyright: about::COPYRIGHT.into(),
+        license: about::LICENSE.into(),
+    }
+}
+
 #[uniffi::export]
 pub fn album_count_text(count: u64) -> String {
     localization::album_count_text(count)

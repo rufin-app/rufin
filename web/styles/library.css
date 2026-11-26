@@ -906,14 +906,12 @@ html.grid-favorite-badges .cover-corner[aria-pressed="true"] {
   place-items: center;
   width: 36px;
   height: 36px;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--accent);
 }
 
 .quick-mix-glyph > .icon {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
 }
 
 .quick-mix-title {

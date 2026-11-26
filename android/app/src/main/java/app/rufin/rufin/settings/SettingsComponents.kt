@@ -79,6 +79,19 @@ internal fun SettingsGroup(title: String? = null, description: String? = null, c
     }
 }
 
+/** The icon that leads a row of Settings' root and of About: bare, in the accent. */
+@Composable
+internal fun SettingsIcon(icon: String) {
+    RufinIcon(icon, null, Modifier.size(24.dp), MaterialTheme.colorScheme.primary)
+}
+
+/** What ends a row that leads somewhere: an arrow for a page of the app, the link mark for one outside it. */
+@Composable
+internal fun SettingsLeads(outside: Boolean = false) {
+    RufinIcon(if (outside) "rufin-external-link-symbolic" else "rufin-go-next-symbolic", null, Modifier.size(20.dp),
+        MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
 @Composable
 internal fun SettingsRow(
     title: String,

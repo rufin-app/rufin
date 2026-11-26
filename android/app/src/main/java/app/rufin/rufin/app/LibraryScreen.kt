@@ -113,7 +113,6 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -133,7 +132,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
@@ -148,10 +146,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import app.rufin.rufin.ui.pageMotion
-import app.rufin.rufin.ui.showPage
 import app.rufin.rufin.core.AndroidRouteDescriptor
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.geometry.Offset
@@ -159,18 +154,23 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import app.rufin.rufin.browse.GlyphTile
 
-private data class BrowseDestination(val root: String, val depth: Int, val location: BrowseLocation?)
+/** What the library shows: the Library page, a route's root or a page opened from one. `level` is how deep
+ *  that is, for the way one slides over another: a route the Library page opened is one step in. */
+private data class BrowseDestination(val root: String, val depth: Int, val location: BrowseLocation?, val library: Boolean, val level: Int)
 
-/** The bottom tabs; Library shows the configured routes, Saved the pins, Radio the stations. */
+/** The bottom tabs; Library lists the configured routes, Saved the pins. */
 private enum class ShellTab(val title: String, val icon: String) {
     Home("Home", "rufin-home-symbolic"), Library("Library", "rufin-library-symbolic"),
     Search("Search", "rufin-search-symbolic"), Saved("Saved", "rufin-bookmark-symbolic"),
-    Radio("Radio", "rufin-radio-station-symbolic"),
 }
 
-/** Home and Radio have a tab of their own: the Library tab lists the other routes. */
-private fun hasOwnTab(root: String) = root == "Home" || root == "Radio"
+/** Home has a tab of its own: the Library tab lists the other routes. */
+private fun hasOwnTab(root: String) = root == "Home"
 
 /** Phones under 600 dp; a compact icon sidebar to 840 dp; the full sidebar beyond; a TV's focus rail. */
 private enum class ShellWidth { Phone, Medium, Expanded, Tv }
@@ -225,11 +225,14 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
         configuration.screenWidthDp < 840 -> ShellWidth.Medium
         else -> ShellWidth.Expanded
     }
-    // Flip covers get dots for routes and one column.
+    // Flip covers get one column.
     val tiny = configuration.screenWidthDp < 420 && configuration.screenHeightDp < 420
     val short = configuration.screenHeightDp < 600
     // A phone on its side: a narrower sidebar that holds the player, as Spotify's does.
     val sidePlayer = width == ShellWidth.Expanded && configuration.screenHeightDp < 480
+    val phone = width == ShellWidth.Phone
+    // The sidebar picks the route where one is docked; phones and TVs have the tabs, and the Library tab's page.
+    val tabs = phone || width == ShellWidth.Tv
     var sources by rememberSaveable { mutableStateOf(false) }
     // The first run opens source setup by itself, once.
     var welcomed by rememberSaveable { mutableStateOf(false) }
@@ -342,23 +345,20 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
     LaunchedEffect(pinsPage) { pinsPage.observe() }
     val hasMedia by remember(player) { derivedStateOf { player.currentId?.mediaUri != null } }
     LaunchedEffect(translation) { browse.refreshLabels(translation) }
-    // The Library tab returns to the route it last showed.
+    // The Library tab opens a page that lists the routes; one opens over it, and Back returns to the page.
     val libraryRoutes = sidebarRoutes(browse).filter { !hasOwnTab(it.id) }
-    var libraryRoot by rememberSaveable { mutableStateOf<String?>(null) }
-    LaunchedEffect(browse.rootId) { if (!hasOwnTab(browse.rootId)) libraryRoot = browse.rootId }
+    var libraryOpen by rememberSaveable { mutableStateOf(false) }
+    val libraryPage = tabs && libraryOpen && browse.section == AppSection.Browse && !browse.detail
     val tab = when (browse.section) {
         AppSection.Search -> ShellTab.Search
         AppSection.Pins -> ShellTab.Saved
         AppSection.More -> null
-        AppSection.Browse -> when (browse.rootId) {
-            "Home" -> ShellTab.Home
-            "Radio" -> ShellTab.Radio
-            else -> ShellTab.Library
-        }
+        AppSection.Browse -> if (!libraryPage && browse.rootId == "Home") ShellTab.Home else ShellTab.Library
     }
     fun leaveInput() { keyboard?.hide(); focusManager.clearFocus(); searchExpanded = false }
     fun selectRoute(id: String) {
         leaveInput()
+        libraryOpen = false
         if (id == "Search") { browse.searchText = ""; browse.section = AppSection.Search }
         else { browse.chooseRoot(id); browse.section = AppSection.Browse }
         closeDrawer()
@@ -367,27 +367,27 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
     // reference from a composition before the routes loaded.
     fun selectTab(selected: ShellTab) {
         leaveInput()
+        libraryOpen = selected == ShellTab.Library
         when (selected) {
             ShellTab.Home -> { browse.chooseRoot("Home"); browse.section = AppSection.Browse }
-            ShellTab.Library -> {
-                val routes = sidebarRoutes(browse).filter { !hasOwnTab(it.id) }
-                val root = libraryRoot?.takeIf { id -> routes.any { it.id == id } } ?: routes.firstOrNull()?.id
-                if (root != null) { browse.chooseRoot(root); browse.section = AppSection.Browse }
-            }
+            // The page shows over whichever root is open, with nothing opened from it.
+            ShellTab.Library -> { browse.chooseRoot(browse.rootId); browse.section = AppSection.Browse }
             ShellTab.Search -> {
                 if (browse.section == AppSection.Search) focusSearch++ else { browse.searchText = ""; browse.section = AppSection.Search }
             }
             ShellTab.Saved -> browse.section = AppSection.Pins
-            ShellTab.Radio -> { browse.chooseRoot("Radio"); browse.section = AppSection.Browse }
         }
     }
-    BackHandler(drawer.isOpen || searchExpanded || browse.detail || browse.section != AppSection.Browse || browse.rootId != "Home") {
+    // A route under the tabs was opened from the Library page, or could have been: Back shows that page.
+    val underLibrary = tabs && browse.section == AppSection.Browse && !libraryPage && !browse.detail && browse.rootId != "Home"
+    BackHandler(drawer.isOpen || searchExpanded || browse.detail || browse.section != AppSection.Browse || browse.rootId != "Home" || libraryPage) {
         when {
             drawer.isOpen -> closeDrawer()
             settingsRoot && settingsQuery != null -> { settingsQuery = null; leaveInput() }
             browse.section == AppSection.More && moreStack.size > 1 -> moreStack = moreStack.dropLast(1)
             searchExpanded -> searchExpanded = false
             browse.section == AppSection.Browse && browse.detail -> browse.back()
+            underLibrary -> selectTab(ShellTab.Library)
             else -> selectTab(ShellTab.Home)
         }
     }
@@ -437,9 +437,6 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
             }
         }
     }
-    val phone = width == ShellWidth.Phone
-    // The sidebar and a TV's rail pick the route; phones and TVs keep the route tabs.
-    val tabs = phone || width == ShellWidth.Tv
     // A tablet's player floats over the page, as the foldable's does, and opens the queue beside the page.
     val tablet = width == ShellWidth.Expanded && !sidePlayer
     var queuePanel by rememberSaveable { mutableStateOf(false) }
@@ -491,8 +488,7 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
                 }
                 Sidebar(model, browse, player, pinsPage, withSearch, openPage, Modifier.weight(1f),
                     dock = if (sidePlayer && hasMedia) { {
-                        SidebarPlayer(player, { fullPlayer = true }, { outputs = true },
-                            Modifier.navigationBarsPadding().padding(start = 8.dp, end = 8.dp, bottom = 8.dp))
+                        SidebarPlayer(player, { fullPlayer = true }, { outputs = true })
                     } } else null,
                     // A short, wide screen keeps the sidebar that holds its player.
                     collapse = if (sidePlayer) null else { { preferences.changeSidebarCompact(true) } })
@@ -507,7 +503,7 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
         // it, as on phones.
         val rootRoute = browse.routes.firstOrNull { it.id == browse.rootId }
         val rootPage = rootPages[browse.rootId]
-        val split = paneWidth >= 556.dp && configuration.screenHeightDp >= 480 && browse.section == AppSection.Browse &&
+        val split = paneWidth >= 556.dp && configuration.screenHeightDp >= 480 && browse.section == AppSection.Browse && !libraryPage &&
             rootRoute?.route?.listsPages == true && (rootPage?.options?.displaySettings ?: rootPage?.displaySettings)?.gridPicked != true
         SideEffect { splitShown = split }
         CompositionLocalProvider(LocalPlayerBottomPadding provides dockHeight, LocalTinyScreen provides tiny,
@@ -515,16 +511,23 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
         // The route roots carry this bar, so it moves with its page instead of shifting the page beside it.
         val shellBar: @Composable () -> Unit = {
             ShellTopBar(browse, moreDestination, if (moreDestination == MoreDestination.Integration) integration?.name.orEmpty() else translate(moreDestination.title),
-                // Under the tabs the Library tab's routes name themselves; Radio is a tab with the one page.
-                rootRoute?.takeIf { !tabs || it.route is Route.Radio }?.title, searchExpanded, searchFocus, tabs, !split,
+                rootRoute?.title, searchExpanded, searchFocus, tabs, underLibrary, !split,
                 settingsQuery.takeIf { settingsRoot }, { settingsQuery = it },
                 onSettingsSearch = { if (settingsQuery != null) { settingsQuery = null; leaveInput() } else { settingsQuery = ""; focusSearch++ } },
                 onMenu = { scope.launch { drawer.open() } },
-                onBack = { if (moreStack.size > 1) moreStack = moreStack.dropLast(1) else selectTab(ShellTab.Home) },
+                onBack = {
+                    if (underLibrary) selectTab(ShellTab.Library)
+                    else if (moreStack.size > 1) moreStack = moreStack.dropLast(1)
+                    else selectTab(ShellTab.Home)
+                },
                 onSearch = { if (searchExpanded) leaveInput() else { searchExpanded = true; focusSearch++ } },
                 onSubmit = { if (browse.section == AppSection.Search) browse.submitSearch(); leaveInput() },
                 onExpand = { searchExpanded = true }) {
                 if (width == ShellWidth.Tv && hasMedia) NowPlayingChip(player) { fullPlayer = true }
+                if (browse.section == AppSection.More && moreDestination == MoreDestination.Logs) {
+                    PlayerIconButton("rufin-edit-copy-symbolic", "Copy", { model.copyDiagnosticLog() }, enabled = model.ready)
+                    PlayerIconButton("rufin-document-save-symbolic", "Save", onSaveLog, enabled = model.ready)
+                }
                 if (browse.section == AppSection.More && moreDestination == MoreDestination.Theme) {
                     IconButton({ importTheme.launch(arrayOf("*/*")) }, enabled = preferences.state != null) {
                         RufinIcon("rufin-document-open-symbolic", translate("Import theme"))
@@ -581,9 +584,8 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
                 // Each side of a transition shows the root it was composed for.
                 val rootContent: @Composable (String, Boolean) -> Unit = { root, shown ->
                     CompositionLocalProvider(LocalOverlayBarHeight provides if (root == "Home") barHeight else 0.dp) {
-                        RootContent(model, browse, player, radio, root, rootPages, routeState, libraryRoutes, tiny, tabs, split, shown && !fullPlayer,
-                            onMenu = { menu = it }, onPlaylist = { playlist = it }, onAddSource = { editSourceId = null; sources = true },
-                            onRoutes = { openMore(MoreDestination.Customization) }, onSelect = ::selectRoute)
+                        RootContent(model, browse, player, radio, root, rootPages, routeState, split, shown && !fullPlayer,
+                            onMenu = { menu = it }, onPlaylist = { playlist = it }, onAddSource = { editSourceId = null; sources = true })
                     }
                 }
                 if (browse.section == AppSection.Browse) {
@@ -611,16 +613,29 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
                                 contentAlignment = Alignment.CenterEnd) { queueToggle() }
                         }
                     } else AnimatedContent(
-                        targetState = BrowseDestination(browse.rootId, browse.details.size, top), modifier = Modifier.fillMaxSize(),
+                        targetState = BrowseDestination(browse.rootId, browse.details.size, top, libraryPage,
+                            browse.details.size + if (underLibrary || tabs && browse.detail && browse.rootId != "Home") 1 else 0),
+                        modifier = Modifier.fillMaxSize(),
                         label = "libraryNavigation", transitionSpec = {
-                            if (initialState.depth == 0 && targetState.depth == 0)
+                            if (initialState.level == targetState.level && targetState.depth == 0)
                                 fadeIn(tween(if (reduceMotion) 0 else 180)) togetherWith fadeOut(tween(if (reduceMotion) 0 else 180))
-                            else pageMotion(targetState.depth > initialState.depth, reduceMotion)
-                        }, contentKey = { it.location ?: it.root.takeIf(::hasOwnTab) ?: "Library" },
+                            else pageMotion(targetState.level > initialState.level, reduceMotion)
+                        }, contentKey = { it.location ?: if (it.library) "Library" else it.root },
                     ) { visible ->
                         val location = visible.location
                         val shown = visible.root == browse.rootId
-                        if (location != null) DetailPane(model, browse, player, location, visible.depth, detailPages[location], detailState, barHeight,
+                        if (visible.library) Column(Modifier.fillMaxSize()) {
+                            // The page's own colour: the tiles are the only thing set apart on it.
+                            OverlayBar(MaterialTheme.colorScheme.background) {
+                                PlayerIconButton("rufin-open-menu-symbolic", "Open sidebar", { scope.launch { drawer.open() } })
+                                Text(label("Library"), Modifier.weight(1f).padding(start = 2.dp), maxLines = 1,
+                                    style = MaterialTheme.typography.titleLarge)
+                                if (width == ShellWidth.Tv && hasMedia) NowPlayingChip(player) { fullPlayer = true }
+                                PlayerIconButton("rufin-sliders-2-symbolic", "Customization", { openMore(MoreDestination.Customization) })
+                            }
+                            LibraryRoutes(libraryRoutes, ::selectRoute) { openMore(MoreDestination.Customization) }
+                        }
+                        else if (location != null) DetailPane(model, browse, player, location, visible.depth, detailPages[location], detailState, barHeight,
                             !fullPlayer && browse.details.lastOrNull() === location, { menu = it }, { playlist = it }, { sortPage = it; sort = true },
                             trailing = queueToggle)
                         else if (visible.root == "Home") Box(Modifier.fillMaxSize()) {
@@ -649,7 +664,7 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
                                     if (moreDestination != MoreDestination.Integration) moreStack = moreStack + MoreDestination.Integration
                                 }, { if (moreStack.size > 1) moreStack = moreStack.dropLast(1) },
                                 onAddSource = { editSourceId = null; sources = true }, onEditSource = { editSourceId = it; sources = true },
-                                onOpen = onOpen, onSaveLog = onSaveLog, onOutput = { outputs = true }, navigationDepth = moreStack.size,
+                                onOpen = onOpen, onOutput = { outputs = true }, navigationDepth = moreStack.size,
                                 settingsQuery = settingsQuery.takeIf { settingsRoot }, openSearchResult = { item ->
                                     settingsQuery = null
                                     leaveInput()
@@ -722,7 +737,7 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
                 fullPlayer = false
                 browse.section = AppSection.Browse
                 browse.openRoute(route, title)
-            }, onMore = openPlayerMenu, onRadio = { fullPlayer = false; selectTab(ShellTab.Radio) }, tiny = tiny, onPull = onReveal, onPullEnd = { close -> settlePlayer(!close) }) { fullPlayer = false }
+            }, onMore = openPlayerMenu, onRadio = { fullPlayer = false; selectRoute("Radio") }, tiny = tiny, onPull = onReveal, onPullEnd = { close -> settlePlayer(!close) }) { fullPlayer = false }
         }
     }
     if (outputs) PlayerOutputSheet(player) { outputs = false }
@@ -772,17 +787,19 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
     }
 }
 
-/** Flip covers and other tiny screens: route dots, one-column lists. */
+/** Flip covers and other tiny screens: one-column lists. */
 internal val LocalTinyScreen = compositionLocalOf { false }
 
 /** The top bar of route roots, Search, Saved and the pages the sidebar's rail opens: route tools live here. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ShellTopBar(browse: BrowseConnection, more: MoreDestination, moreTitle: String,
-    /** The route's own name, where no tabs under the bar show it. */
+    /** The route's own name. */
     route: String?, searchExpanded: Boolean, searchFocus: FocusRequester,
     /** ☰ opens the sidebar where none is docked. */
     menu: Boolean,
+    /** The route opened from the Library page: ← returns to it. */
+    back: Boolean,
     /** The route's filter opens in the bar, unless its pane keeps a field of its own. */
     search: Boolean,
     /** What Settings' root searches for, while its search is open; null elsewhere. */
@@ -796,7 +813,7 @@ private fun ShellTopBar(browse: BrowseConnection, more: MoreDestination, moreTit
     val settingsRoot = browse.section == AppSection.More && more == MoreDestination.Root
     TopAppBar(expandedHeight = 56.dp, navigationIcon = {
         when {
-            browse.section == AppSection.More && more != MoreDestination.Root ->
+            back || browse.section == AppSection.More && more != MoreDestination.Root ->
                 PlayerIconButton("rufin-go-previous-symbolic", "Back", onBack)
             menu -> PlayerIconButton("rufin-open-menu-symbolic", "Open sidebar", onMenu)
         }
@@ -834,18 +851,13 @@ private fun BarSearchField(value: String, change: (String) -> Unit, placeholder:
         } })
 }
 
-/** Home, Radio or the Library tab's routes: route tabs under the bar, and a swipe moves between routes. */
-@OptIn(ExperimentalFoundationApi::class)
+/** A route's own page: Home, or one the sidebar or the Library page opened. */
 @Composable
 private fun RootContent(model: RufinConnection, browse: BrowseConnection, player: PlayerConnection, radio: RadioState, root: String,
     pages: Map<String, BrowsePage>, routeState: androidx.compose.runtime.saveable.SaveableStateHolder,
-    routes: List<AndroidRouteDescriptor>, tiny: Boolean,
-    /** The routes show as tabs under the bar. */
-    tabs: Boolean,
     /** The list of a split view: a row opens its page beside the list, in place of the page open there. */
     beside: Boolean, active: Boolean,
-    onMenu: (BrowseItem) -> Unit, onPlaylist: (BrowseItem) -> Unit, onAddSource: () -> Unit, onRoutes: () -> Unit,
-    onSelect: (String) -> Unit,
+    onMenu: (BrowseItem) -> Unit, onPlaylist: (BrowseItem) -> Unit, onAddSource: () -> Unit,
 ) {
     if (browse.library == null) {
         PageLoading()
@@ -869,10 +881,13 @@ private fun RootContent(model: RufinConnection, browse: BrowseConnection, player
             else BrowsePageContent(model, browse, player, location, options, shown, onMenu, onPlaylist, {}, owner = pages[route.id])
         }
     }
-    if (hasOwnTab(root)) {
-        browse.routes.firstOrNull { it.id == root }?.let { page(it, active) }
-        return
-    }
+    browse.routes.firstOrNull { it.id == root }?.let { page(it, active) }
+}
+
+/** The Library tab's page: the configured routes in their order, as Home's Quick mix tiles. One opens
+ *  over the page; with none configured it leads to where they are picked. */
+@Composable
+private fun LibraryRoutes(routes: List<AndroidRouteDescriptor>, onSelect: (String) -> Unit, onRoutes: () -> Unit) {
     if (routes.isEmpty()) {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             RufinIcon("rufin-library-symbolic", null, Modifier.size(48.dp), MaterialTheme.colorScheme.onSurfaceVariant)
@@ -880,42 +895,12 @@ private fun RootContent(model: RufinConnection, browse: BrowseConnection, player
         }
         return
     }
-    val index = routes.indexOfFirst { it.id == root }.coerceAtLeast(0)
-    // Without tabs the routes are not side by side: the sidebar's pick shows at once, with nothing to slide past.
-    if (!tabs && !tiny) {
-        page(routes[index], active)
-        return
-    }
-    val pager = rememberPagerState(index) { routes.size }
-    val fade = remember { androidx.compose.animation.core.Animatable(1f) }
-    val reduceMotion = LocalReduceMotion.current
-    // A tab, the sidebar or the Library tab picks the page; a swipe picks the route.
-    LaunchedEffect(index) { if (pager.currentPage != index) pager.showPage(index, fade, reduceMotion) }
-    LaunchedEffect(pager, routes) {
-        snapshotFlow { pager.settledPage }.collect { settled ->
-            routes.getOrNull(settled)?.id?.let { id -> if (!hasOwnTab(browse.rootId) && browse.rootId != id) browse.chooseRoot(id) }
-        }
-    }
-    Column(Modifier.fillMaxSize()) {
-        val position = remember { derivedStateOf { pager.currentPage + pager.currentPageOffsetFraction } }
-        if (tiny) RouteDots(routes.size, position.value)
-        else BrowseRouteTabs(routes, index, position, onSelect)
-        HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth().graphicsLayer { alpha = fade.value }, key = { routes[it].id },
-            beyondViewportPageCount = 0) { shown ->
-            page(routes[shown], active && shown == index)
-        }
-    }
-}
-
-@Composable
-private fun RouteDots(count: Int, position: Float) {
-    Row(Modifier.fillMaxWidth().height(20.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically) {
-        repeat(count) { index ->
-            val near = (1f - kotlin.math.abs(position - index)).coerceIn(0f, 1f)
-            Box(Modifier.size(6.dp).clip(CircleShape).background(lerp(MaterialTheme.colorScheme.outlineVariant,
-                MaterialTheme.colorScheme.primary, near)))
-        }
+    // Home's Quick mix tiles, at their sizes. The page runs under the bottom bar and the system's.
+    LazyVerticalGrid(GridCells.Adaptive(156.dp), Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp,
+            bottom = 16.dp + LocalPlayerBottomPadding.current + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(routes, key = { it.id }) { route -> GlyphTile(route.iconName, route.title, Modifier.fillMaxWidth(), { onSelect(route.id) }) }
     }
 }
 
@@ -1080,38 +1065,6 @@ private fun DockCircle(icon: String, label: String, onClick: () -> Unit) {
     Surface(onClick, Modifier.size(56.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shadowElevation = 6.dp) {
         Box(contentAlignment = Alignment.Center) { RufinIcon(icon, translate(label), Modifier.size(24.dp)) }
-    }
-}
-
-@Composable
-@OptIn(ExperimentalMaterial3Api::class)
-private fun BrowseRouteTabs(routes: List<AndroidRouteDescriptor>, selected: Int, position: State<Float>, onSelect: (String) -> Unit) {
-    PrimaryScrollableTabRow(selected.coerceAtLeast(0), Modifier.fillMaxWidth().height(44.dp),
-        edgePadding = 8.dp, minTabWidth = 0.dp, containerColor = Color.Transparent, divider = {}, indicator = {
-            if (selected >= 0) TabRowDefaults.PrimaryIndicator(
-                Modifier.zIndex(-1f).tabIndicatorLayout { measurable, constraints, tabs ->
-                    if (tabs.isEmpty()) return@tabIndicatorLayout layout(0, 0) {}
-                    val value = position.value.coerceIn(0f, tabs.lastIndex.toFloat())
-                    val from = value.toInt()
-                    val to = (from + 1).coerceAtMost(tabs.lastIndex)
-                    val fraction = value - from
-                    val left = (tabs[from].left.value + (tabs[to].left.value - tabs[from].left.value) * fraction).dp.roundToPx()
-                    val width = (tabs[from].width.value + (tabs[to].width.value - tabs[from].width.value) * fraction).dp.roundToPx()
-                    val centeringOffset = ((tabs[selected].width.roundToPx() - constraints.maxWidth) / 2).coerceAtLeast(0)
-                    val height = 32.dp.roundToPx()
-                    val placed = measurable.measure(constraints.copy(minWidth = width, maxWidth = width, minHeight = height, maxHeight = height))
-                    // The tab row already centers the indicator wrapper inside the selected tab.
-                    layout(constraints.maxWidth, constraints.maxHeight) { placed.placeRelative(left - centeringOffset, (constraints.maxHeight - height) / 2) }
-                }, height = 32.dp, width = androidx.compose.ui.unit.Dp.Unspecified,
-                color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(16.dp))
-        }) {
-        routes.forEachIndexed { index, route ->
-            val tint = lerp(MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.onSecondaryContainer,
-                (1f - kotlin.math.abs(position.value - index)).coerceIn(0f, 1f))
-            Tab(index == selected, { onSelect(route.id) }, Modifier.height(44.dp).focusRing(RoundedCornerShape(16.dp)),
-                selectedContentColor = tint, unselectedContentColor = tint,
-                text = { Text(route.title, maxLines = 1, color = tint, style = MaterialTheme.typography.bodyMedium) })
-        }
     }
 }
 

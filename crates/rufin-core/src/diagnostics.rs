@@ -11,9 +11,10 @@ use std::sync::{
 
 use tracing::field::{Field, Visit};
 use tracing_subscriber::field::RecordFields;
-use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::fmt::format::{FormatFields, Writer};
-use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::fmt::time::{FormatTime, SystemTime};
+use tracing_subscriber::layer::{Context, Layer, SubscriberExt};
+use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::reload;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Registry, fmt as tracing_fmt};
@@ -64,10 +65,10 @@ impl DiagnosticState {
         (state, guard)
     }
 
-    fn append(&self, text: String) {
+    fn append(&self, text: String, parts: Option<Parts>) {
         let mut output = self.output.lock().unwrap_or_else(|p| p.into_inner());
         if !output.closed {
-            output.append(text);
+            output.append(text, parts);
             self.ready.notify_one();
         }
     }
@@ -90,13 +91,13 @@ impl DiagnosticState {
                     return;
                 }
                 if output.written < output.start_bytes {
-                    output.append(OMITTED_RECORDS.into());
+                    output.append(OMITTED_RECORDS.into(), None);
                 }
-                output.updates(output.written)
+                (output.text(output.written), output.end())
             };
             if let Some(log) = &mut file
                 && let Err(error) = update
-                    .text
+                    .0
                     .split_inclusive('\n')
                     .try_for_each(|line| log.append(line.as_bytes()))
             {
@@ -104,14 +105,17 @@ impl DiagnosticState {
                 self.output
                     .lock()
                     .unwrap_or_else(|p| p.into_inner())
-                    .append(sanitize_free_text(&format!(
-                        "WARN rufin::diagnostics: local log file is unavailable: {error}\n"
-                    )));
+                    .append(
+                        sanitize_free_text(&format!(
+                            "WARN rufin::diagnostics: local log file is unavailable: {error}\n"
+                        )),
+                        None,
+                    );
             }
             self.output
                 .lock()
                 .unwrap_or_else(|p| p.into_inner())
-                .written = update.end;
+                .written = update.1;
             self.drained.notify_all();
         }
     }
@@ -173,7 +177,7 @@ impl Diagnostics {
         let debug_enabled = startup_debug_enabled();
         let filter = startup_filter(debug_enabled);
         let (filter_layer, filter_handle) = reload::Layer::new(filter);
-        let writer = DiagnosticWriterFactory {
+        let stored = StoredLayer {
             output: Arc::clone(&output),
         };
         let (stderr, stderr_guard) = stderr::Writer::new(std::io::stderr());
@@ -182,11 +186,6 @@ impl Diagnostics {
             .with_ansi(std::io::stderr().is_terminal())
             .fmt_fields(PrivacyFields)
             .with_writer(stderr.clone());
-        let stored = tracing_fmt::layer()
-            .compact()
-            .with_ansi(false)
-            .fmt_fields(PrivacyFields)
-            .with_writer(writer);
         Registry::default()
             .with(filter_layer)
             .with(terminal)
@@ -225,7 +224,11 @@ impl Diagnostics {
     }
 
     pub fn snapshot(&self) -> String {
-        self.updates(0).text
+        self.output
+            .output
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .text(0)
     }
 
     pub fn updates(&self, cursor: u64) -> DiagnosticUpdate {
@@ -311,20 +314,53 @@ fn profile_filter(debug_enabled: bool) -> EnvFilter {
     })
 }
 
+/// The log's entries after a cursor. `start` is where the kept log begins: entries a client holds
+/// from before it are gone.
 #[cfg_attr(feature = "bindings", derive(uniffi::Record))]
 pub struct DiagnosticUpdate {
     pub end: u64,
-    pub start_character: u64,
-    pub text: String,
+    pub start: u64,
+    pub entries: Vec<DiagnosticEntry>,
+}
+
+/// One record of the log. Text that Rufin did not log itself, such as an earlier crash report, has
+/// no level: it is all in `message`.
+#[cfg_attr(feature = "bindings", derive(uniffi::Record))]
+pub struct DiagnosticEntry {
+    pub position: u64,
+    pub time_millis: u64,
+    pub level: Option<DiagnosticLevel>,
+    pub origin: String,
+    pub message: String,
+    pub fields: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "bindings", derive(uniffi::Enum))]
+pub enum DiagnosticLevel {
+    Error,
+    Warning,
+    Info,
+    Debug,
+    Trace,
+}
+
+/// Where a logged record's parts are in its line: `time level origin: message fields`.
+#[derive(Clone, Copy)]
+struct Parts {
+    time_millis: u64,
+    level: DiagnosticLevel,
+    origin: usize,
+    origin_end: usize,
+    message_end: usize,
 }
 
 #[derive(Default)]
 struct DiagnosticOutput {
-    entries: VecDeque<(usize, usize)>,
+    entries: VecDeque<(usize, Option<Parts>)>,
     // Keep history together instead of retaining allocations from playback and decode workers.
     bytes: VecDeque<u8>,
     start_bytes: u64,
-    start_characters: u64,
     written: u64,
     closed: bool,
 }
@@ -335,19 +371,25 @@ impl DiagnosticOutput {
         let mut file = match RotatingLog::open(log_dir) {
             Ok(file) => Some(file),
             Err(error) => {
-                output.append(sanitize_free_text(&format!(
-                    "WARN rufin::diagnostics: local log file is unavailable: {error}\n"
-                )));
+                output.append(
+                    sanitize_free_text(&format!(
+                        "WARN rufin::diagnostics: local log file is unavailable: {error}\n"
+                    )),
+                    None,
+                );
                 None
             }
         };
         import_previous_panic_report(log_dir, &mut output);
         if let Some(log) = &mut file
-            && let Err(error) = log.append(output.updates(0).text.as_bytes())
+            && let Err(error) = log.append(output.text(0).as_bytes())
         {
-            output.append(sanitize_free_text(&format!(
-                "WARN rufin::diagnostics: local log file is unavailable: {error}\n"
-            )));
+            output.append(
+                sanitize_free_text(&format!(
+                    "WARN rufin::diagnostics: local log file is unavailable: {error}\n"
+                )),
+                None,
+            );
             file = None;
         }
         output.written = output.end();
@@ -358,39 +400,78 @@ impl DiagnosticOutput {
         clippy::string_slice,
         reason = "the buffer boundary is advanced to a UTF-8 character boundary before slicing"
     )]
-    fn append(&mut self, mut text: String) {
+    fn append(&mut self, mut text: String, mut parts: Option<Parts>) {
         if text.len() > BUFFER_MAX_BYTES {
             let mut start = text.len() - BUFFER_MAX_BYTES;
             while !text.is_char_boundary(start) {
                 start += 1;
             }
             text = text[start..].to_string();
+            parts = None;
         }
         while self.bytes.len() + text.len() > BUFFER_MAX_BYTES {
-            let Some((bytes, characters)) = self.entries.pop_front() else {
+            let Some((bytes, _)) = self.entries.pop_front() else {
                 break;
             };
             self.bytes.drain(..bytes);
             self.start_bytes += bytes as u64;
-            self.start_characters += characters as u64;
         }
         self.bytes.extend(text.bytes());
-        self.entries.push_back((text.len(), text.chars().count()));
+        self.entries.push_back((text.len(), parts));
     }
 
     fn end(&self) -> u64 {
         self.start_bytes + self.bytes.len() as u64
     }
 
-    fn updates(&self, cursor: u64) -> DiagnosticUpdate {
+    /// The log's text from a cursor, as the log file holds it.
+    fn text(&self, cursor: u64) -> String {
         let skip = cursor
             .saturating_sub(self.start_bytes)
             .min(self.bytes.len() as u64) as usize;
+        String::from_utf8(self.bytes.range(skip..).copied().collect())
+            .expect("diagnostic cursors end at UTF-8 boundaries")
+    }
+
+    #[expect(
+        clippy::string_slice,
+        reason = "a record's parts end where the layer that wrote the line pushed ASCII separators"
+    )]
+    fn updates(&self, cursor: u64) -> DiagnosticUpdate {
+        let mut entries = Vec::new();
+        let mut offset = 0;
+        for (bytes, parts) in &self.entries {
+            let position = self.start_bytes + offset as u64;
+            let record = offset..offset + bytes;
+            offset = record.end;
+            if position < cursor {
+                continue;
+            }
+            let text = String::from_utf8(self.bytes.range(record).copied().collect())
+                .expect("diagnostic records end at UTF-8 boundaries");
+            entries.push(match parts {
+                Some(parts) => DiagnosticEntry {
+                    position,
+                    time_millis: parts.time_millis,
+                    level: Some(parts.level),
+                    origin: text[parts.origin..parts.origin_end].to_string(),
+                    message: text[parts.origin_end + 2..parts.message_end].to_string(),
+                    fields: text[parts.message_end..].trim().to_string(),
+                },
+                None => DiagnosticEntry {
+                    position,
+                    time_millis: 0,
+                    level: None,
+                    origin: String::new(),
+                    message: text.trim_end().to_string(),
+                    fields: String::new(),
+                },
+            });
+        }
         DiagnosticUpdate {
             end: self.end(),
-            start_character: self.start_characters,
-            text: String::from_utf8(self.bytes.range(skip..).copied().collect())
-                .expect("diagnostic cursors end at UTF-8 boundaries"),
+            start: self.start_bytes,
+            entries,
         }
     }
 }
@@ -400,10 +481,13 @@ fn import_previous_panic_report(log_dir: &Path, output: &mut DiagnosticOutput) {
     let Ok(report) = fs::read_to_string(&path) else {
         return;
     };
-    output.append(format!(
-        "Previous Rufin crash report:\n{}\n",
-        sanitize_free_text(&report)
-    ));
+    output.append(
+        format!(
+            "Previous Rufin crash report:\n{}\n",
+            sanitize_free_text(&report)
+        ),
+        None,
+    );
     let _ = fs::remove_file(path);
 }
 
@@ -479,54 +563,110 @@ fn rotate_files(directory: &Path, base: &str) -> io::Result<()> {
     Ok(())
 }
 
-#[derive(Clone)]
-struct DiagnosticWriterFactory {
+/// Keeps every event as one line of the log, and where its parts are in it. The line is the
+/// compact format the terminal shows: time, level, the spans it is in, its target, the message,
+/// its fields and then the spans' fields.
+struct StoredLayer {
     output: Arc<DiagnosticState>,
 }
 
-impl<'writer> MakeWriter<'writer> for DiagnosticWriterFactory {
-    type Writer = DiagnosticWriter;
+/// A span's fields as text, kept on the span for the events inside it.
+struct SpanFields(String);
 
-    fn make_writer(&'writer self) -> Self::Writer {
-        DiagnosticWriter {
-            output: Arc::clone(&self.output),
-            pending: Vec::new(),
+impl<S> Layer<S> for StoredLayer
+where
+    S: tracing::Subscriber + for<'span> LookupSpan<'span>,
+{
+    fn on_new_span(
+        &self,
+        attributes: &tracing::span::Attributes<'_>,
+        id: &tracing::span::Id,
+        context: Context<'_, S>,
+    ) {
+        let mut visitor = EntryVisitor::default();
+        attributes.record(&mut visitor);
+        if let Some(span) = context.span(id) {
+            span.extensions_mut().insert(SpanFields(visitor.fields));
         }
     }
-}
 
-struct DiagnosticWriter {
-    output: Arc<DiagnosticState>,
-    pending: Vec<u8>,
-}
-
-impl DiagnosticWriter {
-    fn persist(&mut self) {
-        if self.pending.is_empty() {
+    fn on_record(
+        &self,
+        id: &tracing::span::Id,
+        values: &tracing::span::Record<'_>,
+        context: Context<'_, S>,
+    ) {
+        let Some(span) = context.span(id) else {
             return;
+        };
+        let mut extensions = span.extensions_mut();
+        if let Some(SpanFields(fields)) = extensions.get_mut::<SpanFields>() {
+            let mut visitor = EntryVisitor {
+                message: String::new(),
+                fields: std::mem::take(fields),
+            };
+            values.record(&mut visitor);
+            *fields = visitor.fields;
         }
-
-        let text = String::from_utf8_lossy(&self.pending).into_owned();
-        self.pending.clear();
-        self.output.append(text);
-    }
-}
-
-impl io::Write for DiagnosticWriter {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        self.pending.extend_from_slice(bytes);
-        Ok(bytes.len())
     }
 
-    fn flush(&mut self) -> io::Result<()> {
-        self.persist();
-        Ok(())
-    }
-}
+    fn on_event(&self, event: &tracing::Event<'_>, context: Context<'_, S>) {
+        use std::fmt::Write as _;
 
-impl Drop for DiagnosticWriter {
-    fn drop(&mut self) {
-        self.persist();
+        let mut line = String::new();
+        let _ = SystemTime.format_time(&mut Writer::new(&mut line));
+        let metadata = event.metadata();
+        let _ = write!(line, " {:>5} ", metadata.level());
+        let origin = line.len();
+        let mut span_fields = String::new();
+        if let Some(scope) = context.event_scope(event) {
+            for span in scope.from_root() {
+                line.push_str(span.name());
+                line.push(':');
+                if let Some(SpanFields(fields)) = span.extensions().get::<SpanFields>()
+                    && !fields.is_empty()
+                {
+                    span_fields.push(' ');
+                    span_fields.push_str(fields);
+                }
+            }
+            if line.len() > origin {
+                line.push(' ');
+            }
+        }
+        line.push_str(metadata.target());
+        let origin_end = line.len();
+        line.push_str(": ");
+        let mut visitor = EntryVisitor::default();
+        event.record(&mut visitor);
+        line.push_str(&visitor.message);
+        let message_end = line.len();
+        if !visitor.fields.is_empty() {
+            line.push(' ');
+            line.push_str(&visitor.fields);
+        }
+        line.push_str(&span_fields);
+        line.push('\n');
+        let level = match *metadata.level() {
+            tracing::Level::ERROR => DiagnosticLevel::Error,
+            tracing::Level::WARN => DiagnosticLevel::Warning,
+            tracing::Level::INFO => DiagnosticLevel::Info,
+            tracing::Level::DEBUG => DiagnosticLevel::Debug,
+            tracing::Level::TRACE => DiagnosticLevel::Trace,
+        };
+        let time_millis = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_millis() as u64);
+        self.output.append(
+            line,
+            Some(Parts {
+                time_millis,
+                level,
+                origin,
+                origin_end,
+                message_end,
+            }),
+        );
     }
 }
 
@@ -534,46 +674,46 @@ impl Drop for DiagnosticWriter {
 struct PrivacyFields;
 
 impl<'writer> FormatFields<'writer> for PrivacyFields {
-    fn format_fields<R: RecordFields>(&self, writer: Writer<'writer>, fields: R) -> fmt::Result {
-        let mut visitor = PrivacyVisitor {
-            writer,
-            empty: true,
-            result: Ok(()),
-        };
+    fn format_fields<R: RecordFields>(
+        &self,
+        mut writer: Writer<'writer>,
+        fields: R,
+    ) -> fmt::Result {
+        let mut visitor = EntryVisitor::default();
         fields.record(&mut visitor);
-        visitor.result
+        writer.write_str(&visitor.message)?;
+        if !visitor.message.is_empty() && !visitor.fields.is_empty() {
+            writer.write_char(' ')?;
+        }
+        writer.write_str(&visitor.fields)
     }
 }
 
-struct PrivacyVisitor<'writer> {
-    writer: Writer<'writer>,
-    empty: bool,
-    result: fmt::Result,
+/// An event's message and its other fields as `name=value`, each with secrets and paths taken out.
+#[derive(Default)]
+struct EntryVisitor {
+    message: String,
+    fields: String,
 }
 
-impl PrivacyVisitor<'_> {
+impl EntryVisitor {
     fn record_value(&mut self, field: &Field, value: String) {
-        if self.result.is_err() {
-            return;
-        }
-        if !self.empty {
-            self.result = self.writer.write_char(' ');
-            if self.result.is_err() {
-                return;
-            }
-        }
-        self.empty = false;
         let name = field.name();
         let value = sanitize_field(name, &value);
-        self.result = if name == "message" {
-            self.writer.write_str(&value)
+        if name == "message" {
+            self.message = value;
         } else {
-            write!(self.writer, "{name}={value}")
-        };
+            if !self.fields.is_empty() {
+                self.fields.push(' ');
+            }
+            self.fields.push_str(name);
+            self.fields.push('=');
+            self.fields.push_str(&value);
+        }
     }
 }
 
-impl Visit for PrivacyVisitor<'_> {
+impl Visit for EntryVisitor {
     fn record_str(&mut self, field: &Field, value: &str) {
         self.record_value(field, value.to_string());
     }
@@ -900,28 +1040,20 @@ mod tests {
 
     #[test]
     fn persistent_logs_keep_snapshot_order_and_drain_through_rotation() {
-        use std::io::Write as _;
-
         let directory = tempfile::tempdir().unwrap();
         let (output, guard) = DiagnosticState::new(directory.path());
         std::thread::scope(|scope| {
             for producer in 0..4 {
                 let output = Arc::clone(&output);
                 scope.spawn(move || {
-                    let factory = DiagnosticWriterFactory { output };
                     for index in 0..256 {
-                        writeln!(
-                            factory.make_writer(),
-                            "{producer}:{index}:{}",
-                            "x".repeat(4096)
-                        )
-                        .unwrap();
+                        output.append(format!("{producer}:{index}:{}\n", "x".repeat(4096)), None);
                     }
                 });
             }
         });
         drop(guard);
-        let snapshot = output.output.lock().unwrap().updates(0).text;
+        let snapshot = output.output.lock().unwrap().text(0);
         let mut persisted = String::new();
         for name in ["rufin.log.2", "rufin.log.1", LOG_FILE] {
             if let Ok(contents) = fs::read_to_string(directory.path().join(name)) {
@@ -946,11 +1078,11 @@ mod tests {
         let (output, guard) = DiagnosticState::new(directory.path());
         // A directory at the rotation destination makes rotation fail on all platforms.
         fs::create_dir(directory.path().join("rufin.log.2")).unwrap();
-        output.append("x".repeat(BUFFER_MAX_BYTES));
+        output.append("x".repeat(BUFFER_MAX_BYTES), None);
         output.flush();
-        output.append("rotation triggers here\n".into());
+        output.append("rotation triggers here\n".into(), None);
         drop(guard);
-        let snapshot = output.output.lock().unwrap().updates(0).text;
+        let snapshot = output.output.lock().unwrap().text(0);
         assert!(snapshot.contains("rotation triggers here"));
         assert!(snapshot.contains("local log file is unavailable"));
     }
@@ -987,9 +1119,9 @@ mod tests {
         let (writer, guard) = stderr::Writer::new(pipe);
         let subscriber = Registry::default()
             .with(tracing_fmt::layer().with_writer(writer))
-            .with(tracing_fmt::layer().with_writer(DiagnosticWriterFactory {
+            .with(StoredLayer {
                 output: Arc::clone(&output),
-            }));
+            });
         let (finished, completion) = mpsc::channel();
         let producer = std::thread::spawn(move || {
             tracing::subscriber::with_default(subscriber, || {
@@ -1014,8 +1146,7 @@ mod tests {
                 .output
                 .lock()
                 .unwrap()
-                .updates(0)
-                .text
+                .text(0)
                 .contains("local log still available")
         );
         assert!(
@@ -1032,15 +1163,11 @@ mod tests {
             ready: Condvar::new(),
             drained: Condvar::new(),
         });
-        let subscriber = Registry::default().with(profile_filter(true)).with(
-            tracing_fmt::layer()
-                .compact()
-                .with_ansi(false)
-                .fmt_fields(PrivacyFields)
-                .with_writer(DiagnosticWriterFactory {
-                    output: Arc::clone(&output),
-                }),
-        );
+        let subscriber = Registry::default()
+            .with(profile_filter(true))
+            .with(StoredLayer {
+                output: Arc::clone(&output),
+            });
 
         tracing::subscriber::with_default(subscriber, || {
             tracing::debug!(target: "h2::codec", "transport frame");
@@ -1059,12 +1186,20 @@ mod tests {
             );
         });
 
-        let snapshot = output
+        let output = output
             .output
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let snapshot = output.text(0);
+        let navigate = output
             .updates(0)
-            .text;
+            .entries
+            .into_iter()
+            .find(|entry| entry.message == "navigate")
+            .expect("the navigate entry");
+        assert_eq!(navigate.level, Some(DiagnosticLevel::Debug));
+        assert_eq!(navigate.origin, "ui::shell::shell::route");
+        assert_eq!(navigate.fields, "route=Home");
         assert!(snapshot.contains("source request"));
         assert!(snapshot.contains("navigate route=Home"));
         assert!(snapshot.contains("route rows ready"));
@@ -1139,12 +1274,13 @@ mod tests {
             drained: Condvar::new(),
         };
         // The producer completes even before a file writer can run.
-        output.append("猫".repeat(BUFFER_MAX_BYTES / 3));
+        output.append("猫".repeat(BUFFER_MAX_BYTES / 3), None);
         let first = output.output.lock().unwrap().updates(0);
-        output.append("tail\n".to_string());
+        output.append("tail\n".to_string(), None);
         let update = output.output.lock().unwrap().updates(first.end);
-        assert_eq!(update.text, "tail\n");
-        assert_eq!(update.start_character, (BUFFER_MAX_BYTES / 3) as u64);
+        assert_eq!(update.entries.len(), 1);
+        assert_eq!(update.entries[0].message, "tail");
+        assert_eq!(update.start, first.end);
         {
             let mut buffer = output.output.lock().unwrap();
             assert!(buffer.bytes.len() <= BUFFER_MAX_BYTES);
@@ -1153,8 +1289,8 @@ mod tests {
         output.run(None);
         output.flush();
         let buffer = output.output.lock().unwrap();
-        assert!(buffer.updates(0).text.contains(OMITTED_RECORDS));
-        assert!(buffer.updates(buffer.end()).text.is_empty());
+        assert!(buffer.text(0).contains(OMITTED_RECORDS));
+        assert!(buffer.updates(buffer.end()).entries.is_empty());
     }
 
     #[test]
@@ -1167,7 +1303,7 @@ mod tests {
 
         import_previous_panic_report(directory.path(), &mut output);
 
-        let snapshot = output.updates(0).text;
+        let snapshot = output.text(0);
         assert!(snapshot.contains("Previous Rufin crash report"));
         assert!(snapshot.contains("<local>/main.rs:20"));
         assert!(!panic_path.exists());

@@ -15,6 +15,8 @@ import app.rufin.rufin.StorageRestartActivity
 import app.rufin.rufin.shared.rufin_core.StorageReset
 
 import android.app.Application
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -327,6 +329,13 @@ class RufinConnection(application: Application) : AndroidViewModel(application) 
         val core = connectedService().runtime.value!!.getOrThrow()
         try { core.setDebugLogging(enabled) }
         finally { debugLogging = core.debugLogging() }
+    }
+
+    fun copyDiagnosticLog() = runAction {
+        val core = connectedService().runtime.value!!.getOrThrow()
+        val contents = withContext(Dispatchers.IO) { core.diagnosticLog() }
+        getApplication<Application>().getSystemService(ClipboardManager::class.java)
+            .setPrimaryClip(ClipData.newPlainText("Rufin", contents))
     }
 
     fun saveDiagnosticLog(uri: Uri) = runAction {

@@ -424,8 +424,7 @@ private fun HomeHeading(title: String) {
     }
 }
 
-/** Home's Quick mix, as GTK's: two columns of tiles, each filled as a section card is, its glyph in a block tinted with the
- *  accent, then its name. A tap opens the tracks it plays; a hold opens its menu, core's Quick mix menu, which plays them. */
+/** Home's Quick mix: two columns of tiles, each filled as a section card is, its glyph in the accent, then its name. A tap opens the tracks it plays; a hold opens its menu, core's Quick mix menu, which plays them. */
 @Composable
 private fun QuickMixTiles(tiles: List<AndroidQuickMixTile>, player: PlayerConnection, onMenu: (BrowseItem) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -441,8 +440,6 @@ private fun QuickMixTiles(tiles: List<AndroidQuickMixTile>, player: PlayerConnec
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun QuickMixTile(tile: AndroidQuickMixTile, player: PlayerConnection, modifier: Modifier, onMenu: (BrowseItem) -> Unit) {
-    val shape = RoundedCornerShape(12.dp)
-    val scheme = MaterialTheme.colorScheme
     val browse = player.model.browse
     // Its menu plays the entry as Play does, it being shuffled already, and takes the tracks its page lists.
     val menu = {
@@ -452,14 +449,21 @@ private fun QuickMixTile(tile: AndroidQuickMixTile, player: PlayerConnection, mo
             }))
         }
     }
+    GlyphTile(tile.icon, tile.title, modifier, { browse.openRoute(Route.QuickMix(tile.entry), tile.title) }) { menu() }
+}
+
+/** A tile of Home's Quick mix and of the Library page: filled as a section card is, its glyph in the accent,
+ *  then its name. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun GlyphTile(icon: String, title: String, modifier: Modifier, onClick: () -> Unit, onLongClick: (() -> Unit)? = null) {
+    val shape = RoundedCornerShape(12.dp)
+    val scheme = MaterialTheme.colorScheme
     Row(modifier.focusRing(shape).clip(shape).background(scheme.onSurface.copy(alpha = .05f))
-        .combinedClickable(onClick = { browse.openRoute(Route.QuickMix(tile.entry), tile.title) }, onLongClick = { menu() })
+        .combinedClickable(onClick = onClick, onLongClick = onLongClick)
         .padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)).background(scheme.primary.copy(alpha = .18f)),
-            contentAlignment = Alignment.Center) {
-            RufinIcon(tile.icon, null, Modifier.size(18.dp), scheme.primary)
-        }
-        Text(tile.title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall,
+        Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) { RufinIcon(icon, null, Modifier.size(24.dp), scheme.primary) }
+        Text(title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold)
     }
 }

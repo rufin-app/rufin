@@ -1654,11 +1654,9 @@ flowbox.home-quick-mix > flowboxchild:hover {
 }
 
 image.home-quick-mix-glyph {
-  min-width: 18px;
-  min-height: 18px;
-  padding: 9px;
-  border-radius: 9px;
-  background-color: color-mix(in srgb, var(--accent-bg-color) 18%, transparent);
+  min-width: 24px;
+  min-height: 24px;
+  padding: 6px;
   color: var(--accent-color);
 }
 
@@ -3819,3 +3817,17 @@ scale.player-progress.player-live:disabled {
 scale.player-progress.player-live slider {
   opacity: 0;
 }
+
+
+/* The Logs dialog: its entries as rows of one card. */
+listview.log-list { background: none; }
+listview.log-list > row { padding: 0; }
+.log-row { padding: 9px 12px; }
+.log-row.log-warning { background: color-mix(in srgb, var(--warning-bg-color) 14%, transparent); }
+.log-row.log-error { background: color-mix(in srgb, var(--error-bg-color) 14%, transparent); }
+.log-row.log-warning .log-level { color: var(--warning-color); }
+.log-row.log-error .log-level { color: var(--error-color); }
+.log-row.log-quiet .log-level,
+.log-row.log-quiet .log-message { opacity: 0.62; }
+.log-row .log-code,
+.log-row.log-raw .log-message { font-family: monospace; font-size: 0.8em; }

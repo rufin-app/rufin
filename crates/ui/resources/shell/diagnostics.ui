@@ -4,14 +4,14 @@
   <requires lib="libadwaita" version="1.9"/>
 
   <object class="AdwDialog" id="diagnostics_dialog">
-    <property name="title" translatable="yes">Troubleshooting</property>
+    <property name="title" translatable="yes">Logs</property>
     <property name="child">
       <object class="AdwToolbarView">
         <child type="top">
           <object class="AdwHeaderBar">
             <property name="title-widget">
               <object class="AdwWindowTitle" id="dialog_title">
-                <property name="title" translatable="yes">Troubleshooting</property>
+                <property name="title" translatable="yes">Logs</property>
               </object>
             </property>
           </object>
@@ -47,6 +47,29 @@
               </object>
             </child>
             <child>
+              <object class="AdwToggleGroup" id="levels">
+                <property name="halign">start</property>
+                <child>
+                  <object class="AdwToggle">
+                    <property name="name">all</property>
+                    <property name="label" translatable="yes">All</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwToggle">
+                    <property name="name">warnings</property>
+                    <property name="label" translatable="yes">Warnings</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwToggle">
+                    <property name="name">errors</property>
+                    <property name="label" translatable="yes">Errors</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
               <object class="GtkScrolledWindow" id="log_scroller">
                 <property name="hscrollbar-policy">never</property>
                 <property name="vscrollbar-policy">automatic</property>
@@ -56,15 +79,11 @@
                   <class name="card"/>
                 </style>
                 <property name="child">
-                  <object class="GtkTextView" id="log">
-                    <property name="editable">false</property>
-                    <property name="cursor-visible">false</property>
-                    <property name="monospace">true</property>
-                    <property name="wrap-mode">word-char</property>
-                    <property name="left-margin">8</property>
-                    <property name="right-margin">8</property>
-                    <property name="top-margin">8</property>
-                    <property name="bottom-margin">8</property>
+                  <object class="GtkListView" id="log">
+                    <property name="show-separators">true</property>
+                    <style>
+                      <class name="log-list"/>
+                    </style>
                   </object>
                 </property>
               </object>

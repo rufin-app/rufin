@@ -34,6 +34,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import app.rufin.rufin.settings.LocalReduceMotion
 import androidx.paging.compose.collectAsLazyPagingItems
+import app.rufin.rufin.BuildConfig
 import app.rufin.rufin.browse.AppSection
 import app.rufin.rufin.browse.BrowseConnection
 import app.rufin.rufin.browse.BrowseItem
@@ -61,148 +62,19 @@ internal class SidebarActions(
     val search: (() -> Unit)? = null,
 )
 
-/** The full sidebar: the source rail with the app's pages under it, and beside it the picked source as the
- *  title, which opens its server libraries, the general search where no bottom bar offers it, Home and the routes, and the Saved entries. */
+/** The full sidebar: the picked source as the title, which opens the sources and its server libraries; the
+ *  general search where no bottom bar offers it, Home and the routes, and the Saved entries; a docked player
+ *  from edge to edge; and last Rufin with its version, which opens About, beside Settings. */
 @Composable
 internal fun Sidebar(model: RufinConnection, browse: BrowseConnection, player: PlayerConnection,
     saved: BrowsePage, actions: SidebarActions,
-    /** The page of the rail's lower buttons that is open, which its button marks. */
+    /** The app's page that is open, which the last row marks. */
     open: MoreDestination?, modifier: Modifier = Modifier,
     /** The player that a short, wide screen docks under the list. */
     dock: (@Composable () -> Unit)? = null,
     /** Folds a docked sidebar to its compact rail, where the screen offers both. */
     collapse: (() -> Unit)? = null,
 ) {
-    Row(modifier.fillMaxHeight().widthIn(max = 326.dp)) {
-        SourceRail(model, actions, open, collapse)
-        Column(Modifier.weight(1f).fillMaxHeight()) {
-            SidebarList(model, browse, player, saved, actions, Modifier.weight(1f))
-            dock?.invoke()
-        }
-    }
-}
-
-/** The sources, one tap each, then Manage and Add; pinned under them the app's own pages. */
-@Composable
-private fun SourceRail(model: RufinConnection, actions: SidebarActions, open: MoreDestination?, collapse: (() -> Unit)?) {
-    val scheme = MaterialTheme.colorScheme
-    val sources = model.sources
-    Column(Modifier.fillMaxHeight().width(66.dp).background(scheme.surfaceContainerLowest).padding(top = 12.dp, bottom = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally) {
-        collapse?.let { PlayerIconButton("rufin-open-menu-symbolic", "Collapse sidebar", it) }
-        LazyColumn(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(sources?.sources.orEmpty(), key = { it.id }) { source ->
-                val selected = source.id == sources?.selectedSourceId
-                SourceButton(source, selected) { if (!selected) model.selectSource(source.id) }
-            }
-            item {
-                Surface({ actions.more(MoreDestination.Library) }, Modifier.size(44.dp), shape = CircleShape, color = scheme.surfaceContainer) {
-                    Box(contentAlignment = Alignment.Center) {
-                        RufinIcon("rufin-document-edit-symbolic", translate("Manage"), Modifier.size(20.dp), scheme.onSurfaceVariant)
-                    }
-                }
-            }
-            item {
-                Surface(actions.addSource, Modifier.size(44.dp), shape = CircleShape, color = scheme.surfaceContainer) {
-                    Box(contentAlignment = Alignment.Center) {
-                        RufinIcon("rufin-list-add-symbolic", translate("Add a new source"), Modifier.size(20.dp), scheme.onSurfaceVariant)
-                    }
-                }
-            }
-        }
-        RailPages(open, actions.more)
-    }
-}
-
-/** The app's own pages, as both rails pin them at their bottom: plain buttons, the open one in the accent. */
-@Composable
-private fun RailPages(open: MoreDestination?, more: (MoreDestination) -> Unit) {
-    val pages = listOf(Triple(MoreDestination.Overview, "Listening overview", "rufin-activity-overview-symbolic"),
-        Triple(MoreDestination.Versions, "Version History", "rufin-appointment-new-symbolic"),
-        Triple(MoreDestination.Troubleshooting, "Troubleshooting", "rufin-utilities-terminal-symbolic"),
-        Triple(MoreDestination.Root, "Settings", "rufin-preferences-system-symbolic"))
-    // Settings marks its own pages too, whichever of them is open.
-    val picked = open?.let { page -> pages.firstOrNull { it.first == page }?.first ?: MoreDestination.Root }
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
-        pages.forEach { (destination, title, icon) ->
-            PlayerIconButton(icon, title, { more(destination) }, selected = picked == destination, iconSize = 20.dp)
-        }
-    }
-}
-
-/** A source of the rail: its logo over its name; the picked one squares off and takes an accent bar on its edge. */
-@Composable
-private fun SourceButton(source: SourceSummary, selected: Boolean, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Box(Modifier.fillMaxWidth().selectable(selected, role = Role.Tab, onClick = onClick)) {
-        if (selected) Box(Modifier.align(Alignment.TopStart).padding(top = 8.dp).size(4.dp, 28.dp)
-            .background(scheme.primary, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)))
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.size(44.dp).background(if (selected) scheme.secondaryContainer else scheme.surfaceContainer,
-                RoundedCornerShape(if (selected) 14.dp else 22.dp)), contentAlignment = Alignment.Center) {
-                SourceIcon(source.kind, Modifier.size(24.dp))
-            }
-            Text(source.name, Modifier.padding(start = 3.dp, end = 3.dp, top = 3.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelSmall, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) scheme.onSurface else scheme.onSurfaceVariant)
-        }
-    }
-}
-
-/** The picked source as the list's title, its server library under the name; tapped, the source's libraries open
- *  under it and move the routes down. With no source the title is the app's name. A dot after the name says its
- *  server does not answer. */
-@Composable
-private fun LibraryTitle(source: String?, unreachable: Boolean, titles: List<String>, picked: Int, pick: (Int) -> Unit) {
-    var open by remember(source) { mutableStateOf(false) }
-    val scheme = MaterialTheme.colorScheme
-    val duration = if (LocalReduceMotion.current) 0 else 180
-    val turn by animateFloatAsState(if (open) 180f else 0f, tween(duration), label = "libraryTitle")
-    Column(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-            .clickable(enabled = titles.isNotEmpty(), role = Role.Button) { open = !open }
-            .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(source ?: "Rufin", Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    if (unreachable) {
-                        val label = translate("Server is unreachable")
-                        Box(Modifier.size(8.dp).background(scheme.error, CircleShape).semantics { contentDescription = label })
-                    }
-                }
-                titles.getOrNull(picked)?.let {
-                    Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-                }
-            }
-            if (titles.isNotEmpty()) RufinIcon("rufin-pan-down-symbolic", null, Modifier.size(16.dp).graphicsLayer { rotationZ = turn }, scheme.onSurfaceVariant)
-        }
-        AnimatedVisibility(open && titles.isNotEmpty(), enter = expandVertically(tween(duration)) + fadeIn(tween(duration)),
-            exit = shrinkVertically(tween(duration)) + fadeOut(tween(duration))) {
-            Column(Modifier.fillMaxWidth().padding(start = 2.dp, end = 2.dp, top = 2.dp, bottom = 8.dp).clip(RoundedCornerShape(18.dp)),
-                verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                titles.forEachIndexed { index, title ->
-                    val selected = index == picked
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(5.dp))
-                        .background(if (selected) scheme.secondaryContainer else scheme.surfaceContainer)
-                        .selectable(selected, role = Role.RadioButton) { open = false; if (!selected) pick(index) }
-                        .heightIn(min = 46.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                        if (selected) RufinIcon("rufin-object-select-symbolic", null, Modifier.size(18.dp), scheme.primary)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SidebarList(model: RufinConnection, browse: BrowseConnection, player: PlayerConnection,
-    saved: BrowsePage, actions: SidebarActions, modifier: Modifier) {
-    val rows = saved.pages.collectAsLazyPagingItems()
-    val phone = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp < 600
     val sources = model.sources
     val selectedId = sources?.selectedSourceId
     var folders by remember(selectedId) { mutableStateOf<AndroidMusicFolderState?>(null) }
@@ -213,7 +85,129 @@ private fun SidebarList(model: RufinConnection, browse: BrowseConnection, player
         catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) { model.runAction { throw failure } }
     }
-    LazyColumn(modifier.fillMaxWidth(), contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 12.dp, bottom = 16.dp)) {
+    val choices = folders?.choices.orEmpty().takeIf { list -> list.any { it.id != null } }.orEmpty()
+    var switching by remember { mutableStateOf(false) }
+    Column(modifier.fillMaxHeight().widthIn(max = 326.dp)) {
+        SourceTitle(sources?.sources?.firstOrNull { it.id == selectedId },
+            choices.firstOrNull { it.id == folders?.selectedId }?.title, switching, { switching = !switching }, collapse)
+        SidebarList(browse, player, saved, actions, Modifier.weight(1f)) {
+            SourceSwitcher(switching, sources?.sources.orEmpty(), selectedId, choices.map { it.title },
+                choices.indexOfFirst { it.id == folders?.selectedId },
+                pickSource = { switching = false; model.selectSource(it) },
+                pickLibrary = { index -> switching = false; model.runAction { browse.library?.setMusicFolder(choices[index].id) } },
+                manage = { actions.more(MoreDestination.Library) }, add = actions.addSource)
+        }
+        dock?.invoke()
+        if (dock == null) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        // Only the bar under the sidebar: on its side a phone has the bar at the screen's far edge.
+        Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+            .padding(start = 8.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            NavigationDrawerItem(label = {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Rufin", color = MaterialTheme.colorScheme.onSurface)
+                    Text("v${BuildConfig.VERSION_NAME}", maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Normal)
+                }
+            }, selected = open?.section == MoreDestination.About, onClick = { actions.more(MoreDestination.About) },
+                icon = { RufinIcon(AppIcon, null, Modifier.size(22.dp)) },
+                modifier = Modifier.weight(1f).height(48.dp).semantics { contentDescription = translate("About Rufin") })
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+                PlayerIconButton("rufin-preferences-system-symbolic", "Settings", { actions.more(MoreDestination.Root) },
+                    selected = open?.section == MoreDestination.Root, iconSize = 24.dp)
+            }
+        }
+    }
+}
+
+/** Rufin's own symbolic icon, which the build names for the covers it stands in for. */
+private const val AppIcon = "rufin-cover-fallback-symbolic"
+
+/** The picked source as the sidebar's title: its logo, its name with its server library under it, and an arrow
+ *  that says the title opens. With no source the title is the app's name. A dot after the name says its server
+ *  does not answer. */
+@Composable
+private fun SourceTitle(source: SourceSummary?, library: String?, open: Boolean, toggle: () -> Unit, collapse: (() -> Unit)?) {
+    val scheme = MaterialTheme.colorScheme
+    val turn by animateFloatAsState(if (open) 180f else 0f, tween(if (LocalReduceMotion.current) 0 else 180), label = "sourceTitle")
+    Row(Modifier.fillMaxWidth().height(60.dp).padding(start = 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable(role = Role.Button, onClick = toggle)
+            .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (source != null) SourceIcon(source.kind, Modifier.size(32.dp))
+            else RufinIcon(AppIcon, null, Modifier.size(32.dp), scheme.primary)
+            Column(Modifier.weight(1f, fill = false).padding(start = 12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(source?.name ?: "Rufin", Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    if (source?.unreachable == true) {
+                        val label = translate("Server is unreachable")
+                        Box(Modifier.size(8.dp).background(scheme.error, CircleShape).semantics { contentDescription = label })
+                    }
+                }
+                library?.let {
+                    Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+                }
+            }
+            RufinIcon("rufin-pan-down-symbolic", null, Modifier.padding(start = 4.dp).size(16.dp).graphicsLayer { rotationZ = turn }, scheme.onSurfaceVariant)
+        }
+        collapse?.let { PlayerIconButton("rufin-sidebar-show-symbolic", "Collapse sidebar", it) }
+    }
+}
+
+/** What the title opens, over the routes: the sources, the picked one's server libraries under it, then Manage
+ *  and Add Source. One group of segments, as Settings' rows. */
+@Composable
+private fun SourceSwitcher(open: Boolean, sources: List<SourceSummary>, selectedId: String?, libraries: List<String>, library: Int,
+    pickSource: (String) -> Unit, pickLibrary: (Int) -> Unit, manage: () -> Unit, add: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val duration = if (LocalReduceMotion.current) 0 else 180
+    AnimatedVisibility(open, enter = expandVertically(tween(duration)) + fadeIn(tween(duration)),
+        exit = shrinkVertically(tween(duration)) + fadeOut(tween(duration))) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(18.dp)), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            @Composable
+            fun Segment(selected: Boolean, modifier: Modifier, content: @Composable RowScope.() -> Unit) {
+                Row(modifier.clip(RoundedCornerShape(5.dp)).background(if (selected) scheme.secondaryContainer else scheme.surfaceContainer)
+                    .height(46.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp), content = content)
+            }
+            val label = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+            sources.forEach { source ->
+                val selected = source.id == selectedId
+                Segment(selected, Modifier.fillMaxWidth().selectable(selected, role = Role.RadioButton) { if (!selected) pickSource(source.id) }) {
+                    SourceIcon(source.kind, Modifier.size(22.dp))
+                    Text(source.name, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = label)
+                    if (selected) RufinIcon("rufin-object-select-symbolic", null, Modifier.size(18.dp), scheme.primary)
+                }
+                if (selected) libraries.forEachIndexed { index, title ->
+                    val picked = index == library
+                    Segment(false, Modifier.fillMaxWidth().selectable(picked, role = Role.RadioButton) { if (!picked) pickLibrary(index) }) {
+                        Text(title, Modifier.weight(1f).padding(start = 34.dp), maxLines = 1, overflow = TextOverflow.Ellipsis, style = label)
+                        if (picked) RufinIcon("rufin-object-select-symbolic", null, Modifier.size(18.dp), scheme.primary)
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                listOf(Triple("rufin-document-edit-symbolic", translate("Manage"), manage),
+                    Triple("rufin-list-add-symbolic", translate("Add Source"), add)).forEach { (icon, title, action) ->
+                    Segment(false, Modifier.weight(1f).clickable(role = Role.Button, onClick = action)) {
+                        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            RufinIcon(icon, null, Modifier.size(16.dp), scheme.onSurfaceVariant)
+                            Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = label)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SidebarList(browse: BrowseConnection, player: PlayerConnection, saved: BrowsePage, actions: SidebarActions, modifier: Modifier,
+    /** What the title opened, over the list. */
+    switcher: @Composable () -> Unit) {
+    val rows = saved.pages.collectAsLazyPagingItems()
+    LazyColumn(modifier.fillMaxWidth(), contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 16.dp)) {
+        item { switcher() }
         actions.search?.let { search -> item {
             Surface(search, Modifier.fillMaxWidth().padding(bottom = 6.dp).height(44.dp), shape = RoundedCornerShape(22.dp),
                 color = if (browse.section == AppSection.Search) MaterialTheme.colorScheme.secondaryContainer
@@ -225,15 +219,7 @@ private fun SidebarList(model: RufinConnection, browse: BrowseConnection, player
                 }
             }
         } }
-        item {
-            val choices = folders?.choices.orEmpty().takeIf { list -> list.any { it.id != null } }.orEmpty()
-            val source = sources?.sources?.firstOrNull { it.id == selectedId }
-            LibraryTitle(source?.name, source?.unreachable == true, choices.map { it.title }, choices.indexOfFirst { it.id == folders?.selectedId }) { index ->
-                model.runAction { browse.library?.setMusicFolder(choices[index].id) }
-            }
-        }
-        // A phone has Radio on its bottom bar.
-        items(sidebarRoutes(browse).filter { it.id != "Radio" || !phone }, key = { it.id }) { route ->
+        items(sidebarRoutes(browse), key = { it.id }) { route ->
             val selected = browse.section == AppSection.Browse && browse.rootId == route.id
             NavigationDrawerItem(label = { Text(route.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }, selected = selected,
                 onClick = { actions.route(route.id) },
@@ -270,7 +256,7 @@ private fun SavedRow(item: BrowseItem, player: PlayerConnection, open: () -> Uni
 }
 
 /** The compact icon sidebar of foldable widths: ☰ opens the full one; then Search, Home and the routes, each
- *  with its name, and Saved with its entries' covers under it; the app's own pages are pinned at its bottom. */
+ *  with its name, and Saved with its entries' covers under it; About and Settings are pinned at its bottom. */
 @Composable
 internal fun SidebarRail(browse: BrowseConnection, player: PlayerConnection, saved: BrowsePage, expand: () -> Unit,
     route: (String) -> Unit, search: () -> Unit, onSaved: () -> Unit, openSaved: (BrowseItem) -> Unit,
@@ -305,7 +291,11 @@ internal fun SidebarRail(browse: BrowseConnection, player: PlayerConnection, sav
                 }
             }
             Column(Modifier.navigationBarsPadding().padding(bottom = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                RailPages(open, more)
+                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+                    PlayerIconButton(AppIcon, "About Rufin", { more(MoreDestination.About) }, selected = open?.section == MoreDestination.About)
+                    PlayerIconButton("rufin-preferences-system-symbolic", "Settings", { more(MoreDestination.Root) },
+                        selected = open?.section == MoreDestination.Root)
+                }
             }
         }
     }

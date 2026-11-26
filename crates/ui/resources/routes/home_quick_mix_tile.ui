@@ -14,7 +14,7 @@
             <property name="spacing">12</property>
             <child>
               <object class="GtkImage" id="glyph">
-                <property name="pixel-size">18</property>
+                <property name="pixel-size">24</property>
                 <property name="valign">center</property>
                 <style><class name="home-quick-mix-glyph"/></style>
               </object>
