@@ -102,7 +102,14 @@ fn transport_image(name: &str) -> gtk::Image {
 }
 
 pub fn shuffle_icon_button(label: &str) -> gtk::Button {
-    widget_icon_button(label, &transport_image("rufin-shuffle-symbolic"))
+    toggle_icon_button(label, "rufin-shuffle-symbolic")
+}
+
+/// An icon button that stays on or off: a screen reader says which once it has the toggle role.
+fn toggle_icon_button(label: &str, icon: &str) -> gtk::Button {
+    let button = widget_icon_button(label, &transport_image(icon));
+    button.set_accessible_role(gtk::AccessibleRole::ToggleButton);
+    button
 }
 
 pub fn repeat_icon_button(label: &str) -> gtk::Button {
@@ -126,7 +133,7 @@ pub fn volume_icon_button(label: &str) -> (gtk::Button, gtk::Image, Rc<Cell<Volu
 }
 
 pub fn auto_dj_icon_button(label: &str) -> gtk::Button {
-    widget_icon_button(label, &transport_image("rufin-auto-dj-symbolic"))
+    toggle_icon_button(label, "rufin-auto-dj-symbolic")
 }
 
 pub fn mix_icon_button(label: &str) -> gtk::Button {

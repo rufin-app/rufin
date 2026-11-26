@@ -28,6 +28,8 @@ pub fn favorite_icon_button(label: &str) -> gtk::Button {
 /// Gives `button` the heart every favorite shares: a click that makes a favorite pops it and
 /// sends small hearts out of it, one that removes it shrinks it back.
 pub fn install_favorite_heart(button: &gtk::Button) {
+    // On or off, said by a screen reader: `set_favorite_button_active` keeps the state.
+    button.set_accessible_role(gtk::AccessibleRole::ToggleButton);
     let heart = button
         .child()
         .and_downcast::<gtk::Image>()
@@ -111,11 +113,7 @@ pub fn row_favorite_icon_button(label: &str) -> gtk::Button {
 }
 
 pub fn set_favorite_button_active(button: &gtk::Button, active: bool) {
-    if active {
-        button.add_css_class("active-toggle");
-    } else {
-        button.remove_css_class("active-toggle");
-    }
+    crate::widgets::controls::set_active(button, active);
     let icon_name = if active {
         FAVORITE_REMOVE_ICON
     } else {

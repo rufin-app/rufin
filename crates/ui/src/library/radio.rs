@@ -124,7 +124,7 @@ fn show_pin(button: &gtk::Button, station: &Station) {
     } else {
         "rufin-bookmark-symbolic"
     });
-    crate::widgets::controls::set_active_class(button, saved);
+    crate::widgets::controls::set_active(button, saved);
 }
 
 /// Adds `station` to Saved or takes it out; one with channels opens their list from `button`.

@@ -213,7 +213,7 @@ pub(super) fn mount_route_surface(
     owner.set_vexpand(child.vexpands());
     owner.set_halign(child.halign());
     owner.set_valign(child.valign());
-    owner.set_accessible_role(gtk::AccessibleRole::Presentation);
+    owner.set_accessible_role(gtk::AccessibleRole::Generic);
     owner.imp().adjustment.replace(adjustment.cloned());
     owner.imp().target.set(target);
     owner.imp().items.replace(items);

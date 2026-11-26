@@ -47,12 +47,20 @@ pub fn sort_order_icon(descending: bool) -> &'static str {
     }
 }
 
-pub fn set_active_class(widget: &impl IsA<gtk::Widget>, active: bool) {
+/// Shows a button as switched on or off, and tells assistive technology which.
+pub fn set_active(widget: &impl IsA<gtk::Widget>, active: bool) {
     if active {
         widget.add_css_class("active-toggle");
     } else {
         widget.remove_css_class("active-toggle");
     }
+    widget
+        .as_ref()
+        .update_state(&[gtk::accessible::State::Pressed(if active {
+            gtk::AccessibleTristate::True
+        } else {
+            gtk::AccessibleTristate::False
+        })]);
 }
 /// A row's play controls at its end, shown while the pointer is over the row or its menu holds
 /// it: the grid cover's Play group, Play in the accent with Play Next and Play Later coming out

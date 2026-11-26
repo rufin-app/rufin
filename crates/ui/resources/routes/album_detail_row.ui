@@ -3,7 +3,6 @@
   <requires lib="gtk" version="4.20"/>
   <object class="GtkBox" id="root">
     <property name="hexpand">true</property>
-    <property name="accessible-role">presentation</property>
     <style><class name="album-detail-row"/></style>
     <child>
       <object class="GtkBox" id="gap">

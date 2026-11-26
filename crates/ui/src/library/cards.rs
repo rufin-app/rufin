@@ -273,7 +273,7 @@ impl CollectionGridCoverView {
         view.set_hexpand(true);
         view.set_halign(gtk::Align::Fill);
         view.set_valign(gtk::Align::Start);
-        view.set_accessible_role(gtk::AccessibleRole::Presentation);
+        view.set_accessible_role(gtk::AccessibleRole::Generic);
         view
     }
 
@@ -516,7 +516,7 @@ pub fn collection_grid_card_inset(
     inset.set_hexpand(true);
     inset.set_halign(gtk::Align::Fill);
     inset.set_valign(gtk::Align::Start);
-    inset.set_accessible_role(gtk::AccessibleRole::Presentation);
+    inset.set_accessible_role(gtk::AccessibleRole::Generic);
     child.set_width_request(minimum_content_width);
     child.set_parent(&inset);
     inset
@@ -593,7 +593,7 @@ pub fn square_cover_frame(child: &impl IsA<gtk::Widget>) -> SquareCoverFrame {
     frame.set_hexpand(true);
     frame.set_halign(gtk::Align::Fill);
     frame.set_valign(gtk::Align::Start);
-    frame.set_accessible_role(gtk::AccessibleRole::Presentation);
+    frame.set_accessible_role(gtk::AccessibleRole::Generic);
     child.set_parent(&frame);
     frame
 }

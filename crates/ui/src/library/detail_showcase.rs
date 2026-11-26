@@ -1429,6 +1429,7 @@ fn detail_cover_button(cover: &gtk::Widget) -> gtk::Button {
     button.set_halign(gtk::Align::Start);
     button.set_valign(gtk::Align::Start);
     button.set_cursor_from_name(Some("pointer"));
+    button.update_property(&[gtk::accessible::Property::Label(&tr("Show artwork"))]);
     button.set_child(Some(cover));
     button
 }
