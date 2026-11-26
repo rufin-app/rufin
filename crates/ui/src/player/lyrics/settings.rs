@@ -8,12 +8,6 @@ impl PlayerUi {
         })
     }
 
-    pub fn set_save_lyrics_to_source(self: &Rc<Self>, value: bool) -> bool {
-        self.set_lyrics_setting("save lyrics destination setting", false, |settings| {
-            settings.save_lyrics_to_source = value
-        })
-    }
-
     pub fn set_save_lyrics_automatically(self: &Rc<Self>, value: bool) -> bool {
         self.set_lyrics_setting("automatic lyrics save setting", false, |settings| {
             settings.save_lyrics_automatically = value
@@ -210,7 +204,6 @@ fn build_lyrics_settings(
         .preferences
         .clone();
     crate::objects!(builder, resource, {
-        save_to_source: adw::SwitchRow,
         save_automatically: adw::ActionRow,
         automatic_toggle: gtk::Switch,
         storage: adw::ActionRow,
@@ -229,9 +222,7 @@ fn build_lyrics_settings(
         size_adjustment: gtk::Adjustment,
     });
 
-    save_to_source.set_active(settings.save_lyrics_to_source);
     automatic_toggle.set_active(settings.save_lyrics_automatically);
-    save_automatically.set_visible(settings.save_lyrics_to_source);
     save_automatically.set_sensitive(settings.external_lyrics_enabled);
     let automatic_shell = Rc::clone(shell);
     let automatic_switch = automatic_toggle.clone();
@@ -277,28 +268,12 @@ fn build_lyrics_settings(
     });
     embed.set_active(!settings.save_lyrics_as_sidecar);
     sidecar.set_active(settings.save_lyrics_as_sidecar);
-    storage.set_visible(settings.save_lyrics_to_source && uses_local_storage());
+    storage.set_visible(uses_local_storage());
     let storage_shell = Rc::clone(shell);
     sidecar.connect_toggled(move |button| {
         storage_shell.set_lyrics_setting("lyrics storage setting", false, |settings| {
             settings.save_lyrics_as_sidecar = button.is_active()
         });
-    });
-
-    let save_shell = Rc::clone(shell);
-    let automatic_row = save_automatically.clone();
-    let automatic_switch = automatic_toggle.clone();
-    let storage_row = storage.clone();
-    save_to_source.connect_active_notify(move |row| {
-        let enabled = row.is_active();
-        if !save_shell.set_save_lyrics_to_source(enabled) {
-            return;
-        }
-        automatic_row.set_visible(enabled);
-        if !enabled {
-            automatic_switch.set_active(false);
-        }
-        storage_row.set_visible(enabled && uses_local_storage());
     });
 
     translations.set_active(settings.prefer_translations);

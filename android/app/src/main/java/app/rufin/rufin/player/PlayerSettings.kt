@@ -343,7 +343,6 @@ private fun LyricsSettings(player: PlayerConnection) {
     PreferenceSlider("Font size (px)", lyrics.lyricsFontSize?.toDouble() ?: 19.0, 12.0..28.0, 1.0, 19.0, listOf(12.0, 16.0, 20.0, 24.0, 28.0)) { change { setLyricsFontSize(it.toInt().toUShort()) } }
     }
     SettingsGroup(translate("Lyrics storage")) {
-    PreferenceSwitch("Saves lyrics to your source", lyrics.saveLyricsToSource) { change { setSaveLyricsToSource(it) } }
     PreferenceSwitch("Save lyrics automatically", lyrics.saveLyricsAutomatically) { change { setSaveLyricsAutomatically(it) } }
     PreferenceChoice(translate("Lyrics storage"), if (lyrics.saveLyricsAsSidecar) "sidecar" else "embedded",
         listOf("sidecar" to translate("Save in folder"), "embedded" to translate("Embed in track")),

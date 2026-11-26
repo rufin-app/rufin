@@ -95,8 +95,6 @@ macro_rules! lyrics_preference_fields {
             external_lyrics_providers: Vec<ExternalLyricsProvider> = default_external_lyrics_providers() => set_external_lyrics_providers;
             #[serde(default = "default_true")]
             prefer_server_lyrics: bool = true => set_prefer_server_lyrics;
-            #[serde(default)]
-            save_lyrics_to_source: bool = false => set_save_lyrics_to_source;
             #[serde(default, alias = "save_fetched_lyrics")]
             save_lyrics_automatically: bool = false => set_save_lyrics_automatically;
             #[serde(default = "default_true")]
@@ -180,9 +178,6 @@ impl Settings {
 
 impl UserPreferences {
     pub fn sanitize(&mut self) {
-        if !self.save_lyrics_to_source {
-            self.save_lyrics_automatically = false;
-        }
         let mut seen = Vec::new();
         self.external_lyrics_providers.retain(|provider| {
             if seen.contains(provider) {
@@ -883,19 +878,6 @@ mod tests {
                 ExternalLyricsProvider::Lrclib
             ]
         );
-    }
-
-    #[test]
-    fn legacy_automatic_source_saving_requires_the_new_parent_opt_in() {
-        let mut settings = serde_json::from_str::<Settings>(
-            r#"{"external_lyrics_enabled":true,"save_fetched_lyrics":true}"#,
-        )
-        .expect("legacy lyrics settings");
-
-        settings.sanitize();
-
-        assert!(!settings.preferences.save_lyrics_to_source);
-        assert!(!settings.preferences.save_lyrics_automatically);
     }
 
     #[test]

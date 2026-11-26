@@ -180,7 +180,6 @@ pub(super) const CHOICES: &[(&str, &str)] = &[
     ),
     ("lyrics.save_automatically", "/save_lyrics_automatically"),
     ("lyrics.save_as_sidecar", "/save_lyrics_as_sidecar"),
-    ("lyrics.save_to_source", "/save_lyrics_to_source"),
     ("lyrics.karaoke_mode", "/karaoke_mode"),
     ("lyrics.show_romanization", "/show_romanization"),
     ("lyrics.show_furigana", "/show_furigana"),

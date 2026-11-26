@@ -935,9 +935,7 @@ impl LyricsService {
             else {
                 return None;
             };
-            if !settings.ui.lyrics.preferences.save_lyrics_to_source
-                || !settings.ui.lyrics.preferences.save_lyrics_automatically
-            {
+            if !settings.ui.lyrics.preferences.save_lyrics_automatically {
                 return None;
             }
             let Some(document) = lyrics.selected_document(&settings.ui.lyrics.preferences) else {
@@ -1702,8 +1700,8 @@ impl LyricsHandle {
 
 #[cfg_attr(feature = "bindings", uniffi::export)]
 impl LyricsHandle {
-    /// Saves a search result in the track's source. False when the setting or the source
-    /// leaves the lyrics to the caller, which then asks where to save a file.
+    /// Saves a search result in the track's source. False when the source cannot hold
+    /// lyrics, which leaves them to the caller, which then asks where to save a file.
     pub async fn save_result_to_source(
         &self,
         media_id: CurrentMediaId,
@@ -1729,15 +1727,7 @@ impl LyricsHandle {
         let uri = media_id.media_uri.clone();
         self.service
             .runtime
-            .spawn(async move {
-                service
-                    .settings()
-                    .ui
-                    .lyrics
-                    .preferences
-                    .save_lyrics_to_source
-                    && service.save_target(&uri).await.is_some()
-            })
+            .spawn(async move { service.save_target(&uri).await.is_some() })
             .await
             .unwrap_or(false)
     }

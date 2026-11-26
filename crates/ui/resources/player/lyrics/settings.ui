@@ -170,7 +170,6 @@
     <child>
       <object class="AdwPreferencesGroup">
         <property name="title" translatable="yes">Storage</property>
-        <child><object class="AdwSwitchRow" id="save_to_source"><property name="title" translatable="yes">Saves lyrics to your source</property><property name="subtitle" translatable="yes">Save action saves the lyrics directly to your source</property></object></child>
         <child>
           <object class="AdwActionRow" id="save_automatically">
             <property name="title" translatable="yes">Save lyrics automatically</property>
