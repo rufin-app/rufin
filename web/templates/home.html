@@ -6,15 +6,14 @@
 {% else if !section.tiles.is_empty() %}
   <section class="home-section home-panel" data-block="{{ section.block }}">
     <div class="home-heading"><h2>{{ section.title }}</h2></div>
-    <div class="home-card"><div class="quick-mix-lines"><div class="quick-mix">
+    <div class="quick-mix">
 {% for tile in section.tiles %}
     <form method="post" action="/api/home/quick-mix" class="quick-mix-tile" data-row="{{ tile.data }}" data-enhanced-form>
       <input type="hidden" name="csrf" value="{{ tile.form.csrf }}" />
       <input type="hidden" name="return" value="{{ tile.form.return_to }}" />
       <input type="hidden" name="payload" value="{{ tile.payload }}" />
       <a class="quick-mix-open" href="{{ tile.href }}" data-page="{{ tile.page }}" title="{{ tile.title }}">
-        <span class="quick-mix-cover"{% if !tile.picture.is_empty() %} data-picture="{{ tile.picture }}"{% endif %}>{% if !tile.preview.is_empty() %}<img src="{{ tile.preview }}" alt="" />{% else if tile.picture.is_empty() %}{% call m::icon(tile.icon) %}{% endcall %}{% else %}{% call m::icon("rufin-symbolic") %}{% endcall %}{% endif %}</span>
-        <span class="quick-mix-text"><span class="quick-mix-title">{% call m::icon(tile.icon) %}{% endcall %}<span>{{ tile.title }}</span></span><span class="quick-mix-count">{{ tile.count }}</span></span>
+        <span class="quick-mix-glyph">{% call m::icon(tile.icon) %}{% endcall %}</span><span class="quick-mix-title">{{ tile.title }}</span>
       </a>
       <div class="pin-controls"><div class="cover-morph">
         <button type="submit" name="mode" value="next" class="cover-side" title="{{ localization::tr("Play Next") }}" aria-label="{{ localization::tr("Play Next") }}">{% call m::icon("rufin-mail-forward-symbolic") %}{% endcall %}</button>
@@ -23,7 +22,7 @@
       </div></div>
     </form>
 {% endfor %}
-    </div></div></div>
+    </div>
   </section>
 {% else %}
   <section class="home-section home-panel" data-block="{{ section.block }}">

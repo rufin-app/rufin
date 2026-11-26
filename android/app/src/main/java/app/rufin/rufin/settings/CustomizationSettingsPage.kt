@@ -125,8 +125,8 @@ private fun HomeTab(preferences: PreferencesConnection, browse: BrowseConnection
 }
 
 /** Quick mix's entries in their Home order, then the templates no entry was copied from, as chips, and under
- *  them the user's smart playlists, as GTK's Quick mix group. An entry's check removes it, a + adds while
- *  another fits, and a long press drags an entry to another's place. Every edit is core's; the chips then
+ *  them the user's smart playlists, as GTK's Quick mix group. An entry's check removes it, a + adds, and a
+ *  long press drags an entry to another's place. Every edit is core's; the chips then
  *  show what it saved. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -157,7 +157,7 @@ private fun QuickMixGroup(preferences: PreferencesConnection, browse: BrowseConn
         order = order.toMutableList().apply { add(to, removeAt(from)) }
         commit(from, to)
     }
-    SettingsGroup(translate("Mixes")) {
+    SettingsGroup(translate("Mixes"), translate("Home shows the first six that have tracks")) {
         Column(Modifier.fillMaxWidth().background(scheme.surfaceContainer)) {
             FlowRow(Modifier.fillMaxWidth().padding(12.dp).pointerInput(shown) {
                 detectDragGesturesAfterLongPress(
@@ -187,7 +187,7 @@ private fun QuickMixGroup(preferences: PreferencesConnection, browse: BrowseConn
                 order.forEachIndexed { place, index -> key(index) {
                     val choice = entries.first { entry(it) == index }
                     val lifted = dragged == index
-                    QuickMixChip(choice, shown.canAdd, browse, preferences, Modifier
+                    QuickMixChip(choice, browse, preferences, Modifier
                         .onPlaced { bounds[index] = it.boundsInParent() }
                         .zIndex(if (lifted) 1f else 0f)
                         .graphicsLayer {
@@ -204,7 +204,7 @@ private fun QuickMixGroup(preferences: PreferencesConnection, browse: BrowseConn
                                 CustomAccessibilityAction(translate("Move down")) { move(index, 1); true }.takeIf { place < order.lastIndex })
                         })
                 } }
-                shown.choices.filter { entry(it) == null }.forEach { choice -> QuickMixChip(choice, shown.canAdd, browse, preferences) }
+                shown.choices.filter { entry(it) == null }.forEach { choice -> QuickMixChip(choice, browse, preferences) }
             }
             // Under a line across the container, the user's smart playlists.
             if (shown.playlists.isNotEmpty()) {
@@ -213,7 +213,7 @@ private fun QuickMixGroup(preferences: PreferencesConnection, browse: BrowseConn
                     style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = scheme.onSurfaceVariant)
                 FlowRow(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    shown.playlists.forEach { choice -> QuickMixChip(choice, shown.canAdd, browse, preferences) }
+                    shown.playlists.forEach { choice -> QuickMixChip(choice, browse, preferences) }
                 }
             }
         }
@@ -221,9 +221,9 @@ private fun QuickMixGroup(preferences: PreferencesConnection, browse: BrowseConn
 }
 
 /** A Quick mix choice: its glyph and name, then a filled check that removes an entry, or a + that adds a
- *  template or a smart playlist while another entry fits. What is not in Quick mix is faded. */
+ *  template or a smart playlist. What is not in Quick mix is faded. */
 @Composable
-private fun QuickMixChip(choice: QuickMixChoice, canAdd: Boolean, browse: BrowseConnection, preferences: PreferencesConnection,
+private fun QuickMixChip(choice: QuickMixChoice, browse: BrowseConnection, preferences: PreferencesConnection,
     modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val faded = if (choice.added) 1f else .5f
@@ -246,7 +246,7 @@ private fun QuickMixChip(choice: QuickMixChoice, canAdd: Boolean, browse: Browse
                 is QuickMixChoiceKind.Playlist -> browse.addQuickMixPlaylist(kind.objectId)
                 is QuickMixChoiceKind.Entry -> {}
             }
-        }, Modifier.size(32.dp), enabled = canAdd) {
+        }, Modifier.size(32.dp)) {
             RufinIcon("rufin-list-add-symbolic", translate("Add"), Modifier.size(14.dp))
         }
     }

@@ -1337,7 +1337,6 @@ mod tests {
                     0,
                     &library::HomeBlockKind::all(),
                     &[],
-                    &[],
                     &cancellation,
                 )
                 .await
@@ -1474,7 +1473,6 @@ mod tests {
                                 0,
                                 0,
                                 &library::HomeBlockKind::all(),
-                                &[],
                                 &[],
                                 &cancellation
                             )

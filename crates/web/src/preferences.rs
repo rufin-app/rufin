@@ -162,7 +162,6 @@ async fn values(products: &ProductHandles) -> Result<Value, Error> {
     let quick_mix = json!({
         "choices": quick_mix.choices.into_iter().map(quick_mix_choice).collect::<Vec<_>>(),
         "playlists": quick_mix.playlists.into_iter().map(quick_mix_choice).collect::<Vec<_>>(),
-        "can_add": quick_mix.can_add,
     });
     Ok(
         json!({"values": values, "iroh_relay": products.settings.iroh_relay(), "stream_quality": stream_quality, "routes": routes, "home_blocks": blocks, "quick_mix": quick_mix, "providers": providers, "themes": themes, "theme_preview": rufin_core::themes::preview(), "theme_errors": theme_errors, "server_recommendations_shown": server_recommendations_shown}),

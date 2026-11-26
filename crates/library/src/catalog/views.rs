@@ -2365,11 +2365,6 @@ pub(crate) struct Views {
     opened: Vec<OpenedSmart>,
     /// The tracks open Quick mix pages list, by entry.
     quick_mix_pages: Vec<(u32, std::sync::Weak<[crate::TrackKey]>)>,
-    /// Quick mix entries' faces, most recently built last.
-    quick_mix: Vec<(
-        crate::quick_mix::QuickMixKey,
-        Arc<crate::quick_mix::QuickMixFace>,
-    )>,
 }
 
 impl Views {
@@ -2999,32 +2994,6 @@ impl Catalog {
             .iter()
             .find(|(kept, _)| *kept == entry)
             .and_then(|(_, held)| held.upgrade())
-    }
-
-    /// The Quick mix face built from `key`, when one is held.
-    pub(crate) fn held_quick_mix(
-        &self,
-        key: &crate::quick_mix::QuickMixKey,
-    ) -> Option<Arc<crate::quick_mix::QuickMixFace>> {
-        self.views()
-            .quick_mix
-            .iter()
-            .find(|held| held.0 == *key)
-            .map(|held| held.1.clone())
-    }
-
-    /// Holds a Quick mix face, dropping the oldest past what six entries in a few folders keep.
-    pub(crate) fn hold_quick_mix(
-        &self,
-        key: crate::quick_mix::QuickMixKey,
-        face: Arc<crate::quick_mix::QuickMixFace>,
-    ) {
-        let held = &mut self.views().quick_mix;
-        held.retain(|(kept, _)| *kept != key);
-        if held.len() >= 24 {
-            held.remove(0);
-        }
-        held.push((key, face));
     }
 
     /// The members a page that opened this smart playlist at `now` holds, while its rules

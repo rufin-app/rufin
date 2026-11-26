@@ -205,6 +205,7 @@
                   <!-- Quick mix's entries in their Home order, then the templates, then the user's smart playlists. -->
                   <object class="AdwPreferencesGroup" id="quick_mix_group">
                     <property name="title" translatable="yes">Mixes</property>
+                    <property name="description" translatable="yes">Home shows the first six that have tracks</property>
                     <property name="visible">false</property>
                     <child>
                       <object class="GtkBox">

@@ -1,13 +1,11 @@
 //! Quick mix entries: Home's mixes, each a copy of a smart playlist template's rules or of one of
-//! the user's smart playlists', kept apart from where it came from.
+//! the user's smart playlists', kept apart from where it came from. Home shows the first of them
+//! that match something, so their order is also which ones show.
 
 use serde::{Deserialize, Serialize};
 
 use super::{SettingsError, SettingsOwner};
 use crate::playlists::{SmartPlaylistTemplate, smart_playlist_templates};
-
-/// The most entries Quick mix holds.
-pub const MAX_QUICK_MIX: usize = 6;
 
 /// The glyph of an entry copied from one of the user's smart playlists.
 const SMART_PLAYLIST_ICON: &str = "rufin-smart-playlists-symbolic";
@@ -59,7 +57,9 @@ impl QuickMixEntry {
 }
 
 /// Random, Recently added and Never played fill from the start everywhere; Rediscover on a
-/// server; On repeat and Favorites as Rufin is used and things are marked.
+/// server; On repeat and Favorites as Rufin is used and things are marked. The three after
+/// them take the place of those that match nothing: New and unplayed in a new library, the
+/// other two from the first plays on.
 pub fn default_quick_mix() -> Vec<QuickMixEntry> {
     let templates = smart_playlist_templates();
     [
@@ -69,6 +69,9 @@ pub fn default_quick_mix() -> Vec<QuickMixEntry> {
         "On repeat",
         "Rediscover",
         "Favorites",
+        "New and unplayed",
+        "Recently played",
+        "Most played",
     ]
     .into_iter()
     .filter_map(|name| templates.iter().find(|template| template.name == name))
@@ -106,8 +109,6 @@ pub struct QuickMixEditor {
     pub choices: Vec<QuickMixChoice>,
     /// The user's smart playlists by name, those an entry was copied from added.
     pub playlists: Vec<QuickMixChoice>,
-    /// Whether another entry fits.
-    pub can_add: bool,
 }
 
 /// `entries` and the templates as the editor lists them, with `playlists`, the user's smart
@@ -161,20 +162,7 @@ pub(crate) fn quick_mix_editor(
             }
         })
         .collect();
-    QuickMixEditor {
-        choices,
-        playlists,
-        can_add: entries.len() < MAX_QUICK_MIX,
-    }
-}
-
-/// Appends `entry` when another fits; false when Quick mix is full.
-pub(crate) fn add_quick_mix(entries: &mut Vec<QuickMixEntry>, entry: QuickMixEntry) -> bool {
-    if entries.len() >= MAX_QUICK_MIX {
-        return false;
-    }
-    entries.push(entry);
-    true
+    QuickMixEditor { choices, playlists }
 }
 
 #[cfg_attr(feature = "bindings", uniffi::export)]
@@ -189,10 +177,12 @@ impl SettingsOwner {
         };
         self.file
             .update(|stored| {
-                Ok(add_quick_mix(
-                    &mut stored.ui.application.quick_mix,
-                    QuickMixEntry::of_template(&template),
-                ))
+                stored
+                    .ui
+                    .application
+                    .quick_mix
+                    .push(QuickMixEntry::of_template(&template));
+                Ok(true)
             })
             .map_err(Into::into)
     }

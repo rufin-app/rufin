@@ -738,7 +738,7 @@ impl QuickMixEditor {
         let mut entries = Vec::new();
         for choice in editor.choices {
             let entry = matches!(choice.kind, QuickMixChoiceKind::Entry { .. });
-            let chip = self.chip(choice, editor.can_add, entry);
+            let chip = self.chip(choice, entry);
             if entry {
                 entries.push(chip.clone());
             }
@@ -749,16 +749,14 @@ impl QuickMixEditor {
         self.playlists_part
             .set_visible(!editor.playlists.is_empty());
         for choice in editor.playlists {
-            self.playlists
-                .append(&self.chip(choice, editor.can_add, false));
+            self.playlists.append(&self.chip(choice, false));
         }
         self.group.set_visible(true);
     }
 
-    /// A chip for `choice`: an entry's check removes it, a + adds the template or the playlist
-    /// while another entry fits. A `movable` one is dragged by the handle that takes its glyph's
-    /// place under the pointer.
-    fn chip(self: &Rc<Self>, choice: QuickMixChoice, can_add: bool, movable: bool) -> gtk::Widget {
+    /// A chip for `choice`: an entry's check removes it, a + adds the template or the playlist.
+    /// A `movable` one is dragged by the handle that takes its glyph's place under the pointer.
+    fn chip(self: &Rc<Self>, choice: QuickMixChoice, movable: bool) -> gtk::Widget {
         let resource = "preferences/quick_mix_chip.ui";
         let builder = crate::ui_resource::builder(resource);
         crate::objects!(builder, resource, {
@@ -780,7 +778,6 @@ impl QuickMixEditor {
         }
         remove.set_visible(choice.added);
         add.set_visible(!choice.added);
-        add.set_sensitive(can_add);
         let weak = Rc::downgrade(self);
         match choice.kind {
             QuickMixChoiceKind::Entry { index } => {

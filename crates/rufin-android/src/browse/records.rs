@@ -186,18 +186,13 @@ pub struct AndroidHomeSection {
     pub spacing: rufin_core::settings::layout::DisplaySize,
 }
 
-/// A Quick mix entry as Home's tile shows it: its name and glyph, the tracks its next press
-/// plays, and the mosaic of the albums they start with, its page's picture.
+/// A Quick mix entry as Home's tile shows it: its glyph and name.
 #[derive(uniffi::Record)]
 pub struct AndroidQuickMixTile {
     /// Its place among the Quick mix entries, which a press plays and its page's route names.
     pub entry: u32,
     pub title: String,
     pub icon: String,
-    pub tracks: u32,
-    pub artwork_identity: Option<Vec<u8>>,
-    /// The media URI of the first track its press plays, which its menu's radio starts from.
-    pub first_track: Option<String>,
     /// The entry as its menu shows it.
     pub row: AndroidBrowseRow,
 }
@@ -208,17 +203,14 @@ impl From<&rufin_core::view::QuickMixTile> for AndroidQuickMixTile {
             entry: tile.entry,
             title: tile.title.clone(),
             icon: tile.icon.clone(),
-            tracks: tile.tracks,
-            artwork_identity: tile.artwork_binding.clone(),
-            first_track: tile.first_track.clone(),
             row: quick_mix_row(library::QuickMixRow {
                 entry: tile.entry,
                 name: tile.title.clone(),
                 definition: Default::default(),
-                track_count: i64::from(tile.tracks),
+                track_count: 0,
                 duration_millis: 0,
                 downloaded_count: 0,
-                artwork_binding: tile.artwork_binding.clone(),
+                artwork_binding: None,
             }),
         }
     }

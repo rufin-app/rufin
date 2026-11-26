@@ -1336,7 +1336,6 @@ async fn album_genres_supply_browsing_and_playback_without_changing_track_tags()
                 0,
                 &[library::HomeBlockKind::Genres],
                 &[],
-                &[],
                 &cancel,
             )
             .await

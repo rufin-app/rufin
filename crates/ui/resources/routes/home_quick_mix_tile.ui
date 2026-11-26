@@ -1,64 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface domain="rufin">
   <requires lib="gtk" version="4.20"/>
-  <!-- A Quick mix entry on Home, a row as Home's others: the mosaic of the albums its next press
-       starts with, its page's picture, its glyph and name, and the tracks it plays; under the
-       pointer the rows' Play group at its end. The row opens its page. The grid flows at its
-       natural width, which the labels leave at its 180 px request. -->
+  <!-- A Quick mix entry on Home, a filled tile: its glyph in a tinted block, then its name; under
+       the pointer the rows' Play group at its end. The tile opens its page. The grid flows at its
+       natural width, which the label leaves at its 180 px request. -->
   <object class="GtkFlowBoxChild" id="tile">
     <property name="width-request">180</property>
     <child>
       <object class="GtkOverlay" id="row">
         <style><class name="home-quick-mix-row"/></style>
         <child>
-      <object class="GtkBox">
-        <property name="spacing">12</property>
-        <child>
-          <object class="GtkOverlay" id="covers">
-            <property name="valign">center</property>
-          </object>
-        </child>
-        <child>
           <object class="GtkBox">
-            <property name="orientation">vertical</property>
-            <property name="spacing">2</property>
-            <property name="valign">center</property>
-            <property name="hexpand">true</property>
+            <property name="spacing">12</property>
             <child>
-              <object class="GtkBox">
-                <property name="spacing">6</property>
-                <child>
-                  <object class="GtkImage" id="glyph">
-                    <property name="pixel-size">16</property>
-                    <style><class name="dim-label"/></style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="title">
-                    <property name="xalign">0</property>
-                    <property name="hexpand">true</property>
-                    <property name="width-chars">1</property>
-                    <property name="max-width-chars">1</property>
-                    <property name="ellipsize">end</property>
-                    <property name="single-line-mode">true</property>
-                    <style><class name="home-row-title"/></style>
-                  </object>
-                </child>
+              <object class="GtkImage" id="glyph">
+                <property name="pixel-size">18</property>
+                <property name="valign">center</property>
+                <style><class name="home-quick-mix-glyph"/></style>
               </object>
             </child>
             <child>
-              <object class="GtkLabel" id="tracks">
+              <object class="GtkLabel" id="title">
                 <property name="xalign">0</property>
+                <property name="hexpand">true</property>
                 <property name="width-chars">1</property>
                 <property name="max-width-chars">1</property>
                 <property name="ellipsize">end</property>
                 <property name="single-line-mode">true</property>
-                <style><class name="muted"/><class name="home-row-subtitle"/></style>
+                <style><class name="home-row-title"/></style>
               </object>
             </child>
           </object>
-        </child>
-      </object>
         </child>
       </object>
     </child>

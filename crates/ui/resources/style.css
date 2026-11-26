@@ -1632,28 +1632,41 @@ dialog.alert.playlist-delete-dialog .message-area {
 /* Home's Quick mix: rows as Home's other rows, each the albums its next press starts with, its
    name and the tracks it plays, with a line above it; the grid's clip hides the first line's.
    Under the pointer the rows' Play group shows at its end, reaching its edges. */
-flowbox.home-quick-mix {
-  margin-top: -1px;
-}
-
+/* Home's Quick mix: each mix a tile filled as a section card is, its glyph in a block tinted
+   with the accent, then its name. */
 flowbox.home-quick-mix > flowboxchild {
+  --row-surface: color-mix(in srgb, currentColor 5%, var(--shell-panel-bg-color));
   padding: 0;
-  box-shadow: inset 0 1px color-mix(in srgb, currentColor 8%, transparent);
-}
-
-.home-quick-mix-row {
-  padding: 8px 6px;
-}
-
-.home-quick-mix-row > .row-play-group {
-  margin: -8px -6px -8px 0;
-  border-radius: var(--radius);
+  border-radius: 12px;
+  background-color: var(--row-surface);
 }
 
 flowbox.home-quick-mix > flowboxchild:hover {
-  border-radius: var(--radius);
-  background-color: color-mix(in srgb, currentColor 8%, transparent);
-  box-shadow: none;
+  --row-surface: color-mix(in srgb, currentColor 9%, var(--shell-panel-bg-color));
+}
+
+.home-quick-mix-row {
+  padding: 8px;
+}
+
+.home-quick-mix-row .home-row-title {
+  font-weight: 600;
+}
+
+image.home-quick-mix-glyph {
+  min-width: 18px;
+  min-height: 18px;
+  padding: 9px;
+  border-radius: 9px;
+  background-color: color-mix(in srgb, var(--accent-bg-color) 18%, transparent);
+  color: var(--accent-color);
+}
+
+/* The Play group covers the name's end in the tile's own fill. */
+.home-quick-mix-row > .row-play-group {
+  margin: -8px -8px -8px 0;
+  border-radius: 12px;
+  background: var(--row-surface);
 }
 
 

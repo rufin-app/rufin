@@ -25,7 +25,6 @@ use super::detail_showcase::{
 use super::grid_cells::{
     AlbumGridCell, ArtistGridCell, MediaPlayingBinding, ReusableCollectionGridCell,
 };
-use super::playlist_detail::smart_artwork;
 use crate::library::home_layout::home_section_header;
 use crate::menus::media_menus::present_row_menu;
 
@@ -305,8 +304,8 @@ impl ShownHomeSection {
     }
 }
 
-/// Home's Quick mix: a tile for each entry that matches something, which opens its page; its
-/// Play plays it.
+/// Home's Quick mix: a tile for each of the first entries that match something, which opens its
+/// page; its Play plays it.
 #[derive(Clone)]
 struct QuickMixView(Rc<QuickMixState>);
 
@@ -315,29 +314,20 @@ struct QuickMixState {
     /// The section card it shows in.
     card: gtk::Box,
     grid: gtk::FlowBox,
-    /// The covers' size and the gap between tiles.
-    metrics: HomeMetrics,
     /// The tiles in the grid's order.
     tiles: RefCell<Vec<QuickMixTileView>>,
 }
 
 struct QuickMixTileView {
     tile: gtk::FlowBoxChild,
-    covers: crate::widgets::artwork::CoverGroupProjection,
     glyph: gtk::Image,
     title: gtk::Label,
-    tracks: gtk::Label,
     /// The entry it shows.
     shown: Rc<RefCell<Option<rufin_core::view::QuickMixTile>>>,
 }
 
 impl QuickMixView {
-    fn new(
-        shell: &Rc<CatalogUi>,
-        title: &str,
-        tiles: Vec<rufin_core::view::QuickMixTile>,
-        metrics: HomeMetrics,
-    ) -> Self {
+    fn new(shell: &Rc<CatalogUi>, title: &str, tiles: Vec<rufin_core::view::QuickMixTile>) -> Self {
         let resource = "routes/home_quick_mix.ui";
         let builder = crate::ui_resource::builder(resource);
         crate::objects!(builder, resource, { card: gtk::Box, heading: gtk::Label, grid: gtk::FlowBox });
@@ -346,7 +336,6 @@ impl QuickMixView {
             shell: Rc::downgrade(shell),
             card,
             grid,
-            metrics,
             tiles: RefCell::new(Vec::new()),
         }));
         let state = Rc::downgrade(&view.0);
@@ -376,7 +365,6 @@ impl QuickMixView {
         };
         if state.tiles.borrow().len() != tiles.len() {
             state.grid.remove_all();
-            let cover = state.metrics.row_cover;
             let built = tiles
                 .iter()
                 .map(|_| {
@@ -385,16 +373,9 @@ impl QuickMixView {
                     crate::objects!(builder, resource, {
                         tile: gtk::FlowBoxChild,
                         row: gtk::Overlay,
-                        covers: gtk::Overlay,
                         glyph: gtk::Image,
                         title: gtk::Label,
-                        tracks: gtk::Label,
                     });
-                    let projection =
-                        shell
-                            .artwork
-                            .cover_group_projection_for_artwork(&[], cover, cover, false);
-                    covers.set_child(Some(&projection.widget()));
                     let shown = Rc::new(RefCell::new(None::<rufin_core::view::QuickMixTile>));
                     let (play_shell, play_shown) = (Rc::downgrade(&shell), Rc::clone(&shown));
                     install_row_transport_controls(&row, move |placement| {
@@ -422,10 +403,8 @@ impl QuickMixView {
                     state.grid.append(&tile);
                     QuickMixTileView {
                         tile,
-                        covers: projection,
                         glyph,
                         title,
-                        tracks,
                         shown,
                     }
                 })
@@ -435,12 +414,6 @@ impl QuickMixView {
         for (shown, tile) in state.tiles.borrow().iter().zip(tiles) {
             shown.glyph.set_icon_name(Some(&tile.icon));
             shown.title.set_text(&tile.title);
-            shown
-                .tracks
-                .set_text(&track_count_text(u64::from(tile.tracks)));
-            shown
-                .covers
-                .replace(&shell.artwork, &smart_artwork(&tile.artwork_binding));
             shown.shown.replace(Some(tile));
         }
     }
@@ -454,8 +427,7 @@ fn present_quick_mix_tile_menu(
     target: &gtk::Widget,
     position: Option<(f64, f64)>,
 ) {
-    let menu =
-        rufin_core::menu::quick_mix(&shell.settings.current.borrow(), tile.first_track, None);
+    let menu = rufin_core::menu::quick_mix(&shell.settings.current.borrow(), None, None);
     let media = MediaDragSource::capture_target(PlayTarget::Route(Route::QuickMix(tile.entry)));
     let (play_shell, entry) = (Rc::downgrade(shell.shell()), tile.entry);
     // It is shuffled already: a shuffled play plays it as it is.
@@ -824,9 +796,7 @@ impl HomeRouteProjection {
                     view.show(*showcase);
                     ShownHomeSection::Showcase(view)
                 }
-                (Some(ShownHomeSection::QuickMix(view)), HomeSection::QuickMix(tiles))
-                    if view.0.metrics == metrics =>
-                {
+                (Some(ShownHomeSection::QuickMix(view)), HomeSection::QuickMix(tiles)) => {
                     view.show(tiles);
                     ShownHomeSection::QuickMix(view)
                 }
@@ -881,9 +851,7 @@ impl HomeRouteProjection {
                 return ShownHomeSection::Showcase(HomeShowcaseView::new(shell, *showcase));
             }
             HomeSection::QuickMix(tiles) => {
-                return ShownHomeSection::QuickMix(QuickMixView::new(
-                    shell, &title, tiles, metrics,
-                ));
+                return ShownHomeSection::QuickMix(QuickMixView::new(shell, &title, tiles));
             }
             section => section,
         };

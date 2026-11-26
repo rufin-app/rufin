@@ -247,7 +247,7 @@
 }
 
 /* Show whole covers: wide and tall ones keep their shape inside the square. */
-html.fit-covers :is(.cover img, .cover-quadrant img, .pin-cover img, .quick-mix-cover > img) {
+html.fit-covers :is(.cover img, .cover-quadrant img, .pin-cover img) {
   object-fit: contain;
 }
 
@@ -869,108 +869,68 @@ html.grid-favorite-badges .cover-corner[aria-pressed="true"] {
   box-shadow: inset 0 1px color-mix(in srgb, currentColor 8%, transparent);
 }
 
-/* Quick mix, a section card as the others: rows in columns of at least 180px, up to three,
-   each the 2×2 of the albums its next press starts with, its name and the tracks it plays, with
-   a line above it; the clip hides the first line's. A row opens its page; under the pointer
-   the rows' Play group shows at its end. */
-.quick-mix-lines {
-  margin: 0 8px;
-  overflow: hidden;
-}
-
+/* Quick mix, as GTK's: tiles in columns of at least 180px, up to three, each filled as a
+   section card is, its glyph in a block tinted with the accent, then its name. A tile opens its
+   page; under the pointer the rows' Play group shows at its end, in the tile's own fill. */
 .quick-mix {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(max(180px, calc((100% - 24px) / 3)), 1fr));
-  column-gap: 12px;
-  margin-top: -1px;
+  grid-template-columns: repeat(auto-fill, minmax(max(180px, calc((100% - 16px) / 3)), 1fr));
+  gap: 8px;
 }
 
 .quick-mix-tile {
-  box-shadow: inset 0 1px color-mix(in srgb, currentColor 8%, transparent);
-}
-
-.quick-mix-tile {
+  --row-surface: color-mix(in srgb, currentColor 5%, var(--pane));
   position: relative;
   min-width: 0;
-  border-radius: var(--radius);
+  border-radius: 12px;
+  background: var(--row-surface);
+}
+
+.quick-mix-tile:is(:hover, :focus-within) {
+  --row-surface: color-mix(in srgb, currentColor 9%, var(--pane));
 }
 
 .quick-mix-open {
   justify-content: flex-start;
   gap: 12px;
   width: 100%;
-  height: 68px;
-  padding: 8px 6px;
-  border-radius: var(--radius);
+  padding: 8px;
+  border-radius: inherit;
   background: none;
   text-align: left;
 }
 
-.quick-mix-tile:hover .quick-mix-open {
-  background: color-mix(in srgb, var(--text) 8%, transparent);
-}
-
-.quick-mix-cover {
+.quick-mix-glyph {
   flex: none;
-  position: relative;
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 6px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--text) 10%, transparent);
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
 }
 
-.quick-mix-cover > img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.quick-mix-cover > .icon {
-  width: 22px;
-  height: 22px;
-}
-
-/* Under the pointer and the keyboard, the rows' Play group at the row's end. */
-.quick-mix-tile:is(:hover, :focus-within) .pin-controls {
-  visibility: visible;
-}
-
-.quick-mix-text {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
+.quick-mix-glyph > .icon {
+  width: 18px;
+  height: 18px;
 }
 
 .quick-mix-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   min-width: 0;
-  font-size: 15px;
-}
-
-.quick-mix-title > .icon {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  color: var(--muted);
-}
-
-.quick-mix-title > span,
-.quick-mix-count {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
 }
 
-.quick-mix-count {
-  font-size: 13px;
-  color: var(--muted);
+.quick-mix-tile .pin-controls {
+  background: var(--row-surface);
+}
+
+.quick-mix-tile:is(:hover, :focus-within) .pin-controls {
+  visibility: visible;
 }
 
 /* The showcase of Home and the detail pages: a gradient band that holds the names, the facts,

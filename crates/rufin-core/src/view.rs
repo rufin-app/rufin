@@ -735,7 +735,7 @@ impl SourceOwner {
                         let definition =
                             crate::quick_mix::scoped(std::slice::from_ref(entry), selected)
                                 .remove(0);
-                        let seed = self.quick_mix_seeds(std::slice::from_ref(&definition))[0];
+                        let seed = self.quick_mix_seed(&definition);
                         let press = catalog
                             .quick_mix_press(folder, &definition, seed, now, cancel)
                             .await?;
@@ -840,7 +840,6 @@ impl SourceOwner {
                         explore,
                         &settings.application.home_blocks,
                         &quick_mix,
-                        &self.quick_mix_seeds(&quick_mix),
                         cancel,
                     )
                     .await?;
@@ -2063,18 +2062,13 @@ impl View {
     }
 }
 
-/// A Quick mix entry as Home shows it: its name and glyph, the tracks its next press plays,
-/// and the mosaic of the albums they start with, the one its page shows.
+/// A Quick mix entry as Home shows it: its glyph and name.
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuickMixTile {
-    /// Its place among the Quick mix entries, which a press plays.
+    /// Its place among the Quick mix entries, which a press plays and its page's route names.
     pub entry: u32,
     pub title: String,
     pub icon: String,
-    pub tracks: u32,
-    pub artwork_binding: Option<Vec<u8>>,
-    /// The media URI of the first track its press plays, which its menu's radio starts from.
-    pub first_track: Option<String>,
 }
 
 /// One Home section, as every client shows it.
@@ -2082,7 +2076,7 @@ pub struct QuickMixTile {
 pub enum HomeSection {
     /// The showcase album, with the ones either side of it in its order.
     Showcase(Box<library::HomeShowcase>),
-    /// The Quick mix entries that match something; it has no header.
+    /// The first Quick mix entries that match something; it has no header.
     QuickMix(Vec<QuickMixTile>),
     /// Explore, Most played, Newly added, Recently played or Recently released.
     Rows {
@@ -2275,16 +2269,13 @@ pub fn home_sections(
                 let tiles = home
                     .quick_mix
                     .iter()
-                    .filter_map(|face| {
-                        let entry = quick_mix.get(face.entry as usize)?;
+                    .filter_map(|place| {
+                        let entry = quick_mix.get(*place as usize)?;
                         let title = entry.title();
                         (filter.is_empty() || shown(title.clone())).then(|| QuickMixTile {
-                            entry: face.entry,
+                            entry: *place,
                             title,
                             icon: entry.icon().to_owned(),
-                            tracks: face.tracks,
-                            artwork_binding: face.artwork_binding.clone(),
-                            first_track: face.first_track.clone(),
                         })
                     })
                     .collect::<Vec<_>>();

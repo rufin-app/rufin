@@ -185,8 +185,7 @@ function showCustomization(preferences) {
 
 // Quick mix in one container, as GTK's: its entries as chips in their Home order, each with a
 // filled check that drops it, dragged to reorder; the templates not in it after them, faded,
-// each with + that appends it; and the smart playlists, + copying one's rules. At six entries
-// every + is insensitive.
+// each with + that appends it; and the smart playlists, + copying one's rules.
 function showQuickMix(editor) {
   const chip = (choice) => {
     const node = el("span", "quick-mix-chip");
@@ -203,7 +202,6 @@ function showQuickMix(editor) {
     const title = tr(choice.added ? "Remove" : "Add");
     toggle.title = title;
     toggle.setAttribute("aria-label", `${title}: ${choice.title}`);
-    toggle.disabled = !choice.added && !editor.can_add;
     toggle.append(icon(choice.added ? "rufin-object-select-symbolic" : "rufin-list-add-symbolic"));
     const { entry, template, playlist } = choice;
     toggle.onclick = () => save({ operation: "quick_mix", entry, template, playlist });

@@ -7,7 +7,7 @@ use async_channel::Receiver;
 use library::{QueueProvenance, ReadCancellation};
 
 use crate::runtime::SelectedLibrary;
-use crate::settings::quick_mix::{QuickMixEditor, QuickMixEntry, add_quick_mix, quick_mix_editor};
+use crate::settings::quick_mix::{QuickMixEditor, QuickMixEntry, quick_mix_editor};
 use crate::source::SourceOwner;
 
 /// The entries' rules in `selected`: one that names no source reads the selected one.
@@ -33,8 +33,8 @@ fn now() -> i64 {
         .map_or(0, |elapsed| elapsed.as_secs() as i64)
 }
 
-/// Plays the entry at `index` in the selected library at `placement`, in the shuffle Home's
-/// covers show, then moves Quick mix to its next shuffle. True means nothing matched.
+/// Plays the entry at `index` in the selected library at `placement`, in the shuffle its page
+/// lists, then moves the entry to its next shuffle. True means nothing matched.
 pub async fn play_quick_mix(
     queue: &Arc<crate::playback::PlaybackOwner>,
     index: u32,
@@ -57,14 +57,14 @@ pub async fn play_quick_mix(
                 .quick_mix_press(
                     selected.music_folder_key,
                     definition,
-                    owner.quick_mix_seeds(std::slice::from_ref(definition))[0],
+                    owner.quick_mix_seed(definition),
                     now(),
                     &ReadCancellation::new(),
                 )
                 .await
                 .map_err(|error| error.to_string())?
                 .tracks;
-            owner.next_quick_mix(selected.source_key, definition);
+            owner.next_quick_mix(definition);
             if tracks.is_empty() {
                 return Ok(true);
             }
@@ -100,7 +100,7 @@ impl SourceOwner {
     }
 
     /// Appends a copy of the smart playlist `object_id`'s rules and name; later edits of it
-    /// change nothing here. False when it is gone or Quick mix is full.
+    /// change nothing here. False when it is gone.
     pub fn add_quick_mix_playlist(&self, object_id: String) -> Receiver<Result<bool, String>> {
         self.reply(move |owner, catalog| async move {
             let Some(copy) = catalog
@@ -114,15 +114,13 @@ impl SourceOwner {
             let definition =
                 serde_json::from_str(&copy.definition).map_err(|error| error.to_string())?;
             owner.shared.settings.update(|stored| {
-                Ok(add_quick_mix(
-                    &mut stored.ui.application.quick_mix,
-                    QuickMixEntry {
-                        template: None,
-                        playlist: Some(copy.object_id),
-                        name: copy.name,
-                        definition,
-                    },
-                ))
+                stored.ui.application.quick_mix.push(QuickMixEntry {
+                    template: None,
+                    playlist: Some(copy.object_id),
+                    name: copy.name,
+                    definition,
+                });
+                Ok(true)
             })
         })
     }

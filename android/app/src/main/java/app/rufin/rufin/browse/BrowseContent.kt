@@ -363,7 +363,10 @@ private fun HomeContent(
             if (section.kind == AndroidHomeSectionKind.SHOWCASE) {
                 HomeBand(section, player, onMenu, onFavorite, onPlay, onRadio, onStep)
             } else if (section.kind == AndroidHomeSectionKind.QUICK_MIX) {
-                HomeCard(section.title) { QuickMixTiles(section.quickMix, player, onMenu) }
+                Column(Modifier.fillMaxWidth()) {
+                    HomeHeading(section.title)
+                    QuickMixTiles(section.quickMix, player, onMenu)
+                }
             } else {
                 // A swipe pages a section; a column of rows is a list with lines between its rows.
                 HomeCard(section.title) {
@@ -406,24 +409,28 @@ private fun HomeContent(
 @Composable
 private fun HomeCard(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-            Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        }
+        HomeHeading(title)
         Column(Modifier.padding(horizontal = 12.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = .05f)).padding(vertical = 12.dp), content = content)
     }
 }
 
-/** Home's Quick mix in its card: two columns of rows with lines between their lines, each the mosaic of the albums its next press
- *  starts with, its page's cover, its glyph and name, and the tracks it plays. A tap opens the tracks it plays; a hold opens its
- *  menu, core's Quick mix menu, which plays them. */
+/** A Home section's title on the page. */
+@Composable
+private fun HomeHeading(title: String) {
+    Box(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/** Home's Quick mix, as GTK's: two columns of tiles, each filled as a section card is, its glyph in a block tinted with the
+ *  accent, then its name. A tap opens the tracks it plays; a hold opens its menu, core's Quick mix menu, which plays them. */
 @Composable
 private fun QuickMixTiles(tiles: List<AndroidQuickMixTile>, player: PlayerConnection, onMenu: (BrowseItem) -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        tiles.chunked(2).forEachIndexed { line, pair ->
-            if (line > 0) androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        tiles.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 pair.forEach { tile -> QuickMixTile(tile, player, Modifier.weight(1f), onMenu) }
                 if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
@@ -434,31 +441,26 @@ private fun QuickMixTiles(tiles: List<AndroidQuickMixTile>, player: PlayerConnec
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun QuickMixTile(tile: AndroidQuickMixTile, player: PlayerConnection, modifier: Modifier, onMenu: (BrowseItem) -> Unit) {
-    val shape = RoundedCornerShape(8.dp)
+    val shape = RoundedCornerShape(12.dp)
     val scheme = MaterialTheme.colorScheme
     val browse = player.model.browse
     // Its menu plays the entry as Play does, it being shuffled already, and takes the tracks its page lists.
     val menu = {
-        browse.library?.quickMixMenu(tile.firstTrack, null)?.let { offered ->
+        browse.library?.quickMixMenu(null, null)?.let { offered ->
             onMenu(BrowseItem(tile.row, 0UL, null, quickMix = QuickMixMenu(offered, { placement, _ -> browse.playQuickMix(tile.entry, placement) }) {
                 browse.library?.routeSelection(Route.QuickMix(tile.entry))
             }))
         }
     }
-    Row(modifier.height(64.dp).focusRing(shape).clip(shape)
-        .combinedClickable(onClick = { browse.openRoute(Route.QuickMix(tile.entry), tile.title) }, onLongClick = { menu() }),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        val pixels = with(LocalDensity.current) { 48.dp.roundToPx() }
-        Artwork(rememberArtwork(tile.artworkIdentity, player, pixels), Modifier.size(48.dp).clip(CoverShape))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                RufinIcon(tile.icon, null, Modifier.size(16.dp), scheme.onSurfaceVariant)
-                Text(tile.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold)
-            }
-            Text(trackCountText(tile.tracks.toULong()), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+    Row(modifier.focusRing(shape).clip(shape).background(scheme.onSurface.copy(alpha = .05f))
+        .combinedClickable(onClick = { browse.openRoute(Route.QuickMix(tile.entry), tile.title) }, onLongClick = { menu() })
+        .padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)).background(scheme.primary.copy(alpha = .18f)),
+            contentAlignment = Alignment.Center) {
+            RufinIcon(tile.icon, null, Modifier.size(18.dp), scheme.primary)
         }
+        Text(tile.title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold)
     }
 }
 

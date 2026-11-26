@@ -668,11 +668,9 @@ pub(super) fn json(products: &ProductHandles, opened: &Opened, limit: usize, tot
     value
 }
 
-/// A Quick mix tile as `{entry, title, icon, tracks, picture}`: how many tracks its entry's
-/// next press plays, and its mosaic for `/api/artwork?picture=`.
+/// A Quick mix tile as `{entry, title, icon}`.
 fn quick_mix_json(mix: &rufin_core::view::QuickMixTile) -> Value {
-    let picture = mix.artwork_binding.as_deref().map(media::picture);
-    json!({"entry":mix.entry,"title":mix.title,"icon":mix.icon,"tracks":mix.tracks,"picture":picture})
+    json!({"entry":mix.entry,"title":mix.title,"icon":mix.icon})
 }
 
 /// Home's sections in core's order and titles, or only `block`'s.

@@ -70,7 +70,7 @@ pub use downloads::{DownloadFile, STREAM_CACHE_OWNERS, media_encoding_key};
 mod catalog;
 mod mix;
 mod quick_mix;
-pub use quick_mix::{QuickMixPress, QuickMixRow};
+pub use quick_mix::{HOME_QUICK_MIX, QuickMixPress, QuickMixRow};
 mod radio;
 mod scroll_sections;
 pub use scroll_sections::ScrollSection;
@@ -116,7 +116,7 @@ pub use favorites::{Delivery, DeliveryKind, FavoriteTarget, NativeUserState, Use
 pub use fingerprint::FingerprintRow;
 pub use home::{
     HomeAlbumRow, HomeBlockKind, HomeEntryInput, HomeEntryKind, HomePage, HomeProviderSection,
-    HomeQuickMix, HomeSectionKind, HomeSectionRows, HomeShowcase, HomeTrackRow,
+    HomeSectionKind, HomeSectionRows, HomeShowcase, HomeTrackRow,
 };
 pub use keys::{
     AlbumKey, ArtistKey, FolderKey, GenreKey, ListenKey, ListenOutboxKey, LocalAccessFileKey,

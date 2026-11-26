@@ -995,16 +995,11 @@ struct Section<'a> {
     columns: rufin_core::view::HomeColumns,
 }
 
-/// A Quick mix entry's Home tile: its name and glyph, how many tracks its next press plays and
-/// the mosaic of the albums they start with, its page's picture. It opens the entry's page; its
-/// Play plays the entry.
+/// A Quick mix entry's Home tile: its glyph and name. It opens the entry's page; its Play plays
+/// the entry.
 struct QuickMixTile<'a> {
     title: String,
     icon: String,
-    count: String,
-    /// Its mosaic for `/api/artwork?picture=` and that mosaic's preview; empty without one.
-    picture: String,
-    preview: String,
     /// What its Play posts.
     payload: String,
     /// Its name, its menu, core's Quick mix menu, and the page it opens as its menu acts on it,
@@ -1018,7 +1013,6 @@ struct QuickMixTile<'a> {
 
 impl<'a> QuickMixTile<'a> {
     fn new(
-        products: &ProductHandles,
         settings: &rufin_core::settings::app::Settings,
         scope: &page::PageToken,
         tile: &rufin_core::view::QuickMixTile,
@@ -1026,22 +1020,11 @@ impl<'a> QuickMixTile<'a> {
     ) -> Self {
         let opens = scope.at(rufin_core::route::Route::QuickMix(tile.entry));
         let page = opens.json();
-        let menu = rufin_core::menu::quick_mix(settings, tile.first_track.clone(), None);
+        let menu = rufin_core::menu::quick_mix(settings, None, None);
         Self {
             data: json!({"title": tile.title, "menu": menu, "play": opens}).to_string(),
             title: tile.title.clone(),
             icon: tile.icon.clone(),
-            count: localization::track_count_text(u64::from(tile.tracks)),
-            picture: tile
-                .artwork_binding
-                .as_deref()
-                .map(media::picture)
-                .unwrap_or_default(),
-            preview: artwork_previews(products, tile.artwork_binding.iter())
-                .into_iter()
-                .flatten()
-                .next()
-                .unwrap_or_default(),
             payload: json!({"source": scope.source, "entry": tile.entry}).to_string(),
             href: link(&HashMap::from([("page".to_owned(), page.clone())])),
             page,
@@ -1110,7 +1093,7 @@ pub(super) fn home(
                         head: None,
                         tiles: tiles
                             .iter()
-                            .map(|tile| QuickMixTile::new(products, &settings, token, tile, form))
+                            .map(|tile| QuickMixTile::new(&settings, token, tile, form))
                             .collect(),
                         rows: Vec::new(),
                         columns: section.columns(home),

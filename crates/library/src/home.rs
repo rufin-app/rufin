@@ -171,23 +171,12 @@ pub struct HomeShowcase {
     pub next: HomeAlbumRow,
 }
 
-/// A Quick mix entry as Home shows it: the tracks its next press plays, under the mosaic of
-/// the albums they start with, the one its page shows.
-#[derive(Clone, Debug, PartialEq)]
-pub struct HomeQuickMix {
-    /// Its place among the entries Home was asked for.
-    pub entry: u32,
-    pub tracks: u32,
-    pub artwork_binding: Option<Vec<u8>>,
-    /// The media URI of the first track its press plays, which its radio starts from.
-    pub first_track: Option<String>,
-}
-
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct HomePage {
     pub showcase: Option<HomeShowcase>,
-    /// The Quick mix entries that match something, in their order.
-    pub quick_mix: Vec<HomeQuickMix>,
+    /// The Quick mix entries Home shows, by place among those it was asked for: the first that
+    /// match something.
+    pub quick_mix: Vec<u32>,
     pub explore: Vec<HomeAlbumRow>,
     pub most_played: HomeSectionRows,
     pub newly_added: HomeSectionRows,
@@ -218,7 +207,6 @@ impl Catalog {
         explore_variation: i64,
         blocks: &[HomeBlockKind],
         quick_mix: &[crate::SmartPlaylistDefinition],
-        quick_mix_seeds: &[i64],
         cancellation: &ReadCancellation,
     ) -> LibraryResult<HomePage> {
         let mut connection = self.acquire_loaded(cancellation).await?;
@@ -264,24 +252,8 @@ impl Catalog {
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |elapsed| elapsed.as_secs() as i64);
-            let faces = self
-                .quick_mix_faces(&mut transaction, folder, quick_mix, quick_mix_seeds, now)
-                .await?;
-            let mut tiles = Vec::with_capacity(faces.len());
-            for face in faces {
-                let picks = crate::quick_mix::cover_uris(&mut transaction, &face.covers).await?;
-                tiles.push(HomeQuickMix {
-                    entry: face.entry,
-                    tracks: face.tracks,
-                    first_track: picks.first().cloned(),
-                    artwork_binding: crate::quick_mix::quick_mix_binding(
-                        &quick_mix[face.entry as usize],
-                        face.entry,
-                        picks,
-                    ),
-                });
-            }
-            tiles
+            self.quick_mix_filled(&mut transaction, folder, quick_mix, now)
+                .await?
         } else {
             Vec::new()
         };

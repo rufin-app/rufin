@@ -1,9 +1,6 @@
-//! Quick mix: the tracks each entry's next press plays, and the count and covers Home shows for
-//! them. A press plays an entry's tracks in the shuffle of a seed; Home shows the albums that
-//! shuffle starts with, so the covers are what plays.
+//! Quick mix: the tracks each entry's next press plays, which its page lists under a mosaic of
+//! the albums they start with, and the entries Home shows, those that match something.
 
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use sqlx::SqliteConnection;
@@ -14,68 +11,11 @@ use crate::{
     SmartPlaylistSort, TrackKey,
 };
 
+/// The most entries Home shows.
+pub const HOME_QUICK_MIX: usize = 6;
+
 /// The most albums an entry's cover shows.
 const COVER_ALBUMS: usize = 4;
-
-/// An entry as Home shows it: how many tracks its press plays and the first track of each
-/// album they start with, the picks of its mosaic.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct QuickMixFace {
-    pub(crate) entry: u32,
-    pub(crate) tracks: u32,
-    pub(crate) covers: Vec<TrackKey>,
-}
-
-/// What one entry's face was built from: its rules, its seed, the music folder, and of the
-/// Catalog's stamps and the day only those its rules read. Listens are none of them: a face
-/// holds through plays, and rules that read plays see them on the next day or the entry's next
-/// press, sync or edit. Opening Home again with nothing it keys on changed only looks it up.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct QuickMixKey {
-    definition: u64,
-    seed: i64,
-    folder: Option<FolderKey>,
-    stamps: [u64; 5],
-    day: Option<i64>,
-}
-
-impl QuickMixKey {
-    fn of(
-        definition: &SmartPlaylistDefinition,
-        seed: i64,
-        folder: Option<FolderKey>,
-        stamps: [u64; 5],
-        now: i64,
-    ) -> LibraryResult<Self> {
-        use crate::SmartPlaylistRuleField as F;
-        use crate::SmartPlaylistRuleOperator as O;
-        let reads = |fields: &[F]| definition.rules().any(|rule| fields.contains(&rule.field));
-        // Stamps in the order of `Snapshot::stamps`: facts, states, plays, downloads, playlists.
-        let marks =
-            reads(&[F::Favorite, F::Rating]) || definition.sort_field == SmartPlaylistSort::Rating;
-        let playlists = reads(&[F::Playlist]);
-        let dated = definition.reads_plays()
-            || reads(&[F::DateAdded, F::LastPlayed])
-            || definition
-                .rules()
-                .any(|rule| matches!(rule.operator, O::InTheLast | O::NotInTheLast));
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        serde_json::to_string(definition)?.hash(&mut hasher);
-        Ok(Self {
-            definition: hasher.finish(),
-            seed,
-            folder,
-            stamps: [
-                stamps[0],
-                if marks { stamps[1] } else { 0 },
-                0,
-                0,
-                if playlists { stamps[4] } else { 0 },
-            ],
-            day: dated.then(|| now.div_euclid(86_400)),
-        })
-    }
-}
 
 impl Context<'_> {
     /// An entry's tracks in music folder `folder`, each with its place in seed `seed`'s
@@ -104,51 +44,11 @@ impl Context<'_> {
             .collect();
         (tracks, definition.limit)
     }
-
-    /// How many tracks an entry's press plays, and the first track of each album they start
-    /// with, without sorting the rest.
-    fn quick_mix_face(
-        &self,
-        definition: &SmartPlaylistDefinition,
-        inputs: &Inputs,
-        folder: Option<u32>,
-        seed: i64,
-    ) -> (usize, Vec<u32>) {
-        let (mut tracks, take) = self.quick_mix_tracks(definition, inputs, folder, seed);
-        if let Some(take) = take.filter(|take| *take < tracks.len()) {
-            tracks.select_nth_unstable(take.saturating_sub(1));
-            tracks.truncate(take);
-        }
-        // An album's place and cover are its first track's; the first albums are those of the
-        // lowest, as the press orders them.
-        let mut albums = HashMap::<u32, (i64, u32)>::new();
-        for (rank, slot) in &tracks {
-            if let Some(album) = self
-                .snapshot
-                .tracks
-                .live(*slot)
-                .and_then(|record| self.album_of(record))
-            {
-                let first = albums.entry(album).or_insert((*rank, *slot));
-                *first = (*first).min((*rank, *slot));
-            }
-        }
-        let mut firsts = albums.into_values().collect::<Vec<_>>();
-        if firsts.len() > COVER_ALBUMS {
-            firsts.select_nth_unstable(COVER_ALBUMS - 1);
-            firsts.truncate(COVER_ALBUMS);
-        }
-        firsts.sort_unstable();
-        (
-            tracks.len(),
-            firsts.into_iter().map(|(_, slot)| slot).collect(),
-        )
-    }
 }
 
 /// The media URIs of `covers`, track keys in their order: a mosaic names its picks by them, and
 /// only the Store holds them.
-pub(crate) async fn cover_uris(
+async fn cover_uris(
     connection: &mut SqliteConnection,
     covers: &[impl serde::Serialize],
 ) -> LibraryResult<Vec<String>> {
@@ -160,9 +60,8 @@ pub(crate) async fn cover_uris(
     .await?)
 }
 
-/// An entry's mosaic: `picks`, media URIs, composed as a smart playlist's. Home's tile and the
-/// entry's page draw the same one, so either finds it composed by the other.
-pub(crate) fn quick_mix_binding(
+/// An entry's mosaic on its page: `picks`, media URIs, composed as a smart playlist's.
+fn quick_mix_binding(
     definition: &SmartPlaylistDefinition,
     entry: u32,
     picks: Vec<String>,
@@ -193,77 +92,32 @@ async fn inputs_of(
 }
 
 impl Catalog {
-    /// Each entry's face in music folder `folder` at `now`, entry `n` in the shuffle of
-    /// `seeds[n]`, the entries that match nothing left out. Only entries whose held face no
-    /// longer holds are evaluated.
-    pub(crate) async fn quick_mix_faces(
+    /// The first [`HOME_QUICK_MIX`] of `entries`, by place, that match a track in music folder
+    /// `folder` at `now`: the ones Home shows. An entry is read only up to its first match.
+    pub(crate) async fn quick_mix_filled(
         &self,
         connection: &mut SqliteConnection,
         folder: Option<FolderKey>,
         entries: &[SmartPlaylistDefinition],
-        seeds: &[i64],
         now: i64,
-    ) -> LibraryResult<Vec<QuickMixFace>> {
-        let stamps = self.snapshot().stamps();
-        let mut faces = Vec::with_capacity(entries.len());
-        let mut missing = Vec::new();
-        for (entry, (definition, seed)) in entries.iter().zip(seeds).enumerate() {
-            let key = QuickMixKey::of(definition, *seed, folder, stamps, now)?;
-            match self.held_quick_mix(&key) {
-                Some(face) => faces.push((entry, face)),
-                None => missing.push((entry, key)),
-            }
-        }
-        if !missing.is_empty() {
-            let reading = missing
-                .iter()
-                .map(|(entry, _)| entries[*entry].clone())
-                .collect::<Vec<_>>();
-            let inputs = inputs_of(self, connection, &reading, now).await?;
-            let snapshot = self.snapshot();
-            let context = Context::new(&snapshot);
-            let Some(slot) = context.folder_slot(folder, None) else {
-                return Ok(Vec::new());
-            };
-            for (entry, key) in missing {
-                let (tracks, covers) =
-                    context.quick_mix_face(&entries[entry], &inputs, slot, seeds[entry]);
-                let face = Arc::new(QuickMixFace {
-                    entry: entry as u32,
-                    tracks: u32::try_from(tracks).unwrap_or(u32::MAX),
-                    covers: covers
-                        .into_iter()
-                        .filter_map(|cover| snapshot.tracks.key_of(cover))
-                        .map(TrackKey::from_raw)
-                        .collect(),
-                });
-                // Built from a newer Catalog than its key names, it answers no later read.
-                if QuickMixKey::of(
-                    &entries[entry],
-                    seeds[entry],
-                    folder,
-                    snapshot.stamps(),
-                    now,
-                )? == key
-                {
-                    self.hold_quick_mix(key, face.clone());
-                }
-                faces.push((entry, face));
-            }
-        }
-        faces.sort_by_key(|(entry, _)| *entry);
-        Ok(faces
-            .into_iter()
-            .filter(|(_, face)| face.tracks > 0)
-            .map(|(entry, face)| QuickMixFace {
-                entry: entry as u32,
-                ..QuickMixFace::clone(&face)
-            })
+    ) -> LibraryResult<Vec<u32>> {
+        let inputs = inputs_of(self, connection, entries, now).await?;
+        let snapshot = self.snapshot();
+        let context = Context::new(&snapshot);
+        let Some(folder) = context.folder_slot(folder, None) else {
+            return Ok(Vec::new());
+        };
+        Ok(entries
+            .iter()
+            .enumerate()
+            .filter(|(_, entry)| context.matching(entry, &inputs, folder).next().is_some())
+            .take(HOME_QUICK_MIX)
+            .map(|(entry, _)| entry as u32)
             .collect())
     }
 
     /// The tracks a press of `entry` plays in music folder `folder`, in seed `seed`'s shuffle
-    /// at `now`, and the albums they start with: what Home's face for the same seed shows.
+    /// at `now`, and the albums they start with.
     pub async fn quick_mix_press(
         &self,
         folder: Option<FolderKey>,

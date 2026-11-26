@@ -1035,7 +1035,6 @@ pub(super) mod tests {
                 0,
                 &library::HomeBlockKind::all(),
                 &[],
-                &[],
                 &cancellation,
             )
             .await
@@ -1122,7 +1121,6 @@ pub(super) mod tests {
                     0,
                     0,
                     &library::HomeBlockKind::all(),
-                    &[],
                     &[],
                     &cancellation,
                 )

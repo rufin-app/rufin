@@ -1041,12 +1041,6 @@ async function stepShowcase(head, forward) {
 
 const requestedCovers = new WeakSet();
 
-// A Quick mix tile's mosaic, its page's picture, over its preview.
-function loadQuickMixCover(host, signal) {
-  const cell = host.querySelector(".quick-mix-cover[data-picture]");
-  if (cell) run(() => cover(cell, { picture: cell.dataset.picture }, signal, cell.querySelector("img")?.getAttribute("src")));
-}
-
 // What a card's picture is read by; None for a playlist folder, whose preview is its picture,
 // and for a Quick mix without one.
 function cardCover(kind, row) {
@@ -1096,8 +1090,8 @@ function bindHome(signal, offsets) {
   const layouts = [];
   bindCards($("content"));
   for (const section of $("content").querySelectorAll(".home-section")) {
-    // A Quick mix row opens its entry's page; its Play group plays the entry as its covers show
-    // it, now, next or later, and Home changes to the next.
+    // A Quick mix row opens its entry's page; its Play group plays the entry as its page lists
+    // it, now, next or later.
     for (const tile of section.querySelectorAll(".quick-mix-tile")) {
       const open = tile.querySelector(".quick-mix-open");
       open.onclick = (event) => {
@@ -1119,7 +1113,6 @@ function bindHome(signal, offsets) {
         event.preventDefault();
         showMenu(rowMenu(row, "quick-mix", { page: row.play }, play), tile, event);
       }, { signal });
-      loadQuickMixCover(tile, signal);
     }
     const body = section.querySelector(".home-row");
     if (!body) {
