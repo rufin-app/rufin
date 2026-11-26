@@ -2144,6 +2144,9 @@ msgstr "Sostén para ordenar"
 msgid "Home Profile"
 msgstr "Perfil de inicio"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Inicio"
 

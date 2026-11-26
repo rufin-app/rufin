@@ -2046,6 +2046,9 @@ msgstr ""
 msgid "Home Profile"
 msgstr "主配置文件"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "首页"
 

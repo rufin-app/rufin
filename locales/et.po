@@ -2144,6 +2144,9 @@ msgstr "Järjekorra muutmiseks hoia"
 msgid "Home Profile"
 msgstr "Koduprofiil"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Avaleht"
 

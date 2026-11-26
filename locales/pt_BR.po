@@ -2142,6 +2142,9 @@ msgstr "Mantenha pressionado para reordenar"
 msgid "Home Profile"
 msgstr "Perfil da tela inicial"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Início"
 

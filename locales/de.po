@@ -2158,6 +2158,9 @@ msgstr "Zum Sortieren gedrückt halten"
 msgid "Home Profile"
 msgstr "Home-Profil"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Übersicht"
 

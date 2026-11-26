@@ -2247,6 +2247,9 @@ msgstr "Tahan untuk mengubah urutan"
 msgid "Home Profile"
 msgstr "Pofil Beranda"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Beranda"
 

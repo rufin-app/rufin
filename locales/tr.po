@@ -2161,6 +2161,9 @@ msgstr "Yeniden sıralamak için basılı tutun"
 msgid "Home Profile"
 msgstr "Ana Profil"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Ana Sayfa"
 

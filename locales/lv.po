@@ -2470,6 +2470,9 @@ msgstr "Pārvelciet, lai mainītu secību"
 msgid "Home Profile"
 msgstr "Sākums Profils"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Sākums"
 

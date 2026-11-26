@@ -2402,6 +2402,9 @@ msgstr "Vedä järjestääksesi uudelleen"
 msgid "Home Profile"
 msgstr "Kotiprofiili"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Koti"
 

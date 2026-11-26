@@ -2364,6 +2364,9 @@ msgstr "Trascina per riordinare"
 msgid "Home Profile"
 msgstr ""
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr ""
 

@@ -2213,6 +2213,9 @@ msgstr "Удерживайте, чтобы изменить порядок"
 msgid "Home Profile"
 msgstr "Главный профиль"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Главная"
 

@@ -2155,6 +2155,9 @@ msgstr "Maintenir pour réorganiser"
 msgid "Home Profile"
 msgstr "Profil d’accueil"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Accueil"
 
