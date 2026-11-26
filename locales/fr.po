@@ -1592,6 +1592,9 @@ msgstr "Téléchargement"
 msgid "Downloads"
 msgstr "Téléchargements"
 
+msgid "Drag the ruler, or pick a line as it starts"
+msgstr ""
+
 msgid "Drag to a folder"
 msgstr "Glisser vers un dossier"
 
@@ -1635,6 +1638,9 @@ msgid "Each plays whole"
 msgstr "Chacun est lu en entier"
 
 msgid "Each rating you change is also written to its file's tags"
+msgstr ""
+
+msgid "Earlier"
 msgstr ""
 
 msgid "Edit Lyrics"
@@ -2338,6 +2344,11 @@ msgstr "Dernière écoute"
 
 msgid "Last.fm"
 msgstr "Last.fm"
+
+#, fuzzy
+#| msgid "Play Later"
+msgid "Later"
+msgstr "Lire plus tard"
 
 msgid "Layout"
 msgstr "Disposition"
@@ -4151,6 +4162,9 @@ msgstr "Icônes des services sur les pages d’album et d’artiste"
 
 msgid "Services"
 msgstr "Services"
+
+msgid "Set from the line you picked"
+msgstr ""
 
 msgid "Set the Discord activity type to Listening"
 msgstr "Définir le type d’activité Discord sur \"Écoute\""

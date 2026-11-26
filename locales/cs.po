@@ -1853,6 +1853,9 @@ msgstr "Stahování"
 msgid "Downloads"
 msgstr "Stahování"
 
+msgid "Drag the ruler, or pick a line as it starts"
+msgstr ""
+
 #, fuzzy
 #| msgid "Drag to reorder"
 msgid "Drag to a folder"
@@ -1902,6 +1905,9 @@ msgid "Each plays whole"
 msgstr ""
 
 msgid "Each rating you change is also written to its file's tags"
+msgstr ""
+
+msgid "Earlier"
 msgstr ""
 
 #, fuzzy
@@ -2746,6 +2752,11 @@ msgstr "Naposledy hrálo"
 
 msgid "Last.fm"
 msgstr "Last.fm"
+
+#, fuzzy
+#| msgid "Play Later"
+msgid "Later"
+msgstr "Přehrát později"
 
 msgid "Layout"
 msgstr "Rozvržení"
@@ -4948,6 +4959,9 @@ msgstr "Zobrazit ikony externích služeb na stránkách alb a interpretů"
 #| msgid "Servers"
 msgid "Services"
 msgstr "Servery"
+
+msgid "Set from the line you picked"
+msgstr ""
 
 msgid "Set the Discord activity type to Listening"
 msgstr "Nastavte typ aktivity v Discordu na „Poslech“"

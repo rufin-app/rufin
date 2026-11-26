@@ -1584,6 +1584,9 @@ msgstr "İndiriliyor"
 msgid "Downloads"
 msgstr "İndirmeler"
 
+msgid "Drag the ruler, or pick a line as it starts"
+msgstr ""
+
 msgid "Drag to a folder"
 msgstr "Bir klasöre sürükleyin"
 
@@ -1627,6 +1630,9 @@ msgid "Each plays whole"
 msgstr "Her biri tamamını oynatır"
 
 msgid "Each rating you change is also written to its file's tags"
+msgstr ""
+
+msgid "Earlier"
 msgstr ""
 
 msgid "Edit Lyrics"
@@ -2346,6 +2352,11 @@ msgstr "Son çalınan"
 
 msgid "Last.fm"
 msgstr "Last.fm"
+
+#, fuzzy
+#| msgid "Play Later"
+msgid "Later"
+msgstr "Sonra Çal"
 
 msgid "Layout"
 msgstr "Düzen"
@@ -4162,6 +4173,9 @@ msgstr "Albüm ve sanatçı sayfalarındaki hizmet simgeleri"
 
 msgid "Services"
 msgstr "Hizmetler"
+
+msgid "Set from the line you picked"
+msgstr ""
 
 msgid "Set the Discord activity type to Listening"
 msgstr "Discord etkinlik türünü Dinliyor olarak ayarla"

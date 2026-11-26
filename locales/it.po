@@ -1765,6 +1765,9 @@ msgstr "Scaricando"
 msgid "Downloads"
 msgstr "Scaricamenti"
 
+msgid "Drag the ruler, or pick a line as it starts"
+msgstr ""
+
 #, fuzzy
 #| msgid "Drag to reorder"
 msgid "Drag to a folder"
@@ -1812,6 +1815,9 @@ msgid "Each plays whole"
 msgstr ""
 
 msgid "Each rating you change is also written to its file's tags"
+msgstr ""
+
+msgid "Earlier"
 msgstr ""
 
 msgid "Edit Lyrics"
@@ -2562,6 +2568,9 @@ msgid "Last played"
 msgstr ""
 
 msgid "Last.fm"
+msgstr ""
+
+msgid "Later"
 msgstr ""
 
 msgid "Layout"
@@ -4446,6 +4455,9 @@ msgid "Service icons on album and artist pages"
 msgstr ""
 
 msgid "Services"
+msgstr ""
+
+msgid "Set from the line you picked"
 msgstr ""
 
 msgid "Set the Discord activity type to Listening"

@@ -1816,6 +1816,9 @@ msgstr "Lejupielādē"
 msgid "Downloads"
 msgstr "Lejupielādes"
 
+msgid "Drag the ruler, or pick a line as it starts"
+msgstr ""
+
 #, fuzzy
 #| msgid "Drag to reorder"
 msgid "Drag to a folder"
@@ -1867,6 +1870,9 @@ msgid "Each plays whole"
 msgstr ""
 
 msgid "Each rating you change is also written to its file's tags"
+msgstr ""
+
+msgid "Earlier"
 msgstr ""
 
 msgid "Edit Lyrics"
@@ -2686,6 +2692,11 @@ msgstr "Pēdējoreiz atskaņots"
 
 msgid "Last.fm"
 msgstr "Last.fm"
+
+#, fuzzy
+#| msgid "Play Later"
+msgid "Later"
+msgstr "Atskaņot vēlāk"
 
 msgid "Layout"
 msgstr "Izkārtojums"
@@ -4770,6 +4781,9 @@ msgstr "Rādīt ārējo pakalpojumu ikonas albumu un izpildītāju lapās"
 #| msgid "Servers"
 msgid "Services"
 msgstr "Serveri"
+
+msgid "Set from the line you picked"
+msgstr ""
 
 msgid "Set the Discord activity type to Listening"
 msgstr "Iestatīt Discord aktivitātes veidu uz Klausīšanās"

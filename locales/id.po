@@ -1643,6 +1643,9 @@ msgstr "Mengunduh"
 msgid "Downloads"
 msgstr "Unduhan"
 
+msgid "Drag the ruler, or pick a line as it starts"
+msgstr ""
+
 #, fuzzy
 #| msgid "Drag to reorder"
 msgid "Drag to a folder"
@@ -1691,6 +1694,9 @@ msgid "Each plays whole"
 msgstr "Masing-masing diputar sampai tuntas"
 
 msgid "Each rating you change is also written to its file's tags"
+msgstr ""
+
+msgid "Earlier"
 msgstr ""
 
 msgid "Edit Lyrics"
@@ -2448,6 +2454,11 @@ msgstr "Terakhir diputar"
 #, fuzzy
 msgid "Last.fm"
 msgstr "Last.fm"
+
+#, fuzzy
+#| msgid "Play Later"
+msgid "Later"
+msgstr "Putar Nanti"
 
 msgid "Layout"
 msgstr "Tata letak"
@@ -4326,6 +4337,9 @@ msgstr "Layanan ikon di halaman album dan artis"
 #| msgid "Device"
 msgid "Services"
 msgstr "Perangkat"
+
+msgid "Set from the line you picked"
+msgstr ""
 
 msgid "Set the Discord activity type to Listening"
 msgstr "Atur jenis aktivitas Discord menjadi Mendengarkan"

@@ -1625,6 +1625,9 @@ msgstr "Загрузка"
 msgid "Downloads"
 msgstr "Загрузки"
 
+msgid "Drag the ruler, or pick a line as it starts"
+msgstr ""
+
 #, fuzzy
 #| msgid "Drag to reorder"
 msgid "Drag to a folder"
@@ -1670,6 +1673,9 @@ msgid "Each plays whole"
 msgstr ""
 
 msgid "Each rating you change is also written to its file's tags"
+msgstr ""
+
+msgid "Earlier"
 msgstr ""
 
 msgid "Edit Lyrics"
@@ -2413,6 +2419,11 @@ msgstr "Посл. прослушано"
 
 msgid "Last.fm"
 msgstr "Last.fm"
+
+#, fuzzy
+#| msgid "Play Later"
+msgid "Later"
+msgstr "Воспроизвести позже"
 
 msgid "Layout"
 msgstr "Макет"
@@ -4317,6 +4328,9 @@ msgstr ""
 #| msgid "Servers"
 msgid "Services"
 msgstr "Серверы"
+
+msgid "Set from the line you picked"
+msgstr ""
 
 msgid "Set the Discord activity type to Listening"
 msgstr "Установите тип активности в Discord на \"Прослушивание\""

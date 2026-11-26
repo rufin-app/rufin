@@ -1753,6 +1753,9 @@ msgstr "Ladataan"
 msgid "Downloads"
 msgstr "Lataukset"
 
+msgid "Drag the ruler, or pick a line as it starts"
+msgstr ""
+
 #, fuzzy
 #| msgid "Drag to reorder"
 msgid "Drag to a folder"
@@ -1804,6 +1807,9 @@ msgid "Each plays whole"
 msgstr ""
 
 msgid "Each rating you change is also written to its file's tags"
+msgstr ""
+
+msgid "Earlier"
 msgstr ""
 
 msgid "Edit Lyrics"
@@ -2611,6 +2617,11 @@ msgstr "Viimeksi toistettu"
 
 msgid "Last.fm"
 msgstr "Last.fm"
+
+#, fuzzy
+#| msgid "Play Later"
+msgid "Later"
+msgstr "Toista myöhemmin"
 
 msgid "Layout"
 msgstr "Asettelu"
@@ -4702,6 +4713,9 @@ msgstr "Näytä ulkoisen palvelun kuvakkeet albumi- ja esittäjäsivuilla"
 #| msgid "Servers"
 msgid "Services"
 msgstr "Palvelimet"
+
+msgid "Set from the line you picked"
+msgstr ""
 
 msgid "Set the Discord activity type to Listening"
 msgstr ""

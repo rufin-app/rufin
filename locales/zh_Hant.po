@@ -1812,6 +1812,9 @@ msgstr "正在下載"
 msgid "Downloads"
 msgstr "下載"
 
+msgid "Drag the ruler, or pick a line as it starts"
+msgstr ""
+
 #, fuzzy
 #| msgid "Drag to reorder"
 msgid "Drag to a folder"
@@ -1859,6 +1862,9 @@ msgid "Each plays whole"
 msgstr ""
 
 msgid "Each rating you change is also written to its file's tags"
+msgstr ""
+
+msgid "Earlier"
 msgstr ""
 
 #, fuzzy
@@ -2685,6 +2691,11 @@ msgstr "最後播放"
 
 msgid "Last.fm"
 msgstr "Last.fm"
+
+#, fuzzy
+#| msgid "Play Later"
+msgid "Later"
+msgstr "稍候播放"
 
 msgid "Layout"
 msgstr "佈局"
@@ -4828,6 +4839,9 @@ msgstr "在專輯與藝人頁面上顯示外部服務的圖示"
 #| msgid "Rename"
 msgid "Services"
 msgstr "重新命名"
+
+msgid "Set from the line you picked"
+msgstr ""
 
 msgid "Set the Discord activity type to Listening"
 msgstr ""

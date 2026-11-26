@@ -7,8 +7,8 @@ msgstr ""
 "Project-Id-Version: Rufin\n"
 "Report-Msgid-Bugs-To: https://github.com/rufin-app/rufin/issues\n"
 "POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"PO-Revision-Date: 2026-11-26 08:40+0000\n"
-"Last-Translator: Jiahao Li <thejiahao@users.noreply.hosted.weblate.org>\n"
+"PO-Revision-Date: 2026-11-26 13:39+0000\n"
+"Last-Translator: HPCesia <me@hpcesia.com>\n"
 "Language-Team: Chinese (Simplified Han script) <https://hosted.weblate.org/"
 "projects/rufin/app/zh_Hans/>\n"
 "Language: zh_Hans\n"
@@ -449,19 +449,19 @@ msgid "Album peak"
 msgstr ""
 
 msgid "Album radio"
-msgstr ""
+msgstr "专辑电台"
 
 msgid "Album sort"
 msgstr "专辑 (排序)"
 
 msgid "Album title"
-msgstr ""
+msgstr "专辑标题"
 
 msgid "Album tracks"
 msgstr "专辑曲目"
 
 msgid "Album unavailable"
-msgstr ""
+msgstr "专辑不可用"
 
 msgid "Album"
 msgstr "专辑"
@@ -560,10 +560,10 @@ msgid "Artist sort"
 msgstr "艺人 (排序)"
 
 msgid "Artist tracks"
-msgstr ""
+msgstr "艺人曲目"
 
 msgid "Artist unavailable"
-msgstr ""
+msgstr "艺人不可用"
 
 msgid "Artist"
 msgstr "艺人"
@@ -584,7 +584,7 @@ msgid "Artwork"
 msgstr "封面"
 
 msgid "Ascending"
-msgstr ""
+msgstr "升序"
 
 msgid "Asked in this order."
 msgstr "按此顺序查询。"
@@ -1494,6 +1494,9 @@ msgstr "正在下载"
 msgid "Downloads"
 msgstr "下载内容"
 
+msgid "Drag the ruler, or pick a line as it starts"
+msgstr ""
+
 msgid "Drag to a folder"
 msgstr ""
 
@@ -1538,6 +1541,9 @@ msgstr ""
 
 msgid "Each rating you change is also written to its file's tags"
 msgstr "每次更改评分都会写入文件标签"
+
+msgid "Earlier"
+msgstr ""
 
 msgid "Edit Lyrics"
 msgstr "编辑歌词"
@@ -2225,6 +2231,11 @@ msgstr "上次播放"
 
 msgid "Last.fm"
 msgstr "Last.fm"
+
+#, fuzzy
+#| msgid "Play Later"
+msgid "Later"
+msgstr "最后播放"
 
 msgid "Layout"
 msgstr "布局"
@@ -4006,6 +4017,9 @@ msgstr "专辑和艺人页面上的服务图标"
 msgid "Services"
 msgstr "服务"
 
+msgid "Set from the line you picked"
+msgstr ""
+
 msgid "Set the Discord activity type to Listening"
 msgstr "将 Discord 活动类型设置为 “正在收听”"
 
@@ -4665,7 +4679,7 @@ msgid "Unsaved"
 msgstr ""
 
 msgid "Untitled"
-msgstr ""
+msgstr "无标题"
 
 msgid "Update check interval"
 msgstr "更新检查间隔"
@@ -4674,10 +4688,10 @@ msgid "Update"
 msgstr "更新"
 
 msgid "Updated Rufin to {version}"
-msgstr ""
+msgstr "已更新 Rufin 到 {version}"
 
 msgid "Updating Rufin to {version}..."
-msgstr ""
+msgstr "正在更新 Rufin 到 {version}…"
 
 msgid "Upload artwork"
 msgstr "上传封面"
@@ -4686,7 +4700,7 @@ msgid "Use API key"
 msgstr "使用 API 密钥"
 
 msgid "Use Rufin data folder"
-msgstr ""
+msgstr "使用 Rufin 数据文件夹"
 
 msgid "Use Saved Login"
 msgstr ""
@@ -4794,10 +4808,10 @@ msgid "Volume"
 msgstr ""
 
 msgid "Waiting for connection"
-msgstr ""
+msgstr "正在等待连接"
 
 msgid "Waiting for device"
-msgstr ""
+msgstr "正在等待设备"
 
 msgid "Waiting for the other device to approve"
 msgstr "等待另一台设备授权"
@@ -4827,7 +4841,7 @@ msgid "Weighting"
 msgstr "加权"
 
 msgid "Welcome to Rufin"
-msgstr ""
+msgstr "欢迎使用 Rufin"
 
 msgid "What Auto DJ and radio pick"
 msgstr "自动 DJ 与电台选曲"
@@ -4896,7 +4910,7 @@ msgid "Your {period} in Rufin"
 msgstr "你在 Rufin 的 {period}"
 
 msgid "Your {period}"
-msgstr ""
+msgstr "你的 {period}"
 
 msgid "above"
 msgstr "大于"
@@ -4974,7 +4988,7 @@ msgid "yesterday"
 msgstr "昨天"
 
 msgid "{action} (Shuffle)"
-msgstr ""
+msgstr "{action}（随机播放）"
 
 msgid "{completed} of {total} ({cached} cached)"
 msgstr ""
@@ -4997,12 +5011,11 @@ msgstr[0] "{count} 项"
 
 msgid "{count} folder selected"
 msgid_plural "{count} folders selected"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "已选择 {count} 个文件夹"
 
 msgid "{count} folder"
 msgid_plural "{count} folders"
-msgstr[0] ""
+msgstr[0] "{count} 个文件夹"
 
 msgid "{count} line could not be read."
 msgid_plural "{count} lines could not be read."
@@ -5026,8 +5039,7 @@ msgstr[0] ""
 
 msgid "{count} result"
 msgid_plural "{count} results"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} 个结果"
 
 msgid "{count} selected"
 msgstr ""
@@ -5059,10 +5071,10 @@ msgid "{stage} ({count} of {total} tracks)"
 msgstr ""
 
 msgid "{stage}: {completed} / {total}"
-msgstr ""
+msgstr "{stage}: {completed} / {total}"
 
 msgid "{stage}: {completed}"
-msgstr ""
+msgstr "{stage}: {completed}"
 
 #. Windows installer: FinishText.
 msgctxt "Windows installer"
@@ -5086,32 +5098,39 @@ msgid ""
 "\n"
 "Click Next to continue."
 msgstr ""
+"Rufin 是一款原生音乐播放器，适用于 Jellyfin、Navidrome/OpenSubsonic、Plex 和 "
+"Emby 服务器；支持本地文件夹、WebDAV（包括直接通过 Nextcloud 浏览器登录的路径"
+"）、Samba 和 NAS 共享。\n"
+"\n"
+"此安装程序将在您的计算机上安装 Rufin。\n"
+"\n"
+"点击“下一步”继续。"
 
 #. Windows installer: CleanupFailed.
 msgctxt "Windows installer"
 msgid ""
 "Setup could not remove the existing Rufin files. Close Rufin and try again."
-msgstr ""
+msgstr "安装程序无法删除现有的 Rufin 文件。请关闭 Rufin 并重试。"
 
 #. Windows installer: DirectoryConflict.
 msgctxt "Windows installer"
 msgid "Choose a separate installation folder."
-msgstr ""
+msgstr "请选择一个单独的安装文件夹。"
 
 #. Windows installer: CloseToInstall. {app_name} is the application display name.
 msgctxt "Windows installer"
 msgid "Close {app_name} and try the installation again."
-msgstr ""
+msgstr "关闭 {app_name}，然后重新尝试安装。"
 
 #. Windows installer: CloseToUninstall. {app_name} is the application display name.
 msgctxt "Windows installer"
 msgid "Close {app_name} and try the uninstall again."
-msgstr ""
+msgstr "关闭 {app_name}，然后重新尝试卸载。"
 
 #. Windows installer: FinishTitle.
 msgctxt "Windows installer"
 msgid "Completing Rufin Setup"
-msgstr ""
+msgstr "正在完成 Rufin 安装"
 
 #. Windows installer: DesktopShortcut.
 msgctxt "Windows installer"
@@ -5126,7 +5145,7 @@ msgstr ""
 #. Windows installer: InstallWriteFailed.
 msgctxt "Windows installer"
 msgid "Setup could not complete the installation. Please try again."
-msgstr ""
+msgstr "安装程序无法完成安装。请重试。"
 
 #. Windows installer: InvalidUpdate. {app_name} is the application display name.
 msgctxt "Windows installer"
@@ -5136,4 +5155,4 @@ msgstr ""
 #. Windows installer: WelcomeTitle.
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
-msgstr ""
+msgstr "欢迎使用 Rufin 安装程序"

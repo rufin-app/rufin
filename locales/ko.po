@@ -9,7 +9,7 @@ msgstr ""
 "POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"Language-Team: Korean <https://hosted.weblate.org/projects/rufin/app/ko/>\n"
 "Language: ko\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -1472,6 +1472,9 @@ msgstr ""
 msgid "Downloads"
 msgstr ""
 
+msgid "Drag the ruler, or pick a line as it starts"
+msgstr ""
+
 msgid "Drag to a folder"
 msgstr ""
 
@@ -1515,6 +1518,9 @@ msgid "Each plays whole"
 msgstr ""
 
 msgid "Each rating you change is also written to its file's tags"
+msgstr ""
+
+msgid "Earlier"
 msgstr ""
 
 msgid "Edit Lyrics"
@@ -2200,6 +2206,9 @@ msgid "Last played"
 msgstr ""
 
 msgid "Last.fm"
+msgstr ""
+
+msgid "Later"
 msgstr ""
 
 msgid "Layout"
@@ -3978,6 +3987,9 @@ msgid "Service icons on album and artist pages"
 msgstr ""
 
 msgid "Services"
+msgstr ""
+
+msgid "Set from the line you picked"
 msgstr ""
 
 msgid "Set the Discord activity type to Listening"
