@@ -701,7 +701,8 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
     }
     if (tablet && queuePanel) {
         VerticalDivider()
-        PlayerQueue(player, Modifier.width(280.dp).fillMaxHeight().statusBarsPadding(), nowPlaying = false,
+        PlayerQueue(player, Modifier.width(280.dp).fillMaxHeight().statusBarsPadding(),
+            onAutoDjSettings = { openMore(MoreDestination.Playback) },
             onNavigate = { route, title, _ -> browse.section = AppSection.Browse; browse.openRoute(route, title) })
     }
     }

@@ -11,12 +11,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.rufin.rufin.core.translate
 
-/** A tool beside a page's content, as the player's: a small tonal square with its icon. */
+/** A tool beside a page's content, as the player's: a small tonal square with its icon, in the accent while
+ *  what it toggles is on. */
 @Composable
-internal fun ToolButton(icon: String, label: String, enabled: Boolean = true, action: () -> Unit) {
+internal fun ToolButton(icon: String, label: String, enabled: Boolean = true, selected: Boolean = false, action: () -> Unit) {
     FilledTonalIconButton(action, Modifier.padding(horizontal = 2.dp).size(36.dp).focusRing(RoundedCornerShape(10.dp)), enabled, RoundedCornerShape(10.dp),
-        IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = MaterialTheme.colorScheme.onSurface)) {
+        IconButtonDefaults.filledTonalIconButtonColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)) {
         RufinIcon(icon, translate(label), Modifier.size(18.dp), glyph = true)
     }
 }

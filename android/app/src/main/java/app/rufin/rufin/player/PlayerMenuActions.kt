@@ -16,8 +16,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import app.rufin.rufin.shared.library.QueueRepeatMode
+import app.rufin.rufin.ui.focusRing
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,7 +54,7 @@ private fun rememberSleepTimer(player: PlayerConnection): Pair<SleepTimerView?, 
     return timer to timer?.let { sleepTimerText(it, now) }
 }
 
-/** The row atop the player's More sheet: Mix, Sleep timer and Auto DJ. */
+/** The row atop the player's More sheet: Auto DJ, Mix and Sleep timer. */
 @Composable
 internal fun PlayerMenuActions(player: PlayerConnection, onMix: () -> Unit, onSleepTimer: () -> Unit, onAutoDjSettings: () -> Unit) {
     val autoDj by remember(player) { derivedStateOf { player.playback?.controls?.autoDjEnabled == true } }
@@ -56,13 +62,73 @@ internal fun PlayerMenuActions(player: PlayerConnection, onMix: () -> Unit, onSl
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
         Row(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
             // A station plays alone: Mix and Auto DJ have no queue to fill.
+            PlayerMenuTile("rufin-auto-dj-symbolic", translate("Auto DJ"), Modifier.weight(1f), active = autoDj, enabled = !player.live,
+                onClick = player::autoDj, onLongClick = onAutoDjSettings, longClickLabel = translate("Settings"))
             PlayerMenuTile("rufin-mix-symbolic", translate("Mix"), Modifier.weight(1f), enabled = !player.live, onClick = onMix)
             PlayerMenuTile("rufin-sleep-timer-symbolic", text?.short?.ifEmpty { null } ?: translate("Sleep timer"),
                 Modifier.weight(1f), active = timer != null, onClick = onSleepTimer)
-            PlayerMenuTile("rufin-auto-dj-symbolic", translate("Auto DJ"), Modifier.weight(1f), active = autoDj, enabled = !player.live,
-                onClick = player::autoDj, onLongClick = onAutoDjSettings, longClickLabel = translate("Settings"))
         }
         HorizontalDivider(Modifier.padding(top = 4.dp, bottom = 8.dp))
+    }
+}
+
+/** The queue's bar: Auto DJ and Sleep timer by name, as the More sheet's tiles. Shuffle and Repeat stand
+ *  either side of them by [transport], 0 while a transport beside the queue holds them and 1 once it does not. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun QueueModes(player: PlayerConnection, modifier: Modifier = Modifier, transport: () -> Float = { 0f }, onAutoDjSettings: () -> Unit) {
+    val controls by remember(player) { derivedStateOf { player.playback?.controls } }
+    val (timer, text) = rememberSleepTimer(player)
+    var sleepTimer by remember { mutableStateOf(false) }
+    val repeat = controls?.repeatMode ?: QueueRepeatMode.OFF
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        QueueModeSide(transport, start = true) {
+            QueueMode("rufin-shuffle-symbolic", translate("Shuffle"), null, Modifier.size(44.dp), active = controls?.shuffleEnabled == true,
+                enabled = !player.live, onClick = player::shuffle)
+        }
+        QueueMode("rufin-auto-dj-symbolic", translate("Auto DJ"), translate("Auto DJ"), Modifier.weight(1f).height(44.dp),
+            active = controls?.autoDjEnabled == true, enabled = !player.live, onClick = player::autoDj,
+            onLongClick = onAutoDjSettings, longClickLabel = translate("Settings"))
+        Spacer(Modifier.width(6.dp))
+        QueueMode("rufin-sleep-timer-symbolic", translate("Sleep timer"), text?.short?.ifEmpty { null } ?: translate("Sleep timer"),
+            Modifier.weight(1f).height(44.dp), active = timer != null, onClick = { sleepTimer = true })
+        QueueModeSide(transport, start = false) {
+            QueueMode(if (repeat == QueueRepeatMode.ONE) "rufin-repeat-one-symbolic" else "rufin-repeat-symbolic",
+                translate(when (repeat) { QueueRepeatMode.ONE -> "Repeat one"; QueueRepeatMode.ALL -> "Repeat all"; else -> "Repeat off" }),
+                null, Modifier.size(44.dp), active = repeat != QueueRepeatMode.OFF, enabled = !player.live, onClick = player::repeat)
+        }
+    }
+    if (sleepTimer) SleepTimerSheet(player) { sleepTimer = false }
+}
+
+/** Shuffle or Repeat beside the bar's named buttons: as wide as [shown] of its button and the gap to them. */
+@Composable
+private fun QueueModeSide(shown: () -> Float, start: Boolean, content: @Composable () -> Unit) {
+    Box(Modifier.graphicsLayer { alpha = shown() }.clipToBounds().layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        val width = (placeable.width * shown()).roundToInt()
+        layout(width, placeable.height) { placeable.place(if (start) width - placeable.width else 0, 0) }
+    }.padding(start = if (start) 0.dp else 6.dp, end = if (start) 6.dp else 0.dp)) { content() }
+}
+
+/** A button of the queue's bar: filled like the player's tools, in the accent while its mode is on. [text],
+ *  where it has one, names it beside its icon. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun QueueMode(icon: String, label: String, text: String?, modifier: Modifier, active: Boolean, enabled: Boolean = true,
+    onClick: () -> Unit, onLongClick: (() -> Unit)? = null, longClickLabel: String? = null) {
+    val time = tween<Color>(if (LocalReduceMotion.current) 0 else 180)
+    val container by animateColorAsState(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh, time, label = "queueMode")
+    val content by animateColorAsState(if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, time, label = "queueModeContent")
+    Surface(modifier.alpha(if (enabled) 1f else .38f).focusRing(RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp))
+        .combinedClickable(enabled = enabled, onClick = onClick, onLongClick = onLongClick, onLongClickLabel = longClickLabel)
+        .semantics { selected = active }, color = container, contentColor = content) {
+        Row(Modifier.padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+            RufinIcon(icon, label.takeIf { text == null }, Modifier.size(18.dp), tint = content, glyph = true)
+            if (text != null) Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold)
+        }
     }
 }
 
@@ -121,8 +187,9 @@ private fun SleepTimerPanel(player: PlayerConnection, timer: SleepTimerView?, te
         player.sleepTimer(SleepTimerRequest.Start(choice, choice is SleepTimerChoice.Minutes && finishTrack))
         onDone()
     }
-    // The More sheet's shade, so the buttons sit in the cover's colours.
-    val shade = if (MaterialTheme.colorScheme.surface.luminance() < .5f) Color.Black else Color.White
+    // The sheet's backdrop is its cover under a tint of the surface's own shade: the buttons take the
+    // content's, so they stand out from it.
+    val shade = MaterialTheme.colorScheme.onSurface
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (timer != null && text != null) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {

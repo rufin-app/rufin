@@ -69,7 +69,7 @@ internal fun CustomizationSettingsPage(preferences: PreferencesConnection, brows
             else when (tab) {
                 CustomizationTab.Layout -> LayoutTab(preferences, browse)
                 CustomizationTab.Home -> HomeTab(preferences, browse)
-                CustomizationTab.Player -> PlayerTab(player)
+                CustomizationTab.Player -> PlayerDisplaySettings(player)
                 CustomizationTab.Menus -> MenusTab(preferences)
             }
         }
@@ -277,9 +277,10 @@ private fun HomeBlockOptions(preferences: PreferencesConnection, row: HomeBlockR
     }
 }
 
-/** The fullscreen player's switches and the seekbar, as GTK's Player tab has them. */
+/** The fullscreen player's switches and the seekbar, as GTK's Player tab has them. The player's own settings
+ *  open on them too. */
 @Composable
-private fun PlayerTab(player: PlayerConnection) {
+internal fun PlayerDisplaySettings(player: PlayerConnection) {
     val state = player.settings ?: return
     val display = state.display
     fun change(edit: SettingsOwner.() -> Unit) { player.editPreferences(edit) }

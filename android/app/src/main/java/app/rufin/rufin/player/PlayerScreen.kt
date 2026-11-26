@@ -45,6 +45,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.positionInRoot
+import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.offset
@@ -112,10 +116,11 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
     val scope = rememberCoroutineScope()
     var surface by remember { mutableStateOf<PlayerSurface?>(null) }
     var output by remember { mutableStateOf(false) }
-    var queue by remember { mutableStateOf(false) }
+    // The queue under a phone's player: a swipe up opens it, another expands it.
+    val lift = remember(scope) { QueueLift(scope) }
     var settings by remember { mutableStateOf(false) }
     // The tab the settings open on, then the one they show.
-    var settingsPage by remember { mutableStateOf(PlayerSettingsPage.PLAYBACK) }
+    var settingsPage by remember { mutableStateOf(PlayerSettingsPage.PLAYER) }
     fun openSettings(page: PlayerSettingsPage) { settingsPage = page; settings = true }
     val lyricsTools = remember { LyricsTools() }
     // Sharing: the card the share sheet shows (null while it is closed), the lines its lyrics card shows
@@ -148,6 +153,15 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
         PlayerPane.QUEUE)
     var pickedPane by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(PlayerPane.LYRICS) }
     val pane = pickedPane.takeIf { it in panes } ?: panes.first()
+    val short = tiny || configuration.screenHeightDp < 560
+    SideEffect { lift.short = short; lift.reduceMotion = reduceMotion }
+    // A wide player shows the queue in its pane; a short one has no stop under a squeezed player.
+    LaunchedEffect(wide, short) { if (wide) lift.stage.snapTo(0f) else if (short && lift.stage.value == 1f) lift.stage.snapTo(2f) }
+    val density = LocalDensity.current
+    val statusTop = WindowInsets.statusBars.getTop(density)
+    // Where the cover's box and the player's own stand, for the cover's way into the bar.
+    var coverArea by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    var playerOrigin by remember { mutableStateOf(Offset.Zero) }
     val base = MaterialTheme.colorScheme
     val palette = rememberPlayerPalette(player, artwork)
     val top = palette.top
@@ -218,25 +232,33 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
     LaunchedEffect(lyricsShown, lyricsSelection != null) { if (!lyricsShown || lyricsSelection != null) lyricsTools.done() }
     BackHandler {
         if (lyricsSelection != null) finishSelection(false) else if (lyricsTools.syncing) lyricsTools.cancel(player)
-        else if (surface != null) surface = null else onClose()
+        else if (surface != null) surface = null else if (lift.shown) lift.close() else onClose()
     }
     MaterialTheme(colorScheme = scheme) {
     Surface(Modifier.fillMaxSize()
         .drawBehind { drawRect(Brush.verticalGradient(listOf(top, bottom))) }
-        .pointerInput(surface, threshold, reduceMotion) {
-            // The lyrics or the visualizer follow the finger down; the player itself goes with the shell.
+        .pointerInput(surface, threshold, reduceMotion, wide) {
+            // The lyrics or the visualizer follow the finger down; the player itself goes with the shell. On a
+            // phone's player a drag up raises the queue, and one that began on the queue moves it either way.
             val open = surface != null
             var distance = 0f
-            detectVerticalDragGestures(onDragStart = { distance = 0f }, onVerticalDrag = { change, amount ->
-                val next = (distance + amount).coerceAtLeast(0f)
+            var onQueue: Boolean? = null
+            var queueFrom = 0f
+            detectVerticalDragGestures(onDragStart = { distance = 0f; onQueue = null; queueFrom = lift.stage.value }, onVerticalDrag = { change, amount ->
                 change.consume()
-                if (open) scope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { surfaceOffset.snapTo(next) }
-                else onPull(next - distance)
-                distance = next
+                if (!open && onQueue == null) onQueue = !wide && (lift.shown || amount < 0f)
+                if (!open && onQueue == true) lift.dragBy(amount)
+                else {
+                    val next = (distance + amount).coerceAtLeast(0f)
+                    if (open) scope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { surfaceOffset.snapTo(next) }
+                    else onPull(next - distance)
+                    distance = next
+                }
             }, onDragEnd = {
-                if (open) releaseSurface(distance) else onPullEnd(distance > threshold)
+                if (open) releaseSurface(distance) else if (onQueue == true) lift.settle(queueFrom) else onPullEnd(distance > threshold)
             }, onDragCancel = {
-                if (open) scope.launch { surfaceOffset.animateTo(0f, tween(if (reduceMotion) 0 else 180)) } else onPullEnd(false)
+                if (open) scope.launch { surfaceOffset.animateTo(0f, tween(if (reduceMotion) 0 else 180)) }
+                else if (onQueue == true) lift.settle(queueFrom) else onPullEnd(false)
             })
         }.pointerInput(surface, threshold, reduceMotion, lyricsEnabled, visualizerEnabled) {
             // Over the player a swipe changes the track; over the lyrics and the visualizer it moves between them.
@@ -251,7 +273,8 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                 scope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { trackOffset.snapTo(distance) }
             }, onDragEnd = {
                 when (shown) {
-                    null -> if (distance < -threshold && player.playback?.queue?.canNext == true) player.next()
+                    // Not over the expanded queue, where no cover shows the track change.
+                    null -> if (lift.folding) Unit else if (distance < -threshold && player.playback?.queue?.canNext == true) player.next()
                         else if (distance > threshold && player.currentId != null && !player.live) player.previous()
                     PlayerSurface.LYRICS -> if (distance < -threshold && visualizerEnabled && lyricsSelection == null && !lyricsTools.syncing)
                         surface = PlayerSurface.VISUALIZER
@@ -260,9 +283,14 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                 scope.launch { trackOffset.animateTo(0f, tween(if (reduceMotion) 0 else 180)) }
             }, onDragCancel = { scope.launch { trackOffset.animateTo(0f, tween(if (reduceMotion) 0 else 180)) } })
         }, color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface) {
-        Box(Modifier.fillMaxSize()) {
-            if (tiny || application?.display?.fullscreenBackgroundImage == true) artwork.image?.let { artwork ->
-                Image(artwork.bitmap.asImageBitmap(), null, Modifier.matchParentSize().blur(48.dp).alpha(if (tiny) .35f else .12f), contentScale = ContentScale.Crop)
+        Box(Modifier.fillMaxSize().onGloballyPositioned { playerOrigin = it.positionInRoot() }.onSizeChanged {
+            lift.openPx = it.height * .44f
+            lift.fullPx = it.height - statusTop - with(density) { 64.dp.toPx() }
+        }) {
+            // The cover over the dynamic background's dark colours, at GTK's strength for a dark one.
+            val backgroundImage = application?.display?.let { it.fullscreenDynamicBackground && it.fullscreenBackgroundImage } == true
+            if (tiny || backgroundImage) artwork.image?.let { artwork ->
+                Image(artwork.bitmap.asImageBitmap(), null, Modifier.matchParentSize().blur(48.dp).alpha(if (tiny) .35f else .25f), contentScale = ContentScale.Crop)
             }
             AnimatedContent(surface, Modifier.fillMaxSize(), transitionSpec = {
                 val towardsVisualizer = targetState == PlayerSurface.VISUALIZER
@@ -274,10 +302,10 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                 else slideInVertically(tween(if (reduceMotion) 0 else 240)) { it / 8 } + fadeIn(tween(if (reduceMotion) 0 else 180))) togetherWith
                     fadeOut(tween(if (reduceMotion) 0 else 120))
             }, label = "playerSurface") { visible ->
-                Column(Modifier.fillMaxSize().then(if (visible == null) Modifier else Modifier.nestedScroll(surfacePull).graphicsLayer {
+                Column(Modifier.fillMaxSize().then(if (visible == null) Modifier.aboveQueue(lift) else Modifier.nestedScroll(surfacePull).graphicsLayer {
                     translationY = surfaceOffset.value
                     alpha = 1f - (surfaceOffset.value / size.height * 1.5f).coerceIn(0f, .6f)
-                }).safeDrawingPadding()) {
+                }.safeDrawingPadding())) {
                     val header: @Composable () -> Unit = { if (visible == PlayerSurface.LYRICS && lyricsTools.syncing)
                         LyricsSyncBar(player, lyricsTools, Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                     else Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -307,12 +335,12 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                             val viewportHeight = maxHeight
                             // The line under the cover is the phone's; beside the pane the lyrics show in full.
                             // Tapping it opens the lyrics, as their button does.
-                            val content: @Composable (Modifier) -> Unit = { MainPlayerArtwork(player, artwork, currentLineEnabled && !wide,
+                            val content: @Composable (Modifier) -> Unit = { MainPlayerArtwork(player, artwork, currentLineEnabled && !wide && !lift.shown,
                                 { surface = PlayerSurface.LYRICS }.takeIf { lyricsEnabled }, it.clipToBounds(),
                                 trackOffset.value, neighbours) { artworkPixels = it } }
                             val controls: @Composable () -> Unit = {
                                 PlayerMetadata(player, Modifier.fillMaxWidth().padding(vertical = 12.dp), onRadio) { navigation = it }
-                                PlayerControls(player, Modifier.fillMaxWidth(), play)
+                                PlayerControls(player, Modifier.fillMaxWidth(), play, lift::squeeze)
                             }
                             if (tiny) Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)
                                 .graphicsLayer { translationX = trackOffset.value }, verticalArrangement = Arrangement.Center,
@@ -334,7 +362,7 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                                         openSettings(when (pane) {
                                             PlayerPane.LYRICS -> PlayerSettingsPage.LYRICS
                                             PlayerPane.VISUALIZER -> PlayerSettingsPage.VISUALIZER
-                                            PlayerPane.QUEUE -> PlayerSettingsPage.PLAYBACK
+                                            PlayerPane.QUEUE -> PlayerSettingsPage.PLAYER
                                         })
                                     }, null)
                                 }
@@ -369,7 +397,8 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                                                 }
                                                 PlayerPane.VISUALIZER -> VisualizerPresets(player, Modifier.matchParentSize())
                                                 PlayerPane.QUEUE -> CompositionLocalProvider(LocalToolIconSize provides 20.dp) {
-                                                    PlayerQueue(player, Modifier.fillMaxSize(), nowPlaying = false, onNavigate = onNavigate)
+                                                    PlayerQueue(player, Modifier.fillMaxSize(),
+                                                        onAutoDjSettings = { onSettings(app.rufin.rufin.more.MoreDestination.Playback) }, onNavigate = onNavigate)
                                                 }
                                             }
                                         }
@@ -385,7 +414,7 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) { controls() }
                             } else if (maxHeight >= 360.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)) {
                                 Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    content(Modifier.weight(1f).fillMaxWidth())
+                                    content(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { coverArea = it.boundsInRoot() })
                                     controls()
                                 }
                             } else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
@@ -394,10 +423,13 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                                 controls()
                             }
                         }
-                        if (!wide) PlayerActions(player, { output = true }, { sharing = ShareKind.SONG },
-                            // Lyrics, or the visualizer while the lyrics are hidden.
-                            if (lyricsEnabled) PlayerSurface.LYRICS else PlayerSurface.VISUALIZER.takeIf { visualizerEnabled },
-                            { surface = it }, { openSettings(PlayerSettingsPage.PLAYBACK) }, { queue = true })
+                        // The open queue takes the actions' place.
+                        if (!wide) Box(Modifier.givingWay(lift::squeeze)) {
+                            PlayerActions(player, { output = true }, { sharing = ShareKind.SONG },
+                                // Lyrics, or the visualizer while the lyrics are hidden.
+                                if (lyricsEnabled) PlayerSurface.LYRICS else PlayerSurface.VISUALIZER.takeIf { visualizerEnabled },
+                                { surface = it }, { openSettings(PlayerSettingsPage.PLAYER) }, lift::open)
+                        }
                     } else {
                         Box(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp, bottom = 20.dp)
                             .clipToBounds().graphicsLayer { translationX = trackOffset.value }) {
@@ -427,18 +459,20 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                             PlayerIconButton("rufin-media-skip-forward-symbolic", "Next Track", player::next,
                                 Modifier.size(48.dp), enabled = player.playback?.queue?.canNext == true, iconSize = 24.dp, glyph = true)
                             Spacer(Modifier.weight(1f))
-                            ToolButton("rufin-queue-symbolic", "Queue") { queue = true }
+                            ToolButton("rufin-queue-symbolic", "Queue") { surface = null; lift.open() }
                         }
                     }
                 }
+            }
+            if (!wide && lift.shown) {
+                PlayerQueueLift(player, lift, { onSettings(app.rufin.rufin.more.MoreDestination.Playback) }, onNavigate)
+                if (lift.folding) PlayerBar(player, artwork, lift, play, coverArea?.translate(-playerOrigin), statusTop)
             }
         }
     }
     }
     // The lyrics' sheets take the player's colours, as its other sheets.
     MaterialTheme(colorScheme = scheme) { LyricsSheets(player, lyricsTools) }
-    if (queue) PlayerQueueSheet(player, onDismiss = { queue = false },
-        onNavigate = { route, title, source -> queue = false; onNavigate(route, title, source) })
     if (output) PlayerOutputSheet(player) { output = false }
     AnimatedVisibility(settings, enter = slideInHorizontally(tween(if (reduceMotion) 0 else 240)) { it / 4 } + fadeIn(tween(if (reduceMotion) 0 else 180)),
         exit = slideOutHorizontally(tween(if (reduceMotion) 0 else 200)) { it / 4 } + fadeOut(tween(if (reduceMotion) 0 else 140))) {
@@ -459,6 +493,67 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
         onDismiss = { navigation = null }) }
 }
 
+/** Gives up its height and fades as [fraction] goes to 1. */
+private fun Modifier.givingWay(fraction: () -> Float) = graphicsLayer { alpha = 1f - fraction() }.clipToBounds().layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, (placeable.height * (1f - fraction())).roundToInt()) { placeable.place(0, 0) }
+}
+
+/** The player above its queue: it keeps clear of the open sheet, then fades as it folds into its bar. */
+@Composable
+private fun Modifier.aboveQueue(lift: QueueLift): Modifier {
+    val bottom = WindowInsets.safeDrawing.getBottom(LocalDensity.current)
+    return graphicsLayer {
+        alpha = (1f - lift.fold() * 2.5f).coerceIn(0f, 1f)
+    }.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)).layout { measurable, constraints ->
+        // The actions' row, which kept the transport off the screen's end, has given way: a gap keeps it off the sheet.
+        val covered = maxOf(bottom.toFloat(), (lift.openPx + 20.dp.toPx()) * lift.squeeze()).roundToInt()
+        val placeable = measurable.measure(constraints.offset(vertical = -covered))
+        layout(placeable.width, constraints.maxHeight) { placeable.place(0, 0) }
+    }
+}
+
+/** The player folded over its expanded queue: the cover, which travels here from its place at [from], the
+ *  names and Play. A tap brings the player back. */
+@Composable
+private fun BoxScope.PlayerBar(player: PlayerConnection, artwork: Cover, lift: QueueLift, play: IconButtonColors,
+    from: androidx.compose.ui.geometry.Rect?, statusTop: Int) {
+    val playing by remember(player) { derivedStateOf { player.playback?.transport?.desiredPlaying == true } }
+    Row(Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(top = with(LocalDensity.current) { statusTop.toDp() }).height(64.dp)
+        // The names wait for the cover to pass over their place.
+        .graphicsLayer { alpha = ((lift.fold() - .7f) / .3f).coerceIn(0f, 1f) }
+        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClickLabel = translate("Close")) { lift.close() }
+        .padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (from == null) Artwork(artwork, Modifier.size(44.dp).clip(CoverShape)) else Spacer(Modifier.size(44.dp))
+        Column(Modifier.weight(1f)) {
+            Text(player.currentItem?.metadata?.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(player.currentItem?.metadata?.artist.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        FilledIconButton(player::togglePlayback, Modifier.size(40.dp).focusRing(CircleShape), shape = CircleShape, colors = play) {
+            RufinIcon(if (playing) "rufin-media-playback-pause-symbolic" else "rufin-media-playback-start-symbolic",
+                translate(if (playing) "Pause" else "Play"), Modifier.size(20.dp), glyph = true)
+        }
+    }
+    if (from != null) {
+        val side = minOf(from.width, from.height)
+        Artwork(artwork, Modifier.size(with(LocalDensity.current) { side.toDp() }).graphicsLayer {
+            val fold = lift.fold()
+            val scale = 1f + (44.dp.toPx() / side - 1f) * fold
+            val left = from.left + (from.width - side) / 2f
+            val top = from.top + (from.height - side) / 2f
+            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
+            scaleX = scale
+            scaleY = scale
+            translationX = left + (16.dp.toPx() - left) * fold
+            translationY = top + (statusTop + 10.dp.toPx() - top) * fold
+            shape = RoundedCornerShape(8.dp.toPx() / scale)
+            clip = true
+        })
+    }
+}
+
 @Composable
 private fun MainPlayerArtwork(player: PlayerConnection, artwork: Cover, showCurrentLine: Boolean, onCurrentLine: (() -> Unit)?, modifier: Modifier,
     offset: Float, neighbours: Pair<ByteArray?, ByteArray?>, onArtworkSize: (Int) -> Unit) {
@@ -466,28 +561,40 @@ private fun MainPlayerArtwork(player: PlayerConnection, artwork: Cover, showCurr
     // The line keeps its place until the new track's lyrics are known, so a track change moves
     // the cover once, not away and back.
     val lyrics = player.currentLyrics
-    val known = if (lyrics == null || lyrics.loading) null else lyrics.document?.lines?.isNotEmpty() == true
+    // Only timed lyrics have a line to show here.
+    val known = if (lyrics == null || lyrics.loading) null else lyrics.document?.lines?.any { it.startMillis != null } == true
     var held by remember { mutableStateOf(false) }
     LaunchedEffect(known) { if (known != null) held = known }
     val hasLyrics = showCurrentLine && (known ?: held)
-    val space by animateDpAsState(if (hasLyrics) 52.dp else 0.dp, tween(if (reduceMotion) 0 else 260), label = "lyricsPreviewSpace")
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            val side = minOf(maxWidth, maxHeight)
-            val step = with(LocalDensity.current) { (side + 24.dp).toPx() }
-            val pixels = with(LocalDensity.current) { side.roundToPx() }
-            // The previous and next covers sit a cover's width away and slide in with the drag.
-            if (offset > 0f) neighbours.first?.let { binding ->
-                Artwork(rememberArtwork(binding, player, pixels), Modifier.size(side).graphicsLayer { translationX = offset - step }.clip(CoverShape))
+    BoxWithConstraints(modifier) {
+        // The line needs two rows (a long line wrapped, or a line and its reading or second voice) and, above
+        // them, the gap the title keeps above itself. A square cover on a tall screen already leaves room under
+        // itself: only what that room lacks is taken from the cover.
+        val room = 52.dp
+        val space by animateDpAsState(if (hasLyrics) (room * 2 - (maxHeight - maxWidth)).coerceIn(0.dp, room) else 0.dp,
+            tween(if (reduceMotion) 0 else 260), label = "lyricsPreviewSpace")
+        val under = ((maxHeight - space - minOf(maxWidth, maxHeight - space)) / 2).coerceAtLeast(0.dp)
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                val side = minOf(maxWidth, maxHeight)
+                val step = with(LocalDensity.current) { (side + 24.dp).toPx() }
+                val pixels = with(LocalDensity.current) { side.roundToPx() }
+                // The previous and next covers sit a cover's width away and slide in with the drag.
+                if (offset > 0f) neighbours.first?.let { binding ->
+                    Artwork(rememberArtwork(binding, player, pixels), Modifier.size(side).graphicsLayer { translationX = offset - step }.clip(CoverShape))
+                }
+                if (offset < 0f) neighbours.second?.let { binding ->
+                    Artwork(rememberArtwork(binding, player, pixels), Modifier.size(side).graphicsLayer { translationX = offset + step }.clip(CoverShape))
+                }
+                PlayerCover(player, artwork, Modifier.size(side).graphicsLayer { translationX = offset }
+                    .onSizeChanged { onArtworkSize(maxOf(it.width, it.height)) })
             }
-            if (offset < 0f) neighbours.second?.let { binding ->
-                Artwork(rememberArtwork(binding, player, pixels), Modifier.size(side).graphicsLayer { translationX = offset + step }.clip(CoverShape))
-            }
-            PlayerCover(player, artwork, Modifier.size(side).graphicsLayer { translationX = offset }
-                .onSizeChanged { onArtworkSize(maxOf(it.width, it.height)) })
+            Spacer(Modifier.height(space))
         }
-        Box(Modifier.fillMaxWidth().height(space).clickable(interactionSource = remember { MutableInteractionSource() },
-            indication = null, enabled = hasLyrics && onCurrentLine != null) { onCurrentLine?.invoke() }, contentAlignment = Alignment.CenterStart) {
+        // From the cover's own edge down: the line stands midway between the cover and the title.
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(under + space).clickable(interactionSource = remember { MutableInteractionSource() },
+            indication = null, enabled = hasLyrics && onCurrentLine != null) { onCurrentLine?.invoke() }.padding(top = 12.dp),
+            contentAlignment = Alignment.CenterStart) {
             if (showCurrentLine) CurrentLyricsPreview(player)
         }
     }
@@ -552,27 +659,34 @@ private val PlayerShade = Color.Black.copy(alpha = .24f)
 internal class PlayerPalette(val top: Color, val bottom: Color, val scheme: ColorScheme)
 
 /** With the dynamic background on, the player takes its cover's colours (the band's dark stops),
- *  white content, boxes a shade darker than the background (as Navic's) and a pastel of the
- *  cover for its accent; off, the theme's, its boxes in the secondary container. */
+ *  white content and boxes a shade darker than the background (as Navic's); off, the theme's, its boxes in
+ *  the secondary container. Its accent stays the app's: a tint of the cover reads fainter than the white
+ *  content, so what is on would look switched off. */
 @Composable
 internal fun rememberPlayerPalette(player: PlayerConnection, artwork: Cover): PlayerPalette {
     val reduceMotion = LocalReduceMotion.current
     val base = MaterialTheme.colorScheme
-    val stops = artwork.image?.band?.takeIf { player.settings?.display?.fullscreenDynamicBackground != false }
+    // A cover still being read keeps the last one's colours, so a track change recolours the player once, not
+    // to the theme's and then to the cover's.
+    val read = artwork.image?.band
+    val known = artwork.image != null || artwork.missing
+    var held by remember { mutableStateOf(read) }
+    LaunchedEffect(read, known) { if (known) held = read }
+    val stops = (if (known) read else held)?.takeIf { player.settings?.display?.fullscreenDynamicBackground != false }
     val colourTime = tween<Color>(if (reduceMotion) 0 else 320)
     val top by animateColorAsState(stops?.get(0) ?: base.surface, colourTime, label = "playerTop")
+    val middle by animateColorAsState(stops?.get(1) ?: base.surface, colourTime, label = "playerMiddle")
     val bottom by animateColorAsState(stops?.get(2) ?: base.surface, colourTime, label = "playerBottom")
-    val accent by animateColorAsState(stops?.let { lerp(it[0], Color.White, .62f) } ?: base.primary, colourTime, label = "playerAccent")
-    val onAccent by animateColorAsState(stops?.get(2) ?: base.onPrimary, colourTime, label = "playerOnAccent")
-    val scheme = if (stops == null) base.copy(surfaceContainerHigh = base.secondaryContainer, primary = accent, onPrimary = onAccent)
-        // Its menus and sheets take a darker shade of the cover too, so their white text reads.
-        else base.copy(surface = stops[1], onSurface = app.rufin.rufin.browse.OnBand,
-            background = stops[1], surfaceContainerLowest = stops[2], surfaceContainerLow = lerp(stops[1], Color.Black, .3f),
-            surfaceContainer = lerp(stops[1], Color.Black, .22f),
+    val scheme = if (stops == null) base.copy(surfaceContainerHigh = base.secondaryContainer)
+        // Its menus and sheets take a darker shade of the cover too, so their white text reads; they change
+        // colour with the background, not in a step.
+        else base.copy(surface = middle, onSurface = app.rufin.rufin.browse.OnBand,
+            background = middle, surfaceContainerLowest = bottom, surfaceContainerLow = lerp(middle, Color.Black, .3f),
+            surfaceContainer = lerp(middle, Color.Black, .22f),
             onSurfaceVariant = app.rufin.rufin.browse.OnBand.copy(alpha = .72f),
             surfaceContainerHigh = PlayerShade, surfaceContainerHighest = PlayerShade,
             secondaryContainer = PlayerShade, onSecondaryContainer = app.rufin.rufin.browse.OnBand,
-            outlineVariant = Color.White.copy(alpha = .28f), primary = accent, onPrimary = onAccent)
+            outlineVariant = Color.White.copy(alpha = .28f))
     return PlayerPalette(top, bottom, scheme)
 }
 
@@ -654,9 +768,11 @@ private fun StationLine(artist: String, station: String, onRadio: () -> Unit) {
 }
 
 @Composable
-private fun PlayerControls(player: PlayerConnection, modifier: Modifier, play: IconButtonColors) {
+private fun PlayerControls(player: PlayerConnection, modifier: Modifier, play: IconButtonColors,
+    /** How far the open queue squeezes the player: the format chips give their room to the cover. */
+    squeeze: () -> Float) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        PlayerSourceInfo(player)
+        Box(Modifier.givingWay(squeeze)) { PlayerSourceInfo(player) }
         // A station has nothing to seek: no seekbar and no times.
         if (!player.live) {
             Spacer(Modifier.height(8.dp))

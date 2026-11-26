@@ -65,10 +65,11 @@ import kotlinx.coroutines.CancellationException
 import java.util.Locale
 
 internal enum class PlayerSettingsPage(val title: String) {
-    PLAYBACK("Playback"), EQUALIZER("Equalizer"), LYRICS("Lyrics"), VISUALIZER("Visualizer")
+    PLAYER("Player"), EQUALIZER("Equalizer"), LYRICS("Lyrics"), VISUALIZER("Visualizer")
 }
 
-/** The player's settings page: GTK's player settings, equalizer and lyrics/visualizer settings as tabs. */
+/** The player's settings page, as tabs: GTK's player settings over the fullscreen player's own switches, then
+ *  the equalizer and the lyrics and visualizer settings. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PlayerSettingsScreen(player: PlayerConnection, initial: PlayerSettingsPage, onPage: (PlayerSettingsPage) -> Unit, onClose: () -> Unit) {
@@ -115,7 +116,10 @@ internal fun PlayerSettingsContent(player: PlayerConnection, page: PlayerSetting
     SettingsPage(Modifier.weight(1f)) {
         if (player.settings == null) Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         else when (page) {
-            PlayerSettingsPage.PLAYBACK -> PlayerPlaybackSettings(player)
+            PlayerSettingsPage.PLAYER -> {
+                PlayerPlaybackSettings(player)
+                app.rufin.rufin.settings.PlayerDisplaySettings(player)
+            }
             PlayerSettingsPage.EQUALIZER -> EqualizerSettings(player, active)
             PlayerSettingsPage.LYRICS -> LyricsSettings(player)
             PlayerSettingsPage.VISUALIZER -> VisualizerSettings(player)

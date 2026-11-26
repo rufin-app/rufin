@@ -305,12 +305,14 @@ internal fun CurrentLyricsPreview(player: PlayerConnection) {
         val line = index?.let { document?.lines?.getOrNull(it) }
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
             line?.let {
+                // The preview holds two rows: a long line wraps onto the second where no reading or second voice takes it.
+                val rows = if (preferences?.showRomanization == true || preferences?.showFurigana == true || it.cueLines.size > 1) 1 else 2
                 if (it.cueLines.isNotEmpty()) it.cueLines.forEachIndexed { cueIndex, cueLine ->
                     val color = if (document?.agents?.firstOrNull { voice -> voice.id == cueLine.agentId }?.role == LyricsAgentRole.BACKGROUND)
                         MaterialTheme.colorScheme.secondary else selected
                     val cueHighlights = highlights[index.toUInt()]?.getOrNull(cueIndex)
                     LyricsText(cueLine.text, cueLine.reading, preferences,
-                        FontFamily.Default, fontSize, normal, false, shadow, cueHighlights, color, cueRanges(cueLine), centered = false, maxLines = 1)
+                        FontFamily.Default, fontSize, normal, false, shadow, cueHighlights, color, cueRanges(cueLine), centered = false, maxLines = rows)
                     if (karaoke && preferences.showRomanization) {
                         cueLine.reading?.takeIf { reading -> reading.romanization.isNotBlank() }?.let { reading ->
                             HighlightedLyricsText(reading.romanization, romanizationRanges(reading), cueHighlights?.romanization.orEmpty(), color, maxLines = 1,
@@ -318,7 +320,7 @@ internal fun CurrentLyricsPreview(player: PlayerConnection) {
                         }
                     }
                 } else LyricsText(it.text, it.reading, preferences, FontFamily.Default, fontSize, normal,
-                    false, shadow, centered = false, maxLines = 1)
+                    false, shadow, centered = false, maxLines = rows)
                 if (preferences?.showRomanization == true &&
                     (!karaoke || it.cueLines.none { cue -> cue.reading?.romanization?.isNotBlank() == true })) {
                     val romanization = it.pronunciation ?: it.reading?.romanization
