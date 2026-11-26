@@ -3,10 +3,12 @@ use std::f64::consts::{PI, TAU};
 
 use gtk::{glib, graphene, prelude::*, subclass::prelude::*};
 
-// The ring is drawn this far outside the widget, which keeps the play button's size so
-// the transport row never grows when it appears.
+// The ring is drawn this far outside the widget, which keeps the play button's size, and
+// it stays visible and allocated while it draws nothing. Appearing is a redraw only: it
+// never measures or moves anything.
 const OUTSET: f32 = 4.0;
-const LINE: f64 = 3.5;
+// Leaves a gap as wide as the line between the button and the ring.
+const LINE: f64 = 2.0;
 // A refill shorter than this, as an ordinary start or seek has, never shows the ring.
 const SHOW_AFTER: std::time::Duration = std::time::Duration::from_millis(500);
 
@@ -15,6 +17,8 @@ mod imp {
 
     #[derive(Default)]
     pub struct RefillRing {
+        // Set while the ring shows: it animates only then, so an idle player does not
+        // wake every frame.
         pub(super) tick: RefCell<Option<gtk::TickCallbackId>>,
         pub(super) pending: RefCell<Option<glib::SourceId>>,
     }
@@ -29,23 +33,10 @@ mod imp {
     impl ObjectImpl for RefillRing {}
 
     impl WidgetImpl for RefillRing {
-        // Animate only while shown, so an idle player does not wake every frame.
-        fn map(&self) {
-            self.parent_map();
-            *self.tick.borrow_mut() = Some(self.obj().add_tick_callback(|ring, _| {
-                ring.queue_draw();
-                glib::ControlFlow::Continue
-            }));
-        }
-
-        fn unmap(&self) {
-            if let Some(tick) = self.tick.take() {
-                tick.remove();
-            }
-            self.parent_unmap();
-        }
-
         fn snapshot(&self, snapshot: &gtk::Snapshot) {
+            if self.tick.borrow().is_none() {
+                return;
+            }
             let ring = self.obj();
             let (width, height) = (ring.width() as f32, ring.height() as f32);
             let color = ring.color();
@@ -92,27 +83,34 @@ impl RefillRing {
         let ring: Self = glib::Object::new();
         ring.set_size_request(size, size);
         ring.set_can_target(false);
-        ring.set_visible(false);
+        ring.add_css_class("player-refill-ring");
         ring
     }
 
     /// Shows the ring once a refill has lasted long enough to notice, and hides it when it ends.
     pub fn set_refilling(&self, refilling: bool) {
-        let pending = &self.imp().pending;
+        let imp = self.imp();
         if !refilling {
-            if let Some(source) = pending.take() {
+            if let Some(source) = imp.pending.take() {
                 source.remove();
             }
-            self.set_visible(false);
-        } else if !self.is_visible() && pending.borrow().is_none() {
+            if let Some(tick) = imp.tick.take() {
+                tick.remove();
+                self.queue_draw();
+            }
+        } else if imp.tick.borrow().is_none() && imp.pending.borrow().is_none() {
             let ring = self.downgrade();
             let source = glib::timeout_add_local_once(SHOW_AFTER, move || {
                 if let Some(ring) = ring.upgrade() {
                     ring.imp().pending.take();
-                    ring.set_visible(true);
+                    let tick = ring.add_tick_callback(|ring, _| {
+                        ring.queue_draw();
+                        glib::ControlFlow::Continue
+                    });
+                    ring.imp().tick.replace(Some(tick));
                 }
             });
-            pending.replace(Some(source));
+            imp.pending.replace(Some(source));
         }
     }
 }

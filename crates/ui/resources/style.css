@@ -2383,6 +2383,11 @@ scale.volume-slider.vertical trough fill {
   color: var(--accent-fg-color);
 }
 
+/* The refill ring around Play is drawn in the button's fill. */
+.player-refill-ring {
+  color: var(--accent-bg-color);
+}
+
 .player-play-button:hover {
   background: radial-gradient(circle closest-side,
     color-mix(in srgb, var(--accent-bg-color) 90%, var(--accent-fg-color)) calc(100% - 1px),

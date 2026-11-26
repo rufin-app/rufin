@@ -363,18 +363,19 @@
   height: 16px;
 }
 
-/* A thin ring just outside the button, on the background, clear of its neighbors. */
+/* A thin ring just outside the button, in its fill: a 2px line with a 2px gap, as GTK draws
+   it. It is positioned out of the flow, so showing it moves nothing. */
 .play-button .loading {
   position: absolute;
   inset: -4px;
   width: auto;
   height: auto;
-  color: var(--window-fg-color, var(--text));
+  color: var(--blue);
 }
 
 .play-button .loading circle {
-  stroke-width: 1.06px;
-  r: 7.47px;
+  stroke-width: 0.615px;
+  r: 7.69px;
 }
 
 .play-button:hover {

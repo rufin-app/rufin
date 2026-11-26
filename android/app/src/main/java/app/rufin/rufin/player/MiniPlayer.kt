@@ -156,11 +156,7 @@ internal fun MiniPlayer(player: PlayerConnection, onOpen: () -> Unit, onOutput: 
                     val favorite = player.favorite
                     PlayerIconButton("rufin-heart-outline-symbolic", "Favorite current track", player::favorite,
                         enabled = !current.live, favorite = favorite)
-                } else IconButton(player::togglePlayback) {
-                    if (player.refilling) RefillSpinner(34.dp)
-                    RufinIcon(if (current.playing) "rufin-media-playback-pause-symbolic" else "rufin-media-playback-start-symbolic",
-                        translate(if (current.playing) "Pause" else "Play"), Modifier.size(24.dp))
-                }
+                } else BarPlay(player, current.playing)
             }
             if (current.duration > 0UL) MiniProgress(player, current.duration, player.playback?.transport?.state == app.rufin.rufin.shared.playback.TransportStatus.PLAYING)
         }
@@ -254,11 +250,11 @@ internal fun NowPlayingChip(player: PlayerConnection, onOpen: () -> Unit) {
     }
 }
 
-/** Play on the foldable's and the tablet's players: the accent circle, the refill ring around it. */
+/** Play on every mini player: the accent circle, the refill ring around it. */
 @Composable
 private fun BarPlay(player: PlayerConnection, playing: Boolean) {
     Box(Modifier.size(48.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
-        if (player.refilling) RefillSpinner(50.dp, MaterialTheme.colorScheme.primary)
+        if (player.refilling) RefillSpinner(52.dp, MaterialTheme.colorScheme.primary)
         FilledIconButton(player::togglePlayback, Modifier.size(44.dp).focusRing(androidx.compose.foundation.shape.CircleShape)) {
             RufinIcon(if (playing) "rufin-media-playback-pause-symbolic" else "rufin-media-playback-start-symbolic",
                 translate(if (playing) "Pause" else "Play"), Modifier.size(22.dp))
@@ -291,10 +287,7 @@ internal fun SidebarPlayer(player: PlayerConnection, onOpen: () -> Unit, onOutpu
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 PlayerIconButton("rufin-speaker-front-symbolic", "Audio output", onOutput)
-                FilledIconButton(player::togglePlayback, Modifier.size(44.dp)) {
-                    RufinIcon(if (playing) "rufin-media-playback-pause-symbolic" else "rufin-media-playback-start-symbolic",
-                        translate(if (playing) "Pause" else "Play"), Modifier.size(22.dp))
-                }
+                BarPlay(player, playing)
                 PlayerIconButton("rufin-media-skip-forward-symbolic", "Next Track", player::next, enabled = !player.live)
             }
             if (duration > 0UL) Box(Modifier.padding(end = 4.dp, bottom = 2.dp)) {

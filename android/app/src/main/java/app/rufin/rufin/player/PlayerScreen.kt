@@ -833,12 +833,14 @@ private fun PlayerPlayPause(player: PlayerConnection, play: IconButtonColors) {
     }
 }
 
-// Matches the desktop refill ring: a thin faint track and a round arc. It shows once a refill lasts half
-// a second, so the short wait of an ordinary start or seek never flashes it.
+// Matches the desktop refill ring: an unbroken faint track and a round arc, a 2 dp line 2 dp outside the
+// button. Its size is 8 dp over the button's and exceeds the box it sits in, so showing it measures and
+// moves nothing. It shows once a refill lasts half a second, so the short wait of an ordinary start or
+// seek never flashes it.
 @Composable
-internal fun RefillSpinner(size: Dp, color: Color = LocalContentColor.current) {
+internal fun RefillSpinner(size: Dp, color: Color) {
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(500); shown = true }
     if (shown) CircularProgressIndicator(Modifier.requiredSize(size).semantics { contentDescription = translate("Loading...") },
-        color, 3.dp, color.copy(alpha = .15f), StrokeCap.Round)
+        color, 2.dp, color.copy(alpha = .15f), StrokeCap.Round, gapSize = 0.dp)
 }
