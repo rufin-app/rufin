@@ -176,6 +176,18 @@ fn populate(
         if group.is_none() {
             group = Some(select.clone());
         }
+        // The ring goes around the whole tile, which the button is only the picture of.
+        select.connect_active_notify(glib::clone!(
+            #[weak]
+            tile,
+            move |select| {
+                if select.is_active() {
+                    tile.add_css_class("selected");
+                } else {
+                    tile.remove_css_class("selected");
+                }
+            }
+        ));
         select
             .set_active(shell.settings.current.borrow().appearance.theme_preference == preference);
         let weak = Rc::downgrade(shell);
@@ -220,8 +232,6 @@ fn populate(
                 context.arc(x + radius, y + radius, radius, PI, PI + FRAC_PI_2);
                 context.close_path();
             };
-            rounded(0.0, 0.0, width, height, 6.0);
-            context.clip();
             let icons = gtk::IconTheme::for_display(&area.display());
             let draw = |theme: &rufin_core::themes::Theme| {
                 let base = &themes[usize::from(theme.mode == rufin_core::themes::Mode::Dark)];
