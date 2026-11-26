@@ -114,6 +114,10 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
     var output by remember { mutableStateOf(false) }
     var queue by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
+    // The tab the settings open on, then the one they show.
+    var settingsPage by remember { mutableStateOf(PlayerSettingsPage.PLAYBACK) }
+    fun openSettings(page: PlayerSettingsPage) { settingsPage = page; settings = true }
+    val lyricsTools = remember { LyricsTools() }
     // Sharing: the card the share sheet shows (null while it is closed), the lines its lyrics card shows
     // (null for those around the playing line), and the lines picked while their selection is open.
     var sharing by remember { mutableStateOf<ShareKind?>(null) }
@@ -144,27 +148,13 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
         PlayerPane.QUEUE)
     var pickedPane by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(PlayerPane.LYRICS) }
     val pane = pickedPane.takeIf { it in panes } ?: panes.first()
-    // With the dynamic background on, the player takes its cover's colours (the band's dark stops),
-    // white content, boxes a shade darker than the background (as Navic's) and a pastel of the
-    // cover for Play; off, the theme's, its boxes in the secondary container.
     val base = MaterialTheme.colorScheme
-    val stops = artwork.image?.band?.takeIf { application?.display?.fullscreenDynamicBackground != false }
-    val colourTime = tween<Color>(if (reduceMotion) 0 else 320)
-    val top by animateColorAsState(stops?.get(0) ?: base.surface, colourTime, label = "playerTop")
-    val bottom by animateColorAsState(stops?.get(2) ?: base.surface, colourTime, label = "playerBottom")
-    val accent by animateColorAsState(stops?.let { lerp(it[0], Color.White, .62f) } ?: base.primary, colourTime, label = "playerAccent")
-    val onAccent by animateColorAsState(stops?.get(2) ?: base.onPrimary, colourTime, label = "playerOnAccent")
+    val palette = rememberPlayerPalette(player, artwork)
+    val top = palette.top
+    val bottom = palette.bottom
+    val scheme = palette.scheme
     // Play keeps the app's accent over the cover's colours, as the queue's Play does.
     val play = IconButtonDefaults.filledIconButtonColors(containerColor = base.primary, contentColor = base.onPrimary)
-    val scheme = if (stops == null) base.copy(surfaceContainerHigh = base.secondaryContainer, primary = accent, onPrimary = onAccent)
-        // Its menus and sheets take a darker shade of the cover too, so their white text reads.
-        else base.copy(surface = stops[1], onSurface = app.rufin.rufin.browse.OnBand,
-            background = stops[1], surfaceContainerLowest = stops[2], surfaceContainerLow = lerp(stops[1], Color.Black, .3f),
-            surfaceContainer = lerp(stops[1], Color.Black, .22f),
-            onSurfaceVariant = app.rufin.rufin.browse.OnBand.copy(alpha = .72f),
-            surfaceContainerHigh = PlayerShade, surfaceContainerHighest = PlayerShade,
-            secondaryContainer = PlayerShade, onSecondaryContainer = app.rufin.rufin.browse.OnBand,
-            outlineVariant = Color.White.copy(alpha = .28f), primary = accent, onPrimary = onAccent)
     // The covers either side follow the finger while a swipe changes the track.
     val currentIndex by remember(player) { derivedStateOf { player.playback?.queue?.currentIndex } }
     val queueRevision by remember(player) { derivedStateOf { player.playback?.queue?.revision } }
@@ -215,13 +205,21 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
     LaunchedEffect(lyricsEnabled, visualizerEnabled) {
         if (surface == PlayerSurface.LYRICS && !lyricsEnabled && lyricsSelection == null || surface == PlayerSurface.VISUALIZER && !visualizerEnabled) surface = null
     }
+    // The settings keep the spectrum running above the Visualizer tab.
     val visualizing = surface == PlayerSurface.VISUALIZER || surface == PlayerSurface.LYRICS && combined ||
-        wide && surface == null && (pane == PlayerPane.VISUALIZER || pane == PlayerPane.LYRICS && combined)
+        wide && surface == null && (pane == PlayerPane.VISUALIZER || pane == PlayerPane.LYRICS && combined) ||
+        settings && settingsPage == PlayerSettingsPage.VISUALIZER
     LaunchedEffect(visualizing, player.playback?.controls?.playbackOutput) { player.visualizer(visualizing) }
     DisposableEffect(player) { onDispose { player.visualizer(false) } }
-    LaunchedEffect(player.currentId) { shareLines = null; lyricsSelection = null }
+    LaunchedEffect(player.currentId) { shareLines = null; lyricsSelection = null; lyricsTools.done() }
     LaunchedEffect(surface) { if (surface != PlayerSurface.LYRICS) lyricsSelection = null }
-    BackHandler { if (lyricsSelection != null) finishSelection(false) else if (surface != null) surface = null else onClose() }
+    // The sync mode belongs to the lyrics in view, and gives way to picking lines to share.
+    val lyricsShown = surface == PlayerSurface.LYRICS || wide && surface == null && pane == PlayerPane.LYRICS
+    LaunchedEffect(lyricsShown, lyricsSelection != null) { if (!lyricsShown || lyricsSelection != null) lyricsTools.done() }
+    BackHandler {
+        if (lyricsSelection != null) finishSelection(false) else if (lyricsTools.syncing) lyricsTools.cancel(player)
+        else if (surface != null) surface = null else onClose()
+    }
     MaterialTheme(colorScheme = scheme) {
     Surface(Modifier.fillMaxSize()
         .drawBehind { drawRect(Brush.verticalGradient(listOf(top, bottom))) }
@@ -255,7 +253,7 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                 when (shown) {
                     null -> if (distance < -threshold && player.playback?.queue?.canNext == true) player.next()
                         else if (distance > threshold && player.currentId != null && !player.live) player.previous()
-                    PlayerSurface.LYRICS -> if (distance < -threshold && visualizerEnabled && lyricsSelection == null)
+                    PlayerSurface.LYRICS -> if (distance < -threshold && visualizerEnabled && lyricsSelection == null && !lyricsTools.syncing)
                         surface = PlayerSurface.VISUALIZER
                     PlayerSurface.VISUALIZER -> if (distance > threshold && lyricsEnabled) surface = PlayerSurface.LYRICS
                 }
@@ -280,7 +278,9 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                     translationY = surfaceOffset.value
                     alpha = 1f - (surfaceOffset.value / size.height * 1.5f).coerceIn(0f, .6f)
                 }).safeDrawingPadding()) {
-                    val header: @Composable () -> Unit = { Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val header: @Composable () -> Unit = { if (visible == PlayerSurface.LYRICS && lyricsTools.syncing)
+                        LyricsSyncBar(player, lyricsTools, Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                    else Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         val picked = lyricsSelection.takeIf { visible == PlayerSurface.LYRICS }
                         if (picked != null) PlayerIconButton("rufin-window-close-symbolic", "Cancel", { finishSelection(false) })
                         else PlayerIconButton("rufin-go-down-symbolic", "Close", { if (visible == null) onClose() else surface = null })
@@ -295,8 +295,10 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                         // The track's menu: its details, favorite, playlists and the rest.
                         if (visible == null) PlayerIconButton("rufin-view-more-symbolic", "More actions", onMore)
                         else if (picked != null) PlayerIconButton("rufin-object-select-symbolic", "Done", { finishSelection(true) }, enabled = picked.isNotEmpty())
-                        else if (visible == PlayerSurface.LYRICS) LyricsActions(player)
-                        else Spacer(Modifier.size(48.dp))
+                        // The view's settings, on its own tab.
+                        else PlayerIconButton("rufin-mixer-sliders-symbolic", "Settings", {
+                            openSettings(if (visible == PlayerSurface.LYRICS) PlayerSettingsPage.LYRICS else PlayerSettingsPage.VISUALIZER)
+                        })
                     } }
                     // Beside the pane the bar sits over the player's own column, and the pane takes the full height.
                     if (visible != null || !wide) header()
@@ -327,13 +329,22 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                                     header()
                                     content(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp))
                                     Column(Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) { controls() }
-                                    PlayerActions(player, { output = true }, { sharing = ShareKind.SONG }, null, {}, { settings = true }, null)
+                                    PlayerActions(player, { output = true }, { sharing = ShareKind.SONG }, null, {}, {
+                                        // The settings of what the pane shows.
+                                        openSettings(when (pane) {
+                                            PlayerPane.LYRICS -> PlayerSettingsPage.LYRICS
+                                            PlayerPane.VISUALIZER -> PlayerSettingsPage.VISUALIZER
+                                            PlayerPane.QUEUE -> PlayerSettingsPage.PLAYBACK
+                                        })
+                                    }, null)
                                 }
                                 Spacer(Modifier.width(16.dp))
                                 Surface(Modifier.weight(1.15f).fillMaxHeight().padding(top = 8.dp, bottom = 16.dp), shape = RoundedCornerShape(24.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                                     Column {
-                                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        val syncing = pane == PlayerPane.LYRICS && lyricsTools.syncing
+                                        if (syncing) LyricsSyncBar(player, lyricsTools, Modifier.padding(horizontal = 4.dp).padding(top = 6.dp))
+                                        else Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 10.dp, top = 6.dp).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
                                             panes.forEach { entry ->
                                                 Surface({ pickedPane = entry }, Modifier.focusRing(RoundedCornerShape(16.dp)), shape = RoundedCornerShape(16.dp),
                                                     color = if (entry == pane) MaterialTheme.colorScheme.onSurface.copy(alpha = .14f) else Color.Transparent,
@@ -343,20 +354,28 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                                                 }
                                             }
                                             Spacer(Modifier.weight(1f))
-                                            if (pane == PlayerPane.LYRICS) LyricsActions(player) else Spacer(Modifier.height(48.dp))
+                                            // On the pane's own fill the tools take the tabs' shade.
+                                            if (pane == PlayerPane.LYRICS) MaterialTheme(MaterialTheme.colorScheme.copy(
+                                                surfaceContainerHigh = MaterialTheme.colorScheme.onSurface.copy(alpha = .14f))) {
+                                                LyricsToolButtons(player, lyricsTools)
+                                            }
                                         }
                                         Box(Modifier.weight(1f).fillMaxWidth().padding(bottom = 8.dp).clipToBounds()) {
                                             when (pane) {
                                                 PlayerPane.LYRICS -> {
                                                     if (combined) VisualizerView(player, Modifier.matchParentSize(),
                                                         player.settings?.visualizer?.appearance?.fullscreenLyricsOpacity?.toFloat() ?: 1f)
-                                                    LyricsPanel(player, lyricsScroll)
+                                                    LyricsPanel(player, lyricsScroll, tools = lyricsTools)
                                                 }
-                                                PlayerPane.VISUALIZER -> VisualizerView(player, Modifier.matchParentSize())
+                                                PlayerPane.VISUALIZER -> VisualizerPresets(player, Modifier.matchParentSize())
                                                 PlayerPane.QUEUE -> CompositionLocalProvider(LocalToolIconSize provides 20.dp) {
                                                     PlayerQueue(player, Modifier.fillMaxSize(), nowPlaying = false, onNavigate = onNavigate)
                                                 }
                                             }
+                                        }
+                                        if (syncing) MaterialTheme(MaterialTheme.colorScheme.copy(
+                                            surfaceContainerHigh = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))) {
+                                            LyricsSyncDock(player, lyricsTools, base.primary, Modifier.padding(horizontal = 10.dp).padding(bottom = 10.dp))
                                         }
                                     }
                                 }
@@ -378,16 +397,23 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
                         if (!wide) PlayerActions(player, { output = true }, { sharing = ShareKind.SONG },
                             // Lyrics, or the visualizer while the lyrics are hidden.
                             if (lyricsEnabled) PlayerSurface.LYRICS else PlayerSurface.VISUALIZER.takeIf { visualizerEnabled },
-                            { surface = it }, { settings = true }, { queue = true })
+                            { surface = it }, { openSettings(PlayerSettingsPage.PLAYBACK) }, { queue = true })
                     } else {
                         Box(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp, bottom = 20.dp)
                             .clipToBounds().graphicsLayer { translationX = trackOffset.value }) {
-                            if (visible == PlayerSurface.VISUALIZER || combined) {
-                                val opacity = player.settings?.visualizer?.appearance?.fullscreenLyricsOpacity?.toFloat() ?: 1f
-                                VisualizerView(player, Modifier.matchParentSize(), if (combined) opacity else 1f)
+                            if (visible == PlayerSurface.VISUALIZER) VisualizerPresets(player, Modifier.matchParentSize())
+                            else if (combined) VisualizerView(player, Modifier.matchParentSize(),
+                                player.settings?.visualizer?.appearance?.fullscreenLyricsOpacity?.toFloat() ?: 1f)
+                            if (visible == PlayerSurface.LYRICS) {
+                                LyricsPanel(player, lyricsScroll, lyricsSelection, { lyricsSelection = it }, lyricsTools)
+                                // The lyrics' tools keep to their corner, over the dimmed lines.
+                                if (lyricsSelection == null && !lyricsTools.syncing) Row(Modifier.align(Alignment.BottomEnd).padding(end = 10.dp)) {
+                                    LyricsToolButtons(player, lyricsTools)
+                                }
                             }
-                            if (visible == PlayerSurface.LYRICS) LyricsPanel(player, lyricsScroll, lyricsSelection) { lyricsSelection = it }
                         }
+                        if (visible == PlayerSurface.LYRICS && lyricsTools.syncing)
+                            LyricsSyncDock(player, lyricsTools, base.primary, Modifier.padding(horizontal = 16.dp))
                         if (player.live) Box(Modifier.fillMaxWidth().padding(top = 8.dp)) { PlayerSourceInfo(player) }
                         else Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 8.dp)) { PlayerProgress(player) }
                         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 24.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -409,12 +435,14 @@ internal fun PlayerScreen(player: PlayerConnection, preferences: PreferencesConn
         }
     }
     }
+    // The lyrics' sheets take the player's colours, as its other sheets.
+    MaterialTheme(colorScheme = scheme) { LyricsSheets(player, lyricsTools) }
     if (queue) PlayerQueueSheet(player, onDismiss = { queue = false },
         onNavigate = { route, title, source -> queue = false; onNavigate(route, title, source) })
     if (output) PlayerOutputSheet(player) { output = false }
     AnimatedVisibility(settings, enter = slideInHorizontally(tween(if (reduceMotion) 0 else 240)) { it / 4 } + fadeIn(tween(if (reduceMotion) 0 else 180)),
         exit = slideOutHorizontally(tween(if (reduceMotion) 0 else 200)) { it / 4 } + fadeOut(tween(if (reduceMotion) 0 else 140))) {
-        PlayerSettingsScreen(player) { settings = false }
+        PlayerSettingsScreen(player, settingsPage, { settingsPage = it }) { settings = false }
     }
     sharing?.let { kind ->
         val item = player.currentItem
@@ -519,6 +547,34 @@ private fun PlayerActions(player: PlayerConnection, onOutput: () -> Unit, onShar
 
 /** The player's boxes on the cover's colours: a shade darker than the background, not a lighter grey. */
 private val PlayerShade = Color.Black.copy(alpha = .24f)
+
+/** The player's colours: the two ends of its background and the scheme its content takes. */
+internal class PlayerPalette(val top: Color, val bottom: Color, val scheme: ColorScheme)
+
+/** With the dynamic background on, the player takes its cover's colours (the band's dark stops),
+ *  white content, boxes a shade darker than the background (as Navic's) and a pastel of the
+ *  cover for its accent; off, the theme's, its boxes in the secondary container. */
+@Composable
+internal fun rememberPlayerPalette(player: PlayerConnection, artwork: Cover): PlayerPalette {
+    val reduceMotion = LocalReduceMotion.current
+    val base = MaterialTheme.colorScheme
+    val stops = artwork.image?.band?.takeIf { player.settings?.display?.fullscreenDynamicBackground != false }
+    val colourTime = tween<Color>(if (reduceMotion) 0 else 320)
+    val top by animateColorAsState(stops?.get(0) ?: base.surface, colourTime, label = "playerTop")
+    val bottom by animateColorAsState(stops?.get(2) ?: base.surface, colourTime, label = "playerBottom")
+    val accent by animateColorAsState(stops?.let { lerp(it[0], Color.White, .62f) } ?: base.primary, colourTime, label = "playerAccent")
+    val onAccent by animateColorAsState(stops?.get(2) ?: base.onPrimary, colourTime, label = "playerOnAccent")
+    val scheme = if (stops == null) base.copy(surfaceContainerHigh = base.secondaryContainer, primary = accent, onPrimary = onAccent)
+        // Its menus and sheets take a darker shade of the cover too, so their white text reads.
+        else base.copy(surface = stops[1], onSurface = app.rufin.rufin.browse.OnBand,
+            background = stops[1], surfaceContainerLowest = stops[2], surfaceContainerLow = lerp(stops[1], Color.Black, .3f),
+            surfaceContainer = lerp(stops[1], Color.Black, .22f),
+            onSurfaceVariant = app.rufin.rufin.browse.OnBand.copy(alpha = .72f),
+            surfaceContainerHigh = PlayerShade, surfaceContainerHighest = PlayerShade,
+            secondaryContainer = PlayerShade, onSecondaryContainer = app.rufin.rufin.browse.OnBand,
+            outlineVariant = Color.White.copy(alpha = .28f), primary = accent, onPrimary = onAccent)
+    return PlayerPalette(top, bottom, scheme)
+}
 
 
 @OptIn(ExperimentalAnimationApi::class)

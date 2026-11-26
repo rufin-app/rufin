@@ -33,6 +33,19 @@ let lyricsDocument = null;
 
 let activeLine = -1;
 
+// The offset the person set for the lyrics on show, in the core's sense: a positive one
+// shows the lines earlier. It goes with those lyrics.
+let lyricsOffset = 0;
+let lyricsKey = null;
+// The offset the offset editor opened with, which Cancel restores; null while it is closed.
+let syncStart = null;
+
+// Milliseconds a pixel of the ruler stands for, and what its steps move by.
+const RULER_MILLIS_PER_PIXEL = 5;
+const RULER_DRAG_STEP = 10;
+const RULER_WHEEL_STEP = 50;
+const RULER_LABEL_MILLIS = 250;
+
 let coverRequest = null;
 // The cover a radio station plays under, which follows the song it announces.
 let livePicture = null;
@@ -203,6 +216,14 @@ function showLyrics(value) {
   lyricsDocument = value.document || null;
   activeLine = -1;
   $("lyrics").replaceChildren();
+  const key = lyricsDocument ? `${value.media_uri}\n${JSON.stringify(lyricsDocument)}` : null;
+  if (key !== lyricsKey) {
+    lyricsKey = key;
+    setSyncing(null);
+    setLyricsOffset(0);
+    activeLine = -1;
+  }
+  $("lyrics-controls").hidden = !lyricsDocument || syncStart != null;
   if (lyricsDocument) {
     $("lyrics").style.setProperty(
       "--lyrics-font-size",
@@ -215,14 +236,16 @@ function showLyrics(value) {
       const start =
         line.start_millis ??
         line.cue_lines?.find((cue) => cue.start_millis != null)?.start_millis;
-      const position = Math.max(
+      // The line's own time, with the offset its file declares taken off.
+      const lineStart = Math.max(
         0,
         (start || 0) - (lyricsDocument.offset_millis || 0),
       );
+      const position = Math.max(0, lineStart - lyricsOffset);
       const row =
         start == null
           ? el("p", "lyric-line", line.text)
-          : button(line.text, () => seek(position), null, "lyric-line");
+          : button(line.text, () => activateLine(lineStart), null, "lyric-line");
       const reading = value.readings?.[index];
       if (reading?.segments) {
         row.replaceChildren();
@@ -272,8 +295,18 @@ async function seek(position) {
   }
 }
 
-function updatePosition() {
-  const position =
+// While the offset editor is open a line sets the offset to start now; otherwise it is seeked to.
+async function activateLine(lineStart) {
+  if (syncStart == null) return seek(Math.max(0, lineStart - lyricsOffset));
+  const picked = await api(
+    `/lyrics/line-offset?line_start_millis=${lineStart}&position_millis=${Math.round(currentPosition())}`,
+  );
+  setLyricsOffset(picked.offset_millis);
+  showSyncHint(true);
+}
+
+function currentPosition() {
+  return (
     seekPreview ??
     Math.min(
       state.playback?.duration_ms || Infinity,
@@ -281,7 +314,125 @@ function updatePosition() {
         (state.playback?.state === "playing"
           ? performance.now() - receivedAt
           : 0),
-    );
+    )
+  );
+}
+
+const lyricsOffsetText = (millis) =>
+  millis === 0 ? "0 ms" : `${millis > 0 ? "+" : ""}${millis} ms`;
+
+function setLyricsOffset(millis) {
+  lyricsOffset = millis;
+  const text = lyricsOffsetText(millis);
+  $("lyrics-offset-value").textContent = text;
+  $("lyrics-offset-entry").value = text;
+  drawRuler();
+  updatePosition();
+}
+
+function showSyncHint(picked) {
+  $("lyrics-sync-hint").hidden = picked;
+  $("lyrics-sync-picked").hidden = !picked;
+}
+
+function setSyncing(start) {
+  syncStart = start;
+  const open = start != null;
+  $("lyrics-panel").toggleAttribute("data-syncing", open);
+  $("lyrics-sync-header").hidden = !open;
+  $("lyrics-sync-dock").hidden = !open;
+  $("lyrics-controls").hidden = open || !lyricsDocument;
+  if (open) {
+    showSyncHint(false);
+    drawRuler();
+    $("lyrics-offset-ruler").focus();
+  }
+}
+
+// The tape slides under the needle: the offset is the value at the middle.
+function drawRuler() {
+  const ruler = $("lyrics-offset-ruler"),
+    tape = ruler.firstElementChild,
+    center = ruler.clientWidth / 2;
+  ruler.setAttribute("aria-valuenow", lyricsOffset);
+  ruler.setAttribute("aria-valuetext", lyricsOffsetText(lyricsOffset));
+  tape.style.setProperty("--tape-origin", `${center - lyricsOffset / RULER_MILLIS_PER_PIXEL}px`);
+  const reach = center * RULER_MILLIS_PER_PIXEL,
+    first = Math.ceil((lyricsOffset - reach) / RULER_LABEL_MILLIS),
+    last = Math.floor((lyricsOffset + reach) / RULER_LABEL_MILLIS),
+    labels = [];
+  for (let step = first; step <= last; step++) {
+    const millis = step * RULER_LABEL_MILLIS,
+      label = el("span", "", millis === 0 ? "0" : `${millis > 0 ? "+" : ""}${millis}`);
+    label.style.left = `${center + (millis - lyricsOffset) / RULER_MILLIS_PER_PIXEL}px`;
+    labels.push(label);
+  }
+  tape.replaceChildren(...labels);
+}
+
+function initLyricsOffset() {
+  const ruler = $("lyrics-offset-ruler"),
+    entry = $("lyrics-offset-entry");
+  const move = (millis) => {
+    showSyncHint(false);
+    setLyricsOffset(millis);
+  };
+  $("lyrics-offset").addEventListener("click", () => setSyncing(lyricsOffset));
+  $("lyrics-sync-done").addEventListener("click", () => setSyncing(null));
+  $("lyrics-sync-cancel").addEventListener("click", () => {
+    setLyricsOffset(syncStart);
+    setSyncing(null);
+  });
+  $("lyrics-offset-reset").addEventListener("click", () => move(0));
+  $("lyrics-save").addEventListener("click", () =>
+    run(async () => {
+      const saved = await api("/lyrics/save", "POST", { offset_millis: lyricsOffset });
+      if (saved.saved) return;
+      // The source does not take lyrics: they are saved as a file instead.
+      const link = el("a");
+      link.href = URL.createObjectURL(new Blob([saved.text], { type: "text/plain" }));
+      link.download = `${(state.playback?.current?.track?.title || "lyrics").replace(/[\\/:*?"<>|]/g, "_")}.lrc`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }),
+  );
+  const commit = () => {
+    const millis = Number.parseInt(entry.value.replace(/ms\s*$/i, "").trim(), 10);
+    if (Number.isFinite(millis)) move(millis);
+    else entry.value = lyricsOffsetText(lyricsOffset);
+  };
+  entry.addEventListener("change", commit);
+  let drag = null;
+  ruler.addEventListener("pointerdown", (event) => {
+    drag = { x: event.clientX, start: lyricsOffset };
+    ruler.setPointerCapture(event.pointerId);
+  });
+  ruler.addEventListener("pointermove", (event) => {
+    if (!drag) return;
+    const steps = Math.round(((drag.x - event.clientX) * RULER_MILLIS_PER_PIXEL) / RULER_DRAG_STEP);
+    move(drag.start + steps * RULER_DRAG_STEP);
+  });
+  for (const type of ["pointerup", "pointercancel"]) ruler.addEventListener(type, () => (drag = null));
+  ruler.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
+      const delta = event.deltaY || -event.deltaX;
+      if (delta) move(lyricsOffset - Math.sign(delta) * RULER_WHEEL_STEP);
+    },
+    { passive: false },
+  );
+  ruler.addEventListener("keydown", (event) => {
+    const step = { ArrowLeft: -RULER_DRAG_STEP, ArrowRight: RULER_DRAG_STEP }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    move(lyricsOffset + step);
+  });
+  new ResizeObserver(drawRuler).observe(ruler);
+}
+
+function updatePosition() {
+  const position = currentPosition();
   if (!seeking) {
     $("seek").value = position;
     $("position").textContent = time(position);
@@ -296,7 +447,7 @@ function updatePosition() {
     const start = lyricsDocument.lines[i].start_millis;
     if (
       start != null &&
-      start <= position + (lyricsDocument.offset_millis || 0)
+      start <= position + (lyricsDocument.offset_millis || 0) + lyricsOffset
     )
       active = i;
   }
@@ -392,6 +543,7 @@ function init() {
       run(() => showQueueMenu(state.playback.current, $("player-menu")));
   });
   new ResizeObserver(scrollLyrics).observe($("lyrics"));
+  initLyricsOffset();
   for (const [id, field] of [
     ["player-artist", "artist"],
     ["player-album", "album"],

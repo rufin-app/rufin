@@ -430,6 +430,13 @@ mod tests {
     }
 }
 
+/// The offset at which a line timed at `line_start_millis` starts at `position_millis` of playback.
+#[cfg_attr(feature = "bindings", uniffi::export)]
+pub fn lyrics_offset_for_line_at(line_start_millis: u64, position_millis: u64) -> i64 {
+    let millis = |value: u64| i64::try_from(value).unwrap_or(i64::MAX);
+    millis(line_start_millis).saturating_sub(millis(position_millis))
+}
+
 #[cfg_attr(feature = "bindings", uniffi::export)]
 pub fn playback_position_for_lyrics_position(position_millis: u64, offset_millis: i64) -> u64 {
     if offset_millis >= 0 {

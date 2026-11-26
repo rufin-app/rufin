@@ -21,8 +21,8 @@ pub use ::lyrics::{
     LyricsQuery, LyricsRole, LyricsSearchContent, LyricsSearchResult, PreparedCueLine,
     PreparedLyrics, PreparedLyricsLine, Settings, UserPreferences, active_lyrics_line_index,
     intro_lyrics_line_index, japanese_reading_from_romanization, lyric_line_has_text,
-    lyrics_to_lrc_text, playback_position_for_lyrics_position, pronunciation_line_for,
-    shift_lrc_text_timestamps, should_highlight_all_lyrics_lines,
+    lyrics_offset_for_line_at, lyrics_to_lrc_text, playback_position_for_lyrics_position,
+    pronunciation_line_for, shift_lrc_text_timestamps, should_highlight_all_lyrics_lines,
 };
 use ::lyrics::{
     LyricsBundle, LyricsOrigin, lyrics_from_search_result, save_current_lyrics, search_lyrics,

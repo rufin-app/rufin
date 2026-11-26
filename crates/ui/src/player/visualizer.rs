@@ -21,6 +21,14 @@ pub struct VisualizerParts {
     pub active: Cell<bool>,
     pub appearance: Rc<RefCell<VisualizerAppearance>>,
     peaks: Rc<RefCell<Vec<Peak>>>,
+    /// The spectrum an open Settings dialog keeps above its Visualizer page.
+    pub stage: Rc<RefCell<Option<VisualizerStage>>>,
+}
+
+pub struct VisualizerStage {
+    area: Visualizer,
+    /// The strip holding the area, shown while something plays.
+    host: adw::Clamp,
 }
 
 mod imp {
@@ -157,6 +165,7 @@ pub fn build_visualizer() -> VisualizerParts {
         active: Cell::new(false),
         appearance,
         peaks,
+        stage: Rc::new(RefCell::new(None)),
     }
 }
 
@@ -865,6 +874,44 @@ impl crate::player::PlayerUi {
             .set_opacity(fullscreen_opacity);
         self.views.visualizer.sidebar_area.queue_draw();
         self.views.visualizer.fullscreen_area.queue_draw();
+        self.queue_visualizer_stage_draw();
+    }
+
+    /// Puts the running spectrum into a Settings dialog's stage.
+    pub fn add_visualizer_stage(self: &Rc<Self>, host: &adw::Clamp, parent: &gtk::Box) {
+        let visualizer = &self.views.visualizer;
+        let area = build_visualizer_area(
+            Rc::clone(&visualizer.levels),
+            Rc::clone(&visualizer.appearance),
+            Rc::clone(&visualizer.peaks),
+        );
+        area.remove_css_class("fullscreen-player-visualizer-area");
+        // The strip keeps its height; the settings under it take the rest.
+        area.set_vexpand(false);
+        // Levels are analysed only while a visualizer shows, this one included.
+        let weak = Rc::downgrade(self);
+        let sync = move |_: &Visualizer| {
+            if let Some(shell) = weak.upgrade() {
+                shell.sync_visualizer_state();
+            }
+        };
+        area.connect_map(sync.clone());
+        area.connect_unmap(sync);
+        parent.append(&area);
+        visualizer.stage.replace(Some(VisualizerStage {
+            area,
+            host: host.clone(),
+        }));
+        self.queue_visualizer_stage_draw();
+    }
+
+    fn queue_visualizer_stage_draw(&self) {
+        if let Some(stage) = self.views.visualizer.stage.borrow().as_ref() {
+            stage
+                .area
+                .set_opacity(self.views.visualizer.appearance.borrow().opacity);
+            stage.area.queue_draw();
+        }
     }
 
     pub fn apply_visualizer_levels(self: &Rc<Self>, levels: Vec<f64>) {
@@ -903,7 +950,22 @@ impl crate::player::PlayerUi {
         let sidebar_visible = !self.fullscreen_player_visible()
             && self.right_sidebar_visible()
             && self.right_panel.visualizer_visible.get();
-        let visible = fullscreen_visible || sidebar_visible;
+        let playing = self
+            .selected_playback()
+            .as_deref()
+            .is_some_and(|player| player.transport.current.is_some());
+        let stage = self
+            .views
+            .visualizer
+            .stage
+            .borrow()
+            .as_ref()
+            .map(|stage| (stage.host.clone(), stage.area.clone()));
+        let stage_visible = stage.is_some_and(|(host, area)| {
+            host.set_visible(playing);
+            area.is_mapped()
+        });
+        let visible = fullscreen_visible || sidebar_visible || stage_visible;
         shell.products.playback.set_visualizer_enabled(visible);
         let active = visible
             && self.selected_playback().as_deref().is_some_and(|player| {
@@ -937,6 +999,7 @@ impl crate::player::PlayerUi {
         let peaks = Rc::clone(&self.views.visualizer.peaks);
         let fullscreen_area = self.views.visualizer.fullscreen_area.clone();
         let sidebar_area = self.views.visualizer.sidebar_area.clone();
+        let stage = Rc::clone(&self.views.visualizer.stage);
         let window = shell.chrome.window.clone();
         let settings = Rc::clone(&shell.settings);
         let shell = Rc::downgrade(self);
@@ -1011,6 +1074,9 @@ impl crate::player::PlayerUi {
             } else if sidebar_area.is_mapped() {
                 sidebar_area.queue_draw();
             }
+            if let Some(stage) = stage.borrow().as_ref() {
+                stage.area.queue_draw();
+            }
             if stale && !changed {
                 if let Some(shell) = shell.upgrade() {
                     shell.views.visualizer.tick.borrow_mut().take();
@@ -1034,5 +1100,6 @@ impl crate::player::PlayerUi {
         self.views.visualizer.targets.borrow_mut().clear();
         self.views.visualizer.fullscreen_area.queue_draw();
         self.views.visualizer.sidebar_area.queue_draw();
+        self.queue_visualizer_stage_draw();
     }
 }

@@ -1,13 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface domain="rufin">
   <requires lib="gtk" version="4.20"/>
+  <requires lib="libadwaita" version="1.9"/>
 
   <object class="GtkOverlay" id="root">
     <property name="vexpand">true</property>
     <property name="margin-end">0</property>
     <style><class name="lyrics-panel"/></style>
     <property name="child">
+      <object class="GtkBox" id="column">
+        <property name="orientation">vertical</property>
+        <child>
+      <object class="GtkBox" id="sync_header">
+        <property name="orientation">horizontal</property>
+        <property name="visible">false</property>
+        <property name="halign">fill</property>
+        <property name="hexpand">true</property>
+        <property name="margin-start">8</property>
+        <property name="margin-end">8</property>
+        <style><class name="lyrics-sync-header"/></style>
+        <child><object class="GtkButton" id="sync_cancel_button"><property name="icon-name">rufin-window-close-symbolic</property><property name="tooltip-text" translatable="yes">Cancel</property><style><class name="icon-button"/><class name="flat"/><class name="circular"/></style></object></child>
+        <child><object class="GtkLabel"><property name="label" translatable="yes">Lyrics offset (ms)</property><property name="hexpand">true</property><property name="ellipsize">end</property><style><class name="heading"/></style></object></child>
+        <child><object class="GtkButton" id="sync_done_button"><property name="icon-name">rufin-object-select-symbolic</property><property name="tooltip-text" translatable="yes">Done</property><style><class name="icon-button"/><class name="flat"/><class name="circular"/></style></object></child>
+      </object>
+    </child>
+        <child>
       <object class="RufinLyricsEdgeFade" id="edge_fade">
+        <property name="vexpand">true</property>
+        <style><class name="lyrics-view"/></style>
         <child>
       <object class="GtkScrolledWindow" id="scroller">
         <property name="hscrollbar-policy">never</property>
@@ -28,6 +48,36 @@
           </object>
         </property>
       </object>
+        </child>
+      </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="sync_dock">
+            <property name="orientation">vertical</property>
+            <property name="spacing">6</property>
+            <property name="visible">false</property>
+            <property name="margin-start">10</property>
+            <property name="margin-end">10</property>
+            <property name="margin-bottom">10</property>
+            <style><class name="lyrics-sync-dock"/></style>
+            <child>
+              <object class="GtkCenterBox">
+                <child type="start"><object class="GtkLabel"><property name="label" translatable="yes">Later</property><property name="valign">end</property><style><class name="caption"/><class name="dim-label"/></style></object></child>
+                <child type="center"><object class="GtkEntry" id="offset_entry"><property name="text">0 ms</property><property name="xalign">0.5</property><property name="width-chars">8</property><property name="max-width-chars">10</property><property name="max-length">24</property><style><class name="flat"/><class name="lyrics-offset-value"/></style></object></child>
+                <child type="end"><object class="GtkLabel"><property name="label" translatable="yes">Earlier</property><property name="valign">end</property><style><class name="caption"/><class name="dim-label"/></style></object></child>
+              </object>
+            </child>
+            <child><object class="GtkLabel" id="sync_hint"><property name="label" translatable="yes">Drag the ruler, or pick a line as it starts</property><property name="wrap">true</property><property name="justify">center</property><style><class name="caption"/><class name="dim-label"/></style></object></child>
+            <child><object class="RufinOffsetRuler" id="offset_ruler"/></child>
+            <child>
+              <object class="GtkBox">
+                <property name="spacing">8</property>
+                <child><object class="GtkButton" id="offset_reset_button"><property name="child"><object class="AdwButtonContent"><property name="icon-name">rufin-view-refresh-symbolic</property><property name="label" translatable="yes">Reset</property></object></property></object></child>
+                <child><object class="GtkBox"><property name="hexpand">true</property></object></child>
+                <child><object class="GtkButton" id="sync_save_button"><property name="child"><object class="AdwButtonContent"><property name="icon-name">rufin-download-symbolic</property><property name="label" translatable="yes">Save Lyrics</property></object></property><style><class name="suggested-action"/></style></object></child>
+              </object>
+            </child>
+          </object>
         </child>
       </object>
     </property>
@@ -58,9 +108,7 @@
         <property name="margin-bottom">10</property>
         <style><class name="lyrics-controls"/><class name="lyrics-control-bar"/></style>
         <child><object class="GtkButton" id="save_button"><property name="icon-name">rufin-download-symbolic</property><style><class name="icon-button"/><class name="flat"/><class name="circular"/></style></object></child>
-        <child><object class="GtkButton" id="offset_decrease_button"><property name="icon-name">rufin-value-decrease-symbolic</property><style><class name="icon-button"/><class name="flat"/><class name="circular"/></style></object></child>
-        <child><object class="GtkEntry" id="offset_entry"><property name="text">0 ms</property><property name="xalign">0.5</property><property name="width-chars">4</property><property name="max-width-chars">8</property><property name="max-length">24</property><style><class name="flat"/><class name="lyrics-offset-value"/></style></object></child>
-        <child><object class="GtkButton" id="offset_increase_button"><property name="icon-name">rufin-list-add-symbolic</property><style><class name="icon-button"/><class name="flat"/><class name="circular"/></style></object></child>
+        <child><object class="GtkButton" id="offset_button"><property name="tooltip-text" translatable="yes">Lyrics offset (ms)</property><property name="child"><object class="AdwButtonContent" id="offset_value"><property name="icon-name">rufin-preferences-system-time-symbolic</property><property name="label">0 ms</property></object></property><style><class name="flat"/><class name="lyrics-offset-button"/></style></object></child>
         <child><object class="GtkButton" id="clear_auto_search_button"><property name="icon-name">rufin-process-stop-symbolic</property><style><class name="icon-button"/><class name="flat"/><class name="circular"/></style></object></child>
       </object>
     </child>

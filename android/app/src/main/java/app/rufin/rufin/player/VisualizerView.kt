@@ -1,7 +1,32 @@
 package app.rufin.rufin.player
 
 import android.os.SystemClock
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import app.rufin.rufin.core.translate
+import app.rufin.rufin.settings.LocalReduceMotion
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -28,6 +53,55 @@ import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.sin
+
+/** The visualizer with its presets in reach: a tap shows their stepper, which goes again once left alone. */
+@Composable
+internal fun VisualizerPresets(player: PlayerConnection, modifier: Modifier = Modifier) {
+    val visualizer = player.settings?.visualizer
+    val presets = visualizer?.presets.orEmpty()
+    val slot = visualizer?.selectedPreset?.toInt()
+    var touches by remember { mutableIntStateOf(0) }
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(touches) {
+        if (touches == 0) return@LaunchedEffect
+        shown = true
+        delay(3_000)
+        shown = false
+    }
+    fun step(by: Int) {
+        touches++
+        if (presets.isEmpty()) return
+        val next = if (slot == null) (if (by > 0) 0 else presets.lastIndex) else Math.floorMod(slot + by, presets.size)
+        player.visualizerPreset(next.toULong(), false)
+    }
+    val fade = tween<Float>(if (LocalReduceMotion.current) 0 else 180)
+    Box(modifier.clickable(remember { MutableInteractionSource() }, indication = null, onClickLabel = translate("Preset")) { touches++ }) {
+        VisualizerView(player, Modifier.matchParentSize())
+        AnimatedVisibility(shown, Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp), enter = fadeIn(fade), exit = fadeOut(fade)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        PlayerIconButton("rufin-go-previous-symbolic", "Previous", { step(-1) }, iconSize = 16.dp)
+                        // The built-in presets' names are translated; a saved one keeps the name it was given.
+                        Text(presets.getOrNull(slot ?: -1)?.let { if (slot!! < BuiltInPresets) translate(it.name) else it.name } ?: translate("Custom"),
+                            Modifier.widthIn(max = 200.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                        PlayerIconButton("rufin-go-next-symbolic", "Next", { step(1) }, iconSize = 16.dp)
+                    }
+                }
+                // One dot a preset, while they fit in a glance.
+                if (presets.size in 2..12) Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    presets.indices.forEach { index ->
+                        Box(Modifier.size(6.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = if (index == slot) 1f else .3f), CircleShape))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The presets Rufin ships, which come first in the list. */
+internal const val BuiltInPresets = 7
 
 @Composable
 internal fun VisualizerView(player: PlayerConnection, modifier: Modifier = Modifier, opacity: Float = 1f) {

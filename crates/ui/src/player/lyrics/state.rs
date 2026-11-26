@@ -12,16 +12,34 @@ pub struct LyricsState {
 pub struct SelectedLyricsState {
     pub projection: RefCell<CurrentLyrics>,
     pub offset_millis: Cell<i64>,
+    /// The playback position the highlight last started from, and when it was observed.
+    pub position_anchor: Cell<Option<(u64, std::time::Instant)>>,
     pub timing_source: RefCell<Option<glib::SourceId>>,
     pub right_pane_dirty: Cell<bool>,
     pub fullscreen_pane_dirty: Cell<bool>,
     pub search_dialog: RefCell<Option<LyricsSearchDialog>>,
-    pub settings_dialogs: [gtk::glib::WeakRef<adw::PreferencesDialog>; 2],
+    pub settings_dialogs: [gtk::glib::WeakRef<adw::Dialog>; 2],
+    /// The lines an open Settings dialog keeps above its Lyrics page, one per dialog.
+    pub stages: [RefCell<Option<LyricsStage>>; 2],
     pub right_pane: LyricsPane,
     pub fullscreen_pane: LyricsPane,
 }
 
+pub struct LyricsStage {
+    pub pane: LyricsPane,
+    /// The strip holding the pane, shown while something plays.
+    pub host: adw::Clamp,
+    pub dirty: Cell<bool>,
+}
+
 impl SelectedLyricsState {
+    fn stage_panes(&self) -> Vec<LyricsPane> {
+        self.stages
+            .iter()
+            .filter_map(|stage| stage.borrow().as_ref().map(|stage| stage.pane.clone()))
+            .collect()
+    }
+
     pub fn new() -> Self {
         let right_pane = LyricsPane::new();
         right_pane.use_right_panel_scrollbar();
@@ -35,11 +53,13 @@ impl SelectedLyricsState {
         Self {
             projection: RefCell::new(CurrentLyrics::Cleared),
             offset_millis: Cell::new(0),
+            position_anchor: Cell::new(None),
             timing_source: RefCell::new(None),
             right_pane_dirty: Cell::new(true),
             fullscreen_pane_dirty: Cell::new(true),
             search_dialog: RefCell::new(None),
             settings_dialogs: std::array::from_fn(|_| gtk::glib::WeakRef::new()),
+            stages: std::array::from_fn(|_| RefCell::new(None)),
             right_pane,
             fullscreen_pane,
         }
@@ -70,7 +90,11 @@ impl PlayerUi {
     }
 
     pub fn lyrics_surface_visible(&self) -> bool {
-        self.right_lyrics_surface_visible() || self.fullscreen_lyrics_surface_visible()
+        self.right_lyrics_surface_visible()
+            || self.fullscreen_lyrics_surface_visible()
+            || self
+                .selected_lyrics()
+                .is_some_and(|lyrics| lyrics.stages.iter().any(|stage| stage.borrow().is_some()))
     }
 
     pub fn visible_lyrics(&self) -> Option<Arc<LyricsDocument>> {
@@ -161,6 +185,9 @@ impl PlayerUi {
                 .fullscreen_pane
                 .refocus_highlight(lyrics.as_deref(), position_millis);
         }
+        for pane in selected_lyrics.stage_panes() {
+            pane.refocus_highlight(lyrics.as_deref(), position_millis);
+        }
     }
 
     pub fn request_initial_lyrics_if_needed(&self) {
@@ -226,6 +253,9 @@ impl PlayerUi {
         let Some(selected_lyrics) = self.selected_lyrics() else {
             return;
         };
+        selected_lyrics
+            .position_anchor
+            .set(Some((position_millis, observed_at)));
         if self.right_lyrics_surface_visible() {
             selected_lyrics
                 .right_pane
@@ -236,6 +266,9 @@ impl PlayerUi {
                 .fullscreen_pane
                 .update_highlight(lyrics.as_deref(), lyrics_position_millis);
         }
+        for pane in selected_lyrics.stage_panes() {
+            pane.update_highlight(lyrics.as_deref(), lyrics_position_millis);
+        }
         self.schedule_next_lyrics_highlight(position_millis, observed_at, lyrics_position_millis);
     }
 
@@ -244,15 +277,6 @@ impl PlayerUi {
             .selected_lyrics()
             .map_or(0, |lyrics| lyrics.offset_millis.get());
         i128::from(position_millis) + i128::from(offset_millis)
-    }
-
-    pub fn adjust_lyrics_offset(self: &Rc<Self>, delta_millis: i64) {
-        let Some(lyrics) = self.selected_lyrics() else {
-            return;
-        };
-        let offset_millis = lyrics.offset_millis.get().saturating_add(delta_millis);
-        drop(lyrics);
-        self.set_lyrics_offset(offset_millis);
     }
 
     pub fn set_lyrics_offset_from_text(self: &Rc<Self>, value: &str) {
@@ -273,11 +297,11 @@ impl PlayerUi {
         let changed = lyrics.offset_millis.replace(offset_millis) != offset_millis;
         drop(lyrics);
         if changed {
-            self.update_lyrics_highlight();
+            self.refresh_lyrics_highlight();
         }
     }
 
-    fn set_lyrics_offset(self: &Rc<Self>, offset_millis: i64) {
+    pub(super) fn set_lyrics_offset(self: &Rc<Self>, offset_millis: i64) {
         let Some(lyrics) = self.selected_lyrics() else {
             return;
         };
@@ -285,27 +309,55 @@ impl PlayerUi {
         drop(lyrics);
         self.update_lyrics_offset_controls();
         if changed {
-            self.update_lyrics_highlight();
+            self.refresh_lyrics_highlight();
         }
     }
 
     fn update_lyrics_offset_controls(&self) {
-        let label = tr("Lyrics offset (ms)");
-        let decrease_label = tr("Decrease");
-        let increase_label = tr("Increase");
         let Some(lyrics) = self.selected_lyrics() else {
             return;
         };
         let offset_millis = lyrics.offset_millis.get();
         for pane in [&lyrics.right_pane, &lyrics.fullscreen_pane] {
-            pane.set_offset_action(
-                &label,
-                &decrease_label,
-                &increase_label,
-                offset_millis,
-                true,
-            );
+            pane.set_offset_action(offset_millis, true);
         }
+    }
+
+    /// Highlights again from the position playback was last observed at, which an offset
+    /// change leaves where it is.
+    fn refresh_lyrics_highlight(self: &Rc<Self>) {
+        let anchor = self
+            .selected_lyrics()
+            .and_then(|lyrics| lyrics.position_anchor.get());
+        match anchor {
+            Some((position_millis, observed_at)) if self.playback_advancing() => {
+                self.cancel_scheduled_lyrics_highlight();
+                self.update_lyrics_highlight_at(position_millis, observed_at);
+            }
+            _ => self.update_lyrics_highlight(),
+        }
+    }
+
+    fn playback_advancing(&self) -> bool {
+        self.selected_playback()
+            .as_deref()
+            .is_some_and(|player| player.transport.state == playback::TransportStatus::Playing)
+    }
+
+    /// Where playback is now: its last observed position, moved on at the playback rate.
+    pub(super) fn playback_position_now(&self) -> u64 {
+        let anchor = self
+            .selected_lyrics()
+            .and_then(|lyrics| lyrics.position_anchor.get());
+        let (Some((position_millis, observed_at)), true) = (anchor, self.playback_advancing())
+        else {
+            return self.current_position_millis();
+        };
+        let rate = self
+            .selected_playback()
+            .as_deref()
+            .map_or(1.0, |player| player.transport.playback_rate);
+        position_millis.saturating_add((observed_at.elapsed().as_millis() as f64 * rate) as u64)
     }
 
     pub fn current_position_millis(&self) -> u64 {

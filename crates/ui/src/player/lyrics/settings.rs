@@ -81,7 +81,11 @@ fn present_lyrics_settings_dialog(owner: &Rc<Shell>, pages: MediaSettingsPages, 
     let Some(lyrics) = shell.selected_lyrics() else {
         return;
     };
-    if let Some(settings_dialog) = lyrics.settings_dialogs[usize::from(fullscreen)].upgrade() {
+    // A dialog that was closed has given up its stages: only one still open is shown again.
+    if let Some(settings_dialog) = lyrics.settings_dialogs[usize::from(fullscreen)]
+        .upgrade()
+        .filter(|dialog| dialog.parent().is_some())
+    {
         settings_dialog.present(Some(window));
         return;
     }
@@ -89,7 +93,20 @@ fn present_lyrics_settings_dialog(owner: &Rc<Shell>, pages: MediaSettingsPages, 
 
     let resource = "player/lyrics/settings.ui";
     let builder = crate::ui_resource::builder(resource);
-    let dialog: adw::PreferencesDialog = crate::ui_resource::object(&builder, resource, "dialog");
+    crate::objects!(builder, resource, {
+        dialog: adw::Dialog,
+        header: adw::HeaderBar,
+        stack: adw::ViewStack,
+        switcher: adw::ViewSwitcher,
+    });
+    let add_page = |content: &gtk::Box, page: &adw::PreferencesPage| {
+        stack.add_titled_with_icon(
+            content,
+            None,
+            &page.title(),
+            page.icon_name().as_deref().unwrap_or_default(),
+        );
+    };
     dialog.set_content_width(crate::widgets::layout::large_popup_content_width(760));
     dialog.set_content_height(crate::widgets::layout::large_popup_content_height(
         window.height(),
@@ -99,25 +116,44 @@ fn present_lyrics_settings_dialog(owner: &Rc<Shell>, pages: MediaSettingsPages, 
         pages,
         MediaSettingsPages::Lyrics | MediaSettingsPages::Combined
     ) {
-        dialog.add(&build_lyrics_settings(
+        let (content, page) = build_lyrics_settings(
             shell,
             window,
             &builder,
             uses_local_storage,
             appearance_changed,
             fullscreen,
-        ));
+        );
+        add_page(&content, &page);
     }
     if matches!(
         pages,
         MediaSettingsPages::Visualizer | MediaSettingsPages::Combined
     ) {
-        dialog.add(&crate::player::visualizer_settings::build_visualizer_settings(shell));
+        let (content, page) = crate::player::visualizer_settings::build_visualizer_settings(shell);
+        add_page(&content, &page);
+    }
+    if matches!(pages, MediaSettingsPages::Combined) {
+        header.set_title_widget(Some(&switcher));
     }
     if let Some(lyrics) = shell.selected_lyrics() {
         lyrics.settings_dialogs[usize::from(fullscreen)].set(Some(&dialog));
     }
+    // The stages leave with their dialog.
+    let weak = Rc::downgrade(shell);
+    dialog.connect_closed(move |_| {
+        let Some(shell) = weak.upgrade() else {
+            return;
+        };
+        if let Some(lyrics) = shell.selected_lyrics() {
+            lyrics.stages[usize::from(fullscreen)].take();
+        }
+        shell.views.visualizer.stage.take();
+        shell.sync_visualizer_state();
+    });
     present_light_dismiss_dialog(&dialog, window);
+    shell.sync_visible_lyrics_surfaces();
+    shell.sync_visualizer_state();
 }
 
 use adw::prelude::*;
@@ -134,10 +170,38 @@ fn build_lyrics_settings(
     uses_local_storage: Rc<dyn Fn() -> bool>,
     appearance_changed: Rc<dyn Fn()>,
     fullscreen: bool,
-) -> adw::PreferencesPage {
+) -> (gtk::Box, adw::PreferencesPage) {
+    let resource = "player/lyrics/settings.ui";
+    crate::objects!(builder, resource, {
+        lyrics_page: gtk::Box,
+        stage: adw::Clamp,
+        stage_host: gtk::Box,
+        page: adw::PreferencesPage,
+    });
     let Some(window_shell) = shell.shell() else {
-        return adw::PreferencesPage::new();
+        return (lyrics_page, page);
     };
+    // The lines as the pane this dialog was opened from shows them.
+    let pane = crate::player::lyrics::view::LyricsPane::new();
+    pane.hide_controls();
+    pane.widget().add_css_class(if fullscreen {
+        "lyrics-fullscreen"
+    } else {
+        "lyrics-sidebar"
+    });
+    pane.widget().set_hexpand(true);
+    // The strip keeps its height; the settings under it take the rest.
+    pane.widget().set_vexpand(false);
+    stage_host.append(pane.widget());
+    if let Some(lyrics) = shell.selected_lyrics() {
+        lyrics.stages[usize::from(fullscreen)].replace(Some(
+            crate::player::lyrics::state::LyricsStage {
+                pane,
+                host: stage,
+                dirty: std::cell::Cell::new(true),
+            },
+        ));
+    }
     let settings = window_shell
         .settings
         .current
@@ -145,9 +209,7 @@ fn build_lyrics_settings(
         .lyrics
         .preferences
         .clone();
-    let resource = "player/lyrics/settings.ui";
     crate::objects!(builder, resource, {
-        page: adw::PreferencesPage,
         save_to_source: adw::SwitchRow,
         save_automatically: adw::ActionRow,
         automatic_toggle: gtk::Switch,
@@ -400,7 +462,7 @@ fn build_lyrics_settings(
             appearance_changed();
         }
     });
-    page
+    (lyrics_page, page)
 }
 
 fn system_font_families(widget: &impl IsA<gtk::Widget>) -> Vec<String> {

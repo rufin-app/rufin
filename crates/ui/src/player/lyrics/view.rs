@@ -16,6 +16,7 @@ use rufin_core::lyrics::{
 };
 
 use super::wrapping_line::WrappingLine;
+use crate::widgets::offset_ruler::OffsetRuler;
 use rufin_core::lyrics::KaraokeTiming;
 
 const DEFAULT_LYRICS_SCROLL_ANIMATION_MS: u64 = 300;
@@ -338,13 +339,7 @@ impl LyricsPane {
             }),
             !instrumental,
         );
-        self.set_offset_action(
-            &tr("Lyrics offset (ms)"),
-            &tr("Decrease"),
-            &tr("Increase"),
-            offset,
-            available,
-        );
+        self.set_offset_action(offset, available);
         if current_media.is_some() && media_id.is_some() && !matches_current {
             self.hide_content();
             return;
@@ -400,9 +395,18 @@ pub struct LyricsPane {
     search_button: gtk::Button,
     edit_button: gtk::Button,
     settings_button: gtk::Button,
-    offset_decrease_button: gtk::Button,
+    top_controls: gtk::Box,
+    offset_button: gtk::Button,
+    offset_value: adw::ButtonContent,
     offset_entry: gtk::Entry,
-    offset_increase_button: gtk::Button,
+    offset_ruler: OffsetRuler,
+    offset_reset_button: gtk::Button,
+    sync_save_button: gtk::Button,
+    sync_cancel_button: gtk::Button,
+    sync_done_button: gtk::Button,
+    sync: SyncMode,
+    offset_set: Rc<RefCell<Option<Rc<dyn Fn(i64)>>>>,
+    line_picked: Rc<RefCell<Option<Rc<dyn Fn(u64)>>>>,
     rows: Rc<RefCell<Vec<LyricsRow>>>,
     content: Rc<RefCell<Option<LyricsPaneContent>>>,
     active_index: Rc<Cell<Option<usize>>>,
@@ -412,6 +416,62 @@ pub struct LyricsPane {
     scroll_generation: Rc<Cell<u64>>,
     follow_pause_until: Rc<Cell<Option<Instant>>>,
     scrollbar_dragging: Rc<Cell<bool>>,
+}
+
+/// The pane's offset editor: its header and dock stand in for the hover controls while it is open.
+#[derive(Clone)]
+struct SyncMode {
+    root: glib::WeakRef<gtk::Overlay>,
+    top_controls: glib::WeakRef<gtk::Box>,
+    controls: glib::WeakRef<gtk::Box>,
+    header: glib::WeakRef<gtk::Box>,
+    dock: glib::WeakRef<gtk::Box>,
+    hint: glib::WeakRef<gtk::Label>,
+    /// The offset the mode opened with, which Cancel restores.
+    start: Rc<Cell<Option<i64>>>,
+}
+
+impl SyncMode {
+    fn set(&self, start: Option<i64>) {
+        let open = start.is_some();
+        if self.start.replace(start).is_some() == open {
+            return;
+        }
+        for (widget, visible) in [
+            (&self.header, open),
+            (&self.dock, open),
+            (&self.top_controls, !open),
+            (&self.controls, !open),
+        ] {
+            if let Some(widget) = widget.upgrade() {
+                widget.set_visible(visible);
+            }
+        }
+        if let Some(root) = self.root.upgrade() {
+            if open {
+                root.add_css_class("lyrics-syncing");
+            } else {
+                root.remove_css_class("lyrics-syncing");
+            }
+        }
+        if open {
+            self.hint(&tr("Drag the ruler, or pick a line as it starts"));
+        }
+    }
+
+    fn hint(&self, text: &str) {
+        if let Some(hint) = self.hint.upgrade() {
+            hint.set_text(text);
+        }
+    }
+}
+
+fn lyrics_offset_text(offset_millis: i64) -> String {
+    if offset_millis == 0 {
+        "0 ms".to_string()
+    } else {
+        format!("{offset_millis:+} ms")
+    }
 }
 
 #[derive(Clone)]
@@ -497,10 +557,12 @@ impl PartialEq for LyricsPaneContent {
 impl LyricsPane {
     pub fn new() -> Self {
         crate::widgets::edge_fade::LyricsEdgeFade::static_type();
+        OffsetRuler::static_type();
         let resource = "player/lyrics/pane.ui";
         let builder = crate::ui_resource::builder(resource);
         crate::objects!(builder, resource, {
             root: gtk::Overlay,
+            column: gtk::Box,
             edge_fade: crate::widgets::edge_fade::LyricsEdgeFade,
             scroller: gtk::ScrolledWindow,
             body: gtk::Box,
@@ -511,17 +573,35 @@ impl LyricsPane {
             search_button: gtk::Button,
             edit_button: gtk::Button,
             settings_button: gtk::Button,
-            offset_decrease_button: gtk::Button,
+            top_controls: gtk::Box,
+            offset_button: gtk::Button,
+            offset_value: adw::ButtonContent,
             offset_entry: gtk::Entry,
-            offset_increase_button: gtk::Button,
+            offset_ruler: OffsetRuler,
+            offset_reset_button: gtk::Button,
+            sync_header: gtk::Box,
+            sync_dock: gtk::Box,
+            sync_hint: gtk::Label,
+            sync_save_button: gtk::Button,
+            sync_cancel_button: gtk::Button,
+            sync_done_button: gtk::Button,
         });
         let edit_label = tr("Edit lyrics");
         edit_button.set_tooltip_text(Some(&edit_label));
         edit_button.update_property(&[gtk::accessible::Property::Label(&edit_label)]);
         root.set_measure_overlay(&controls, false);
-        root.set_child(gtk::Widget::NONE);
+        column.remove(&edge_fade);
         let layout = crate::widgets::layout::allocation_owner(&edge_fade, |_, _| {});
-        root.set_child(Some(&layout));
+        column.insert_child_after(&layout, Some(&sync_header));
+        let sync = SyncMode {
+            root: root.downgrade(),
+            top_controls: top_controls.downgrade(),
+            controls: controls.downgrade(),
+            header: sync_header.downgrade(),
+            dock: sync_dock.downgrade(),
+            hint: sync_hint.downgrade(),
+            start: Rc::new(Cell::new(None)),
+        };
 
         let pane = Self {
             root,
@@ -535,9 +615,18 @@ impl LyricsPane {
             search_button,
             edit_button,
             settings_button,
-            offset_decrease_button,
+            top_controls,
+            offset_button,
+            offset_value,
             offset_entry,
-            offset_increase_button,
+            offset_ruler,
+            offset_reset_button,
+            sync_save_button,
+            sync_cancel_button,
+            sync_done_button,
+            sync,
+            offset_set: Rc::new(RefCell::new(None)),
+            line_picked: Rc::new(RefCell::new(None)),
             rows: Rc::new(RefCell::new(Vec::new())),
             content: Rc::new(RefCell::new(None)),
             active_index: Rc::new(Cell::new(None)),
@@ -550,7 +639,52 @@ impl LyricsPane {
         };
         pane.connect_user_scroll_pause();
         pane.connect_viewport_layout();
+        pane.connect_sync_mode();
         pane
+    }
+
+    fn connect_sync_mode(&self) {
+        let set_offset = {
+            let offset_set = Rc::clone(&self.offset_set);
+            move |offset_millis: i64| {
+                let set = offset_set.borrow().clone();
+                if let Some(set) = set {
+                    set(offset_millis);
+                }
+            }
+        };
+        let sync = self.sync.clone();
+        let ruler = self.offset_ruler.downgrade();
+        self.offset_button.connect_clicked(move |_| {
+            if let Some(ruler) = ruler.upgrade() {
+                sync.set(Some(ruler.value()));
+                ruler.grab_focus();
+            }
+        });
+        let sync = self.sync.clone();
+        let restore = set_offset.clone();
+        self.sync_cancel_button.connect_clicked(move |_| {
+            if let Some(start) = sync.start.get() {
+                restore(start);
+            }
+            sync.set(None);
+        });
+        let sync = self.sync.clone();
+        self.sync_done_button
+            .connect_clicked(move |_| sync.set(None));
+        let reset = set_offset.clone();
+        self.offset_reset_button.connect_clicked(move |_| reset(0));
+        let sync = self.sync.clone();
+        self.offset_ruler.connect_changed(move |offset_millis| {
+            sync.hint(&tr("Drag the ruler, or pick a line as it starts"));
+            set_offset(offset_millis);
+        });
+    }
+
+    /// A preview shows the lines alone: no tools, no offset editor.
+    pub fn hide_controls(&self) {
+        self.top_controls.set_visible(false);
+        self.controls.set_visible(false);
     }
 
     fn connect_viewport_layout(&self) {
@@ -623,7 +757,11 @@ impl LyricsPane {
         self.search_button.set_visible(visible);
         self.edit_button
             .set_visible(visible && self.edit_button.is_sensitive());
-        self.controls.set_visible(visible);
+        if !visible {
+            self.sync.set(None);
+        }
+        self.controls
+            .set_visible(visible && self.sync.start.get().is_none());
     }
 
     pub fn connect_edit_clicked(&self, edit: impl Fn() + 'static) {
@@ -631,7 +769,11 @@ impl LyricsPane {
     }
 
     pub fn connect_save_clicked(&self, save: impl Fn() + 'static) {
-        self.save_button.connect_clicked(move |_| save());
+        let save = Rc::new(save);
+        for button in [&self.save_button, &self.sync_save_button] {
+            let save = Rc::clone(&save);
+            button.connect_clicked(move |_| save());
+        }
     }
 
     pub fn connect_clear_auto_search_clicked(&self, clear: impl Fn() + 'static) {
@@ -639,18 +781,14 @@ impl LyricsPane {
             .connect_clicked(move |_| clear());
     }
 
-    pub fn connect_offset_decrease_clicked(&self, decrease: impl Fn() + 'static) {
-        crate::widgets::interactions::connect_repeating_button(
-            &self.offset_decrease_button,
-            decrease,
-        );
+    /// `set` gets the offsets the ruler, Reset and Cancel choose.
+    pub fn connect_offset_set(&self, set: impl Fn(i64) + 'static) {
+        self.offset_set.replace(Some(Rc::new(set)));
     }
 
-    pub fn connect_offset_increase_clicked(&self, increase: impl Fn() + 'static) {
-        crate::widgets::interactions::connect_repeating_button(
-            &self.offset_increase_button,
-            increase,
-        );
+    /// `picked` gets the start of a line clicked while the offset editor is open.
+    pub fn connect_line_picked(&self, picked: impl Fn(u64) + 'static) {
+        self.line_picked.replace(Some(Rc::new(picked)));
     }
 
     pub fn set_search_action(&self, label: &str, enabled: bool) {
@@ -704,27 +842,15 @@ impl LyricsPane {
             .connect_changed(move |entry| changed(entry.text().to_string()));
     }
 
-    pub fn set_offset_action(
-        &self,
-        label: &str,
-        decrease_label: &str,
-        increase_label: &str,
-        offset_millis: i64,
-        enabled: bool,
-    ) {
-        self.offset_entry.set_text(&format!("{offset_millis} ms"));
-        self.offset_entry.set_tooltip_text(Some(label));
-        self.offset_entry
-            .update_property(&[gtk::accessible::Property::Label(label)]);
-        for (button, button_label) in [
-            (&self.offset_decrease_button, decrease_label),
-            (&self.offset_increase_button, increase_label),
-        ] {
-            button.set_visible(enabled);
-            button.set_tooltip_text(Some(button_label));
-            button.update_property(&[gtk::accessible::Property::Label(button_label)]);
+    pub fn set_offset_action(&self, offset_millis: i64, enabled: bool) {
+        let text = lyrics_offset_text(offset_millis);
+        self.offset_value.set_label(&text);
+        self.offset_entry.set_text(&text);
+        self.offset_ruler.set_value(offset_millis);
+        self.offset_button.set_visible(enabled);
+        if !enabled {
+            self.sync.set(None);
         }
-        self.offset_entry.set_visible(enabled);
     }
 
     pub fn hide_content(&self) {
@@ -740,6 +866,24 @@ impl LyricsPane {
         while let Some(child) = self.body.first_child() {
             self.body.remove(&child);
         }
+        // Other lyrics have their own timing: the open offset editor belongs to the previous ones.
+        self.sync.set(None);
+        // While the offset editor is open a line sets the offset instead of seeking to it.
+        let seek: Rc<dyn Fn(u64)> = {
+            let sync = self.sync.clone();
+            let line_picked = Rc::clone(&self.line_picked);
+            Rc::new(move |start_millis| {
+                if sync.start.get().is_none() {
+                    seek(start_millis);
+                    return;
+                }
+                sync.hint(&tr("Set from the line you picked"));
+                let picked = line_picked.borrow().clone();
+                if let Some(picked) = picked {
+                    picked(start_millis);
+                }
+            })
+        };
         self.rows.borrow_mut().clear();
         self.active_index.set(None);
         self.scroll_index.set(None);

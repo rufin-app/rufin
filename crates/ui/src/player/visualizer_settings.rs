@@ -7,14 +7,20 @@ use rufin_core::settings::visualizer::{
 use std::cell::Cell;
 use std::rc::Rc;
 
-pub(super) fn build_visualizer_settings(shell: &Rc<PlayerUi>) -> adw::PreferencesPage {
-    let Some(app) = shell.shell() else {
-        return adw::PreferencesPage::new();
-    };
+pub(super) fn build_visualizer_settings(shell: &Rc<PlayerUi>) -> (gtk::Box, adw::PreferencesPage) {
     let resource = "player/visualizer_settings.ui";
     let builder = crate::ui_resource::builder(resource);
     crate::objects!(builder, resource, {
+        visualizer_page: gtk::Box,
+        stage: adw::Clamp,
+        stage_host: gtk::Box,
         page: adw::PreferencesPage,
+    });
+    let Some(app) = shell.shell() else {
+        return (visualizer_page, page);
+    };
+    shell.add_visualizer_stage(&stage, &stage_host);
+    crate::objects!(builder, resource, {
         builtin_names: gtk::StringList,
         custom_title: gtk::Label,
         fps_limit: gtk::Scale,
@@ -702,7 +708,7 @@ pub(super) fn build_visualizer_settings(shell: &Rc<PlayerUi>) -> adw::Preference
             }
         });
     });
-    page
+    (visualizer_page, page)
 }
 
 struct VisualizerEdits {

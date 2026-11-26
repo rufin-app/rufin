@@ -2931,7 +2931,8 @@ listview.queue-list row {
   background: color-mix(in srgb, var(--accent-bg-color) 18%, transparent);
 }
 
-.lyrics-panel {
+/* The lines keep this much of the pane; the offset editor's header and dock add their own. */
+.lyrics-view {
   min-height: 120px;
 }
 
@@ -2974,10 +2975,49 @@ listview.queue-list row {
 }
 
 .lyrics-controls .icon-button,
+.lyrics-sync-header .icon-button,
 .fullscreen-focus-button {
   min-width: 30px;
   min-height: 30px;
   padding: 0;
+}
+
+.lyrics-offset-button {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-feature-settings: "tnum";
+}
+
+.lyrics-sync-dock {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background-color: color-mix(in srgb, var(--window-fg-color) 7%, transparent);
+}
+
+.lyrics-sync-dock entry.lyrics-offset-value.flat,
+.lyrics-sync-dock entry.lyrics-offset-value.flat:focus-within {
+  background-color: transparent;
+  font-size: 1.4em;
+  font-weight: 700;
+  font-feature-settings: "tnum";
+}
+
+/* The live strip a Settings dialog keeps above the page that configures it. */
+.settings-stage {
+  border-radius: 12px;
+  background-color: var(--shell-base-bg-color, var(--view-bg-color));
+}
+
+offset-ruler:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.offset-ruler-needle {
+  background-color: var(--accent-color);
+  border-radius: 2px;
 }
 
 .lyrics-track-heading {
@@ -3227,6 +3267,12 @@ scale.equalizer-surface-scale > trough > slider {
   margin: 0;
 }
 
+/* The sidebar's split leaves its separator above the pane's buttons; here they keep that distance from the pane's edge. */
+.fullscreen-player .lyrics-top-controls,
+.fullscreen-player .lyrics-sync-header {
+  margin-top: 10px;
+}
+
 .fullscreen-player-queue-panel {
   min-height: 0;
 }
@@ -3384,10 +3430,9 @@ preferencespage.backup-settings row:not(.entry):not(.spin) > box.header {
 .activity-report columnview, .activity-report listview, .activity-report flowbox { background: transparent; }
 .activity-report progressbar trough { min-height: 8px; border-radius: 4px; }
 .activity-report progressbar progress { min-height: 8px; border-radius: 4px; }
-.theme-options { padding: 9px; }
 .theme-grid > flowboxchild { padding: 3px; }
-.theme-select { padding: 3px; border-radius: 9px; }
-.theme-select:checked { box-shadow: 0 0 0 2px var(--accent-color); }
+.theme-select { padding: 0; border-radius: 0; }
+.theme-tile.selected { box-shadow: 0 0 0 2px var(--accent-color); }
 .theme-accent { font-size: 0.85em; }
 .theme-accent > button { min-width: 0; min-height: 26px; padding: 2px 4px; }
 .theme-edit { min-width: 20px; min-height: 26px; padding: 2px; }

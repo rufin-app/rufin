@@ -2,9 +2,31 @@
 <interface domain="rufin">
   <requires lib="gtk" version="4.20" />
   <requires lib="libadwaita" version="1.9" />
+  <!-- The running spectrum stays above the settings that change it. -->
+  <object class="GtkBox" id="visualizer_page">
+    <property name="orientation">vertical</property>
+    <child>
+      <object class="AdwClamp" id="stage">
+        <property name="visible">false</property>
+        <property name="maximum-size">572</property>
+        <property name="tightening-threshold">400</property>
+        <property name="margin-top">12</property>
+        <property name="margin-start">12</property>
+        <property name="margin-end">12</property>
+        <property name="child">
+          <object class="GtkBox" id="stage_host">
+            <property name="height-request">150</property>
+            <property name="overflow">hidden</property>
+            <style><class name="settings-stage"/></style>
+          </object>
+        </property>
+      </object>
+    </child>
+    <child>
   <object class="AdwPreferencesPage" id="page">
     <property name="title" translatable="yes">Visualizer</property>
     <property name="icon-name">rufin-sound-symbolic</property>
+    <property name="vexpand">true</property>
     <child>
       <object class="AdwPreferencesGroup">
         <property name="title" translatable="yes">Presets</property>
@@ -1062,6 +1084,8 @@
           </object>
         </child>
       </object>
+    </child>
+  </object>
     </child>
   </object>
   <object class="GtkSizeGroup">

@@ -15,7 +15,7 @@ pub use prepared::{PreparedCueLine, PreparedLyrics, PreparedLyricsLine};
 mod timing;
 pub use timing::{
     KaraokeTiming, LYRICS_USER_SCROLL_PAUSE_MS, LyricsTiming, active_lyrics_line_index,
-    effective_cue_end, intro_lyrics_line_index, lyric_line_has_text,
+    effective_cue_end, intro_lyrics_line_index, lyric_line_has_text, lyrics_offset_for_line_at,
     playback_position_for_lyrics_position, should_highlight_all_lyrics_lines,
 };
 

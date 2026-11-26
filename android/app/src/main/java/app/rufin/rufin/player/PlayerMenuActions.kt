@@ -88,12 +88,14 @@ internal fun SleepTimerSheet(player: PlayerConnection, onDismiss: () -> Unit) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PlayerMenuTile(icon: String, label: String, modifier: Modifier, active: Boolean = false, enabled: Boolean = true,
+internal fun PlayerMenuTile(icon: String, label: String, modifier: Modifier, active: Boolean = false, enabled: Boolean = true,
+    /** A fill for a tile on a plain sheet; the More sheet's stand on its cover unfilled. */
+    container: Color = Color.Transparent,
     onClick: () -> Unit, onLongClick: (() -> Unit)? = null, longClickLabel: String? = null) {
     val tint by animateColorAsState(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
         tween(if (LocalReduceMotion.current) 0 else 180), label = "playerMenuTile")
     Surface(modifier.alpha(if (enabled) 1f else .38f).clip(RoundedCornerShape(16.dp)).combinedClickable(enabled = enabled, onClick = onClick,
-        onLongClick = onLongClick, onLongClickLabel = longClickLabel), color = Color.Transparent, contentColor = tint) {
+        onLongClick = onLongClick, onLongClickLabel = longClickLabel), color = container, contentColor = tint) {
         Column(Modifier.padding(vertical = 10.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             RufinIcon(icon, null, Modifier.size(26.dp), tint = tint)

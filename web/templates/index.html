@@ -233,8 +233,30 @@
         </ol>
         <div id="queue-lyrics-divider" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="{{ localization::tr("Queue") }}" aria-valuemin="10" aria-valuemax="90" aria-valuenow="50"></div>
         <section id="lyrics-panel">
+          <header id="lyrics-sync-header" hidden>
+            <button type="button" id="lyrics-sync-cancel" class="icon-button" title="{{ localization::tr("Cancel") }}" aria-label="{{ localization::tr("Cancel") }}">{% call m::icon("rufin-window-close-symbolic") %}{% endcall %}</button>
+            <strong>{{ localization::tr("Lyrics offset (ms)") }}</strong>
+            <button type="button" id="lyrics-sync-done" class="icon-button" title="{{ localization::tr("Done") }}" aria-label="{{ localization::tr("Done") }}">{% call m::icon("rufin-object-select-symbolic") %}{% endcall %}</button>
+          </header>
           <div id="lyrics" aria-label="{{ localization::tr("Lyrics") }}">
             <p class="empty-note">{{ localization::tr("Lyrics will appear here.") }}</p>
+          </div>
+          <div id="lyrics-controls" hidden>
+            <button type="button" id="lyrics-offset" title="{{ localization::tr("Lyrics offset (ms)") }}" aria-label="{{ localization::tr("Lyrics offset (ms)") }}">{% call m::icon("rufin-preferences-system-time-symbolic") %}{% endcall %}<span id="lyrics-offset-value">0 ms</span></button>
+          </div>
+          <div id="lyrics-sync-dock" hidden>
+            <div class="lyrics-sync-readout">
+              <span>{{ localization::tr("Later") }}</span>
+              <input id="lyrics-offset-entry" value="0 ms" maxlength="24" autocomplete="off" aria-label="{{ localization::tr("Lyrics offset (ms)") }}" />
+              <span>{{ localization::tr("Earlier") }}</span>
+            </div>
+            <p class="lyrics-sync-hint" id="lyrics-sync-hint">{{ localization::tr("Drag the ruler, or pick a line as it starts") }}</p>
+            <p class="lyrics-sync-hint" id="lyrics-sync-picked" hidden>{{ localization::tr("Set from the line you picked") }}</p>
+            <div id="lyrics-offset-ruler" role="slider" tabindex="0" aria-label="{{ localization::tr("Lyrics offset (ms)") }}"><div class="ruler-tape"></div><div class="ruler-needle"></div></div>
+            <div class="lyrics-sync-actions">
+              <button type="button" id="lyrics-offset-reset">{% call m::icon("rufin-view-refresh-symbolic") %}{% endcall %}{{ localization::tr("Reset") }}</button>
+              <button type="button" id="lyrics-save" class="primary">{% call m::icon("rufin-download-symbolic") %}{% endcall %}{{ localization::tr("Save Lyrics") }}</button>
+            </div>
           </div>
         </section>
       </aside>

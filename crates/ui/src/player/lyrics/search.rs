@@ -13,7 +13,7 @@ pub struct LyricsSearchDialog {
 }
 
 use adw::prelude::*;
-use rufin_core::lyrics::LyricsQuery;
+use rufin_core::lyrics::{LyricsQuery, lyrics_offset_for_line_at};
 use tracing::debug;
 
 use crate::player::PlayerUi;
@@ -52,15 +52,18 @@ pub fn connect_lyrics_search_controls(shell: &Rc<PlayerUi>) {
             }
         });
         let weak = Rc::downgrade(shell);
-        pane.connect_offset_decrease_clicked(move || {
+        pane.connect_offset_set(move |offset_millis| {
             if let Some(shell) = weak.upgrade() {
-                shell.adjust_lyrics_offset(-50);
+                shell.set_lyrics_offset(offset_millis);
             }
         });
         let weak = Rc::downgrade(shell);
-        pane.connect_offset_increase_clicked(move || {
+        pane.connect_line_picked(move |start_millis| {
             if let Some(shell) = weak.upgrade() {
-                shell.adjust_lyrics_offset(50);
+                shell.set_lyrics_offset(lyrics_offset_for_line_at(
+                    start_millis,
+                    shell.playback_position_now(),
+                ));
             }
         });
         let weak = Rc::downgrade(shell);

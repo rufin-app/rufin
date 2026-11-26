@@ -5,6 +5,8 @@ pub(super) fn routes() -> Router<ProductHandles> {
     Router::new()
         .route("/api/lyrics", get(lyrics).post(load_lyrics))
         .route("/api/lyrics/events", get(lyrics_events))
+        .route("/api/lyrics/line-offset", get(lyrics_line_offset))
+        .route("/api/lyrics/save", post(save_lyrics))
         .route("/api/artwork", get(artwork))
         .route("/api/queue/reorder", post(reorder))
         .route("/api/queue/next", post(play_next))
@@ -377,6 +379,59 @@ async fn lyrics(State(products): State<ProductHandles>) -> Result<Response<Body>
 async fn load_lyrics(State(products): State<ProductHandles>) -> Result<Response<Body>, Error> {
     products.lyrics.load_current();
     Ok(accepted())
+}
+
+/// The offset at which the line starting at `line_start_millis` is the one playing at
+/// `position_millis`: what picking a line in the offset editor sets.
+async fn lyrics_line_offset(
+    Query(parameters): Query<HashMap<String, String>>,
+) -> Result<Response<Body>, Error> {
+    let millis = |name: &str| {
+        parameters
+            .get(name)
+            .and_then(|value| value.parse::<u64>().ok())
+            .ok_or_else(|| bad_request(format!("{name} is not a time")))
+    };
+    Ok(json_response(
+        StatusCode::OK,
+        json!({"offset_millis": rufin_core::lyrics::lyrics_offset_for_line_at(
+            millis("line_start_millis")?,
+            millis("position_millis")?,
+        )}),
+    ))
+}
+
+/// Saves the lyrics on show with `offset_millis` applied: to the track's source where it takes
+/// them, else as the LRC text the browser saves as a file.
+async fn save_lyrics(
+    State(products): State<ProductHandles>,
+    request: Request<Body>,
+) -> Result<Response<Body>, Error> {
+    #[derive(Deserialize)]
+    struct Input {
+        offset_millis: i64,
+    }
+    let input: Input = body(request).await?;
+    let (media_id, document) = match &*products.lyrics.current().borrow() {
+        CurrentLyrics::Ready {
+            media_id,
+            content: Some(CurrentLyricsContent::Document { document, .. }),
+            ..
+        } => (media_id.clone(), document.clone()),
+        _ => return Err(bad_request(localization::tr("No lyrics"))),
+    };
+    let saved = products
+        .lyrics
+        .save_current_to_source(media_id, input.offset_millis)
+        .await;
+    Ok(json_response(
+        StatusCode::OK,
+        if saved {
+            json!({"saved": true})
+        } else {
+            json!({"saved": false, "text": rufin_core::lyrics::lyrics_to_lrc_text(&document, input.offset_millis)})
+        },
+    ))
 }
 
 async fn lyrics_events(State(products): State<ProductHandles>) -> Response<Body> {

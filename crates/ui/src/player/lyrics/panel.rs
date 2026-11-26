@@ -83,6 +83,11 @@ impl PlayerUi {
         if let Some(lyrics) = self.selected_lyrics() {
             lyrics.right_pane_dirty.set(true);
             lyrics.fullscreen_pane_dirty.set(true);
+            for stage in &lyrics.stages {
+                if let Some(stage) = stage.borrow().as_ref() {
+                    stage.dirty.set(true);
+                }
+            }
         }
     }
 
@@ -102,6 +107,16 @@ impl PlayerUi {
             self.fullscreen_lyrics_surface_visible(),
         ) {
             self.render_lyrics_pane(&lyrics.fullscreen_pane);
+        }
+        let playing = current_playback_media_id(self.selected_playback().as_deref()).is_some();
+        for stage in &lyrics.stages {
+            let pane = stage.borrow().as_ref().and_then(|stage| {
+                stage.host.set_visible(playing);
+                stage.dirty.replace(false).then(|| stage.pane.clone())
+            });
+            if let Some(pane) = pane {
+                self.render_lyrics_pane(&pane);
+            }
         }
     }
 

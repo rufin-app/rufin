@@ -11,6 +11,20 @@ import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.AnimatedContent
@@ -53,6 +67,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.rufin.rufin.ui.RufinIcon
+import app.rufin.rufin.ui.ToolButton
 import app.rufin.rufin.core.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -62,6 +77,7 @@ import kotlinx.coroutines.withContext
 import app.rufin.rufin.shared.lyrics.UserPreferences
 import app.rufin.rufin.shared.lyrics.LyricsAgentRole
 import app.rufin.rufin.shared.lyrics.externalLyricsProviderTitle
+import app.rufin.rufin.shared.lyrics.lyricsOffsetForLineAt
 import app.rufin.rufin.shared.lyrics.shiftLrcTextTimestamps
 import app.rufin.rufin.shared.playback.CurrentMediaId
 import app.rufin.rufin.shared.playback.TransportStatus
@@ -72,7 +88,9 @@ import kotlin.math.ceil
 
 @Composable
 /** `selection` is the lines picked to share while their selection is open, else null. */
-internal fun LyricsPanel(player: PlayerConnection, state: LazyListState, selection: List<Int>? = null, onSelect: (List<Int>) -> Unit = {}) {
+internal fun LyricsPanel(player: PlayerConnection, state: LazyListState, selection: List<Int>? = null, onSelect: (List<Int>) -> Unit = {},
+    /** The view's tools: missing lyrics then offer their search, and the sync mode takes the taps on lines. */
+    tools: LyricsTools? = null) {
     LaunchedEffect(player.currentId, player.bridge, player.lyrics?.mediaId) { player.requestLyrics() }
     val current = player.currentLyrics
     val document = current?.document
@@ -85,21 +103,54 @@ internal fun LyricsPanel(player: PlayerConnection, state: LazyListState, selecti
                 RufinIcon("rufin-audio-x-generic-symbolic", null, Modifier.size(36.dp), LocalContentColor.current.copy(alpha = .55f))
                 Text(translate("Instrumental"))
             }
-            document == null -> Text(translate("No lyrics available."), Modifier.align(Alignment.Center))
-            else -> LyricsDocumentView(player, current, document, preferences, state, selection, onSelect)
+            document == null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(translate("No lyrics available."))
+                if (tools != null && player.lyricsToken != null) Button({ tools.search = true },
+                    enabled = player.settings?.application?.privateMode != true) {
+                    RufinIcon("rufin-lyrics-search-symbolic", null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(translate("Search lyrics"))
+                }
+            }
+            else -> LyricsDocumentView(player, current, document, preferences, state, selection, onSelect, tools)
         }
     }
 }
 
+/** What the lyrics' tools have open: the search or the editor sheet, and the sync mode. */
+internal class LyricsTools {
+    var search by mutableStateOf(false)
+    var edit by mutableStateOf(false)
+    var offsetEntry by mutableStateOf(false)
+    /** The offset the sync mode opened with, which Cancel puts back; null while the mode is closed. */
+    var syncStart by mutableStateOf<Long?>(null)
+    /** Whether the offset came from a picked line. */
+    var picked by mutableStateOf(false)
+    /** Save Lyrics, which [LyricsSheets] owns for the search sheet and the sync mode. */
+    var save: () -> Unit = {}
+    val syncing get() = syncStart != null
+    fun sync(player: PlayerConnection) { picked = false; syncStart = player.lyricsOffset }
+    fun cancel(player: PlayerConnection) { syncStart?.let { player.lyricsOffset = it }; syncStart = null }
+    fun done() { syncStart = null }
+}
+
+/** The lyrics view's two tools: Search, and the offset where the lines are timed. "No lyrics available."
+ *  carries its own Search. */
 @Composable
-internal fun LyricsActions(player: PlayerConnection) {
+internal fun LyricsToolButtons(player: PlayerConnection, tools: LyricsTools) {
     val current = player.currentLyrics
     val document = current?.document
+    if (player.lyricsToken != null && (document != null || current?.loading == true || current?.instrumental == true))
+        ToolButton("rufin-lyrics-search-symbolic", "Search lyrics", enabled = player.settings?.application?.privateMode != true) { tools.search = true }
+    if (document?.lines?.any { it.startMillis != null } == true)
+        ToolButton("rufin-preferences-system-time-symbolic", "Lyrics offset (ms)") { tools.sync(player) }
+}
+
+/** The sheets the lyrics' tools open, and Save Lyrics, which the search sheet and the sync mode share. */
+@Composable
+internal fun LyricsSheets(player: PlayerConnection, tools: LyricsTools) {
     val token = player.lyricsToken
-    var search by remember { mutableStateOf(false) }
-    var edit by remember { mutableStateOf(false) }
-    var editOffset by remember { mutableStateOf(false) }
-    var menu by remember { mutableStateOf(false) }
     var exportToken by rememberSaveable(stateSaver = listSaver<CurrentMediaId?, String>(
         save = { media -> media?.let { listOf(it.mediaUri, it.run?.toString().orEmpty()) }.orEmpty() },
         restore = { values -> values.takeIf { it.size == 2 }?.let { CurrentMediaId(it[1].toULongOrNull(), it[0]) } },
@@ -109,36 +160,125 @@ internal fun LyricsActions(player: PlayerConnection) {
         if (uri != null) exportToken?.let { player.exportLyrics(uri, it, exportOffset) }
         exportToken = null
     }
-    Box {
-        PlayerIconButton("rufin-sliders-2-symbolic", "Customize display", { menu = true })
-        DropdownMenu(menu, { menu = false }) {
-            DropdownMenuItem(text = { Text(translate("Search lyrics")) }, onClick = { menu = false; search = true },
-                enabled = token != null && player.settings?.application?.privateMode != true,
-                leadingIcon = { RufinIcon("rufin-lyrics-search-symbolic", null) })
-            DropdownMenuItem(text = { Text(translate("Edit Lyrics")) }, onClick = { menu = false; edit = true },
-                enabled = document != null && current.writable,
-                leadingIcon = { RufinIcon("rufin-document-edit-symbolic", null) })
-            if (document != null) {
-                DropdownMenuItem(text = { Text(translate("Save Lyrics")) }, onClick = {
-                    menu = false
-                    val captured = token ?: return@DropdownMenuItem
-                    player.saveLyrics(captured) {
-                        exportToken = captured
-                        exportOffset = player.lyricsOffset
-                        export.launch("${player.currentItem?.metadata?.title.orEmpty()}.lrc")
-                    }
-                }, leadingIcon = { RufinIcon("rufin-download-symbolic", null) })
-                DropdownMenuItem(text = { Text(translate("Lyrics offset (ms)") + " · " + player.lyricsOffset) },
-                    onClick = { menu = false; editOffset = true }, leadingIcon = { RufinIcon("rufin-preferences-system-time-symbolic", null) })
-                DropdownMenuItem(text = { Text(translate("Clear fetched lyrics for this track")) },
-                    onClick = { menu = false; token?.let(player::clearLyrics) }, enabled = current.clearable,
-                    leadingIcon = { RufinIcon("rufin-process-stop-symbolic", null) })
+    SideEffect {
+        tools.save = {
+            token?.let { captured ->
+                player.saveLyrics(captured) {
+                    exportToken = captured
+                    exportOffset = player.lyricsOffset
+                    export.launch("${player.currentItem?.metadata?.title.orEmpty()}.lrc")
+                }
             }
         }
     }
-    if (search && token != null) LyricsSearchSheet(player, token) { search = false }
-    if (edit && token != null) LyricsEditSheet(player, token) { edit = false }
-    if (editOffset) LyricsOffsetDialog(player) { editOffset = false }
+    if (tools.search && token != null) LyricsSearchSheet(player, token, onEdit = { tools.search = false; tools.edit = true },
+        onSave = { tools.search = false; tools.save() }) { tools.search = false }
+    if (tools.edit && token != null) LyricsEditSheet(player, token) { tools.edit = false }
+    if (tools.offsetEntry) LyricsOffsetDialog(player) { tools.offsetEntry = false }
+}
+
+/** The sync mode's bar: Cancel, which puts the offset back, the mode's title, and Done. */
+@Composable
+internal fun LyricsSyncBar(player: PlayerConnection, tools: LyricsTools, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        PlayerIconButton("rufin-window-close-symbolic", "Cancel", { tools.cancel(player) })
+        Text(translate("Lyrics offset (ms)"), Modifier.weight(1f), textAlign = TextAlign.Center, maxLines = 1,
+            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        PlayerIconButton("rufin-object-select-symbolic", "Done", tools::done)
+    }
+}
+
+/** The sync mode's controls under the lines: the offset on a ruler, Reset and Save Lyrics. A positive offset
+ *  shows the lines earlier, so Earlier is the ruler's rising end. */
+@Composable
+internal fun LyricsSyncDock(player: PlayerConnection, tools: LyricsTools, needle: Color, modifier: Modifier = Modifier) {
+    val offset = player.lyricsOffset
+    // Saved or replaced lyrics start from their own zero: Cancel then has nothing older to put back.
+    val snapshot = player.currentLyrics?.snapshot
+    LaunchedEffect(snapshot) { if (tools.syncing) tools.syncStart = player.lyricsOffset }
+    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(translate("Later"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(offsetText(offset), Modifier.clip(MaterialTheme.shapes.small).clickable(onClickLabel = translate("Lyrics offset (ms)")) { tools.offsetEntry = true }
+                        .padding(horizontal = 10.dp), style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"), fontWeight = FontWeight.Bold)
+                    Text(translate(if (tools.picked) "Set from the line you picked" else "Drag the ruler, or pick a line as it starts"),
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
+                Text(translate("Earlier"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            OffsetRuler(offset, needle) { tools.picked = false; player.lyricsOffset = it }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val quiet = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = .1f),
+                    contentColor = MaterialTheme.colorScheme.onSurface)
+                FilledTonalButton({ tools.picked = false; player.lyricsOffset = 0L }, enabled = offset != 0L, colors = quiet,
+                    contentPadding = PaddingValues(horizontal = 14.dp)) {
+                    RufinIcon("rufin-view-refresh-symbolic", null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(translate("Reset"))
+                }
+                Spacer(Modifier.weight(1f))
+                Button({ tools.save() }, contentPadding = PaddingValues(horizontal = 14.dp)) {
+                    RufinIcon("rufin-download-symbolic", null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(translate("Save Lyrics"))
+                }
+            }
+        }
+    }
+}
+
+private fun offsetText(millis: Long) = (if (millis > 0) "+" else "") + millis + " ms"
+
+/** A tape of milliseconds under a fixed needle: a tick every 50 ms, a labelled one every 250, moved 10 ms at a time. */
+@Composable
+private fun OffsetRuler(value: Long, needle: Color, onChange: (Long) -> Unit) {
+    val haptic = LocalHapticFeedback.current
+    val latest by rememberUpdatedState(value)
+    val change by rememberUpdatedState(onChange)
+    val ticks = MaterialTheme.colorScheme.onSurface
+    val labels = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant, fontFeatureSettings = "tnum")
+    val measurer = rememberTextMeasurer()
+    val title = translate("Lyrics offset (ms)")
+    Canvas(Modifier.fillMaxWidth().height(44.dp).semantics { contentDescription = title; stateDescription = offsetText(value) }
+        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .pointerInput(Unit) {
+            // Five milliseconds to the dp; the tape follows the finger, so a drag left raises the offset.
+            val scale = 1.dp.toPx() / 5f
+            var carried = 0f
+            detectHorizontalDragGestures(onDragStart = { carried = 0f }) { input, amount ->
+                input.consume()
+                carried -= amount / scale
+                val step = (carried / 10f).toLong() * 10L
+                if (step != 0L) {
+                    carried -= step
+                    val next = latest + step
+                    if (Math.floorDiv(next, 50L) != Math.floorDiv(latest, 50L)) haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                    change(next)
+                }
+            }
+        }) {
+        val scale = 1.dp.toPx() / 5f
+        val centre = size.width / 2
+        val reach = (centre / scale).toLong() + 50L
+        var mark = Math.floorDiv(value - reach, 50L) * 50L
+        while (mark <= value + reach) {
+            val x = centre + (mark - value) * scale
+            val major = Math.floorMod(mark, 250L) == 0L
+            drawRoundRect(ticks.copy(alpha = if (major) 1f else .55f), Offset(x - (if (major) 1.dp else .5.dp).toPx(), 0f),
+                Size((if (major) 2.dp else 1.dp).toPx(), (if (major) 18.dp else 9.dp).toPx()), CornerRadius(1.dp.toPx()))
+            if (major) {
+                val text = measurer.measure((if (mark > 0) "+" else "") + mark, labels)
+                drawText(text, topLeft = Offset(x - text.size.width / 2f, 24.dp.toPx()))
+            }
+            mark += 50L
+        }
+        // The tape fades out towards its ends.
+        drawRect(Brush.horizontalGradient(0f to Color.Transparent, .16f to Color.Black, .84f to Color.Black, 1f to Color.Transparent),
+            blendMode = BlendMode.DstIn)
+        drawRoundRect(needle, Offset(centre - 2.dp.toPx(), 0f), Size(4.dp.toPx(), 22.dp.toPx()), CornerRadius(2.dp.toPx()))
+    }
 }
 
 @Composable
@@ -262,6 +402,7 @@ private fun LyricsOffsetControls(value: Long, enabled: Boolean = true, onApply: 
 @Composable
 private fun LyricsDocumentView(player: PlayerConnection, current: AndroidLyricsState, document: AndroidLyricsDocument,
     preferences: UserPreferences?, state: LazyListState, selection: List<Int>?, onSelect: (List<Int>) -> Unit,
+    tools: LyricsTools?,
 ) {
     val snapshot = current.snapshot!!
     val shareLines = remember(document) { document.lines.map(::lyricsShareText) }
@@ -329,6 +470,12 @@ private fun LyricsDocumentView(player: PlayerConnection, current: AndroidLyricsS
             }.clip(RoundedCornerShape(14.dp)).background(pick).then(if (selection != null) Modifier.clickable {
                 onSelect(lyricsSelectionAfterTap(shareLines, selection, index))
             }.padding(vertical = 6.dp) else if (line.startMillis == null) Modifier else Modifier.clickable {
+                // In the sync mode a tap says this line starts now; the offset follows it.
+                if (tools?.syncing == true) {
+                    player.lyricsOffset = lyricsOffsetForLineAt(line.startMillis!!, player.positionNow())
+                    tools.picked = true
+                    return@clickable
+                }
                 hadDrag = false
                 pausedUntil = 0L
                 scope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
@@ -443,7 +590,9 @@ private fun LyricsText(text: String, reading: AndroidJapaneseReading?, preferenc
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LyricsSearchSheet(player: PlayerConnection, token: CurrentMediaId, onDismiss: () -> Unit) {
+private fun LyricsSearchSheet(player: PlayerConnection, token: CurrentMediaId, onEdit: () -> Unit, onSave: () -> Unit, onDismiss: () -> Unit) {
+    val current = player.currentLyrics
+    val document = current?.document
     var artist by rememberSaveable(token) { mutableStateOf(player.currentItem?.metadata?.artist.orEmpty()) }
     var title by rememberSaveable(token) { mutableStateOf(player.currentItem?.metadata?.title.orEmpty()) }
     val matchingSearch = player.lyricsSearch?.let { it.first == token && it.second.artistName == artist.trim() && it.second.trackName == title.trim() } == true
@@ -451,6 +600,16 @@ private fun LyricsSearchSheet(player: PlayerConnection, token: CurrentMediaId, o
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().imePadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(translate("Search Lyrics"), style = MaterialTheme.typography.titleLarge)
+            // The track's other lyrics actions: its editor, Save Lyrics, and dropping what was fetched.
+            val shade = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PlayerMenuTile("rufin-document-edit-symbolic", translate("Edit Lyrics"), Modifier.weight(1f),
+                    enabled = document != null && current.writable, container = shade, onClick = onEdit)
+                PlayerMenuTile("rufin-download-symbolic", translate("Save Lyrics"), Modifier.weight(1f),
+                    enabled = document != null, container = shade, onClick = onSave)
+                PlayerMenuTile("rufin-process-stop-symbolic", translate("Clear"), Modifier.weight(1f),
+                    enabled = current?.clearable == true, container = shade, onClick = { player.clearLyrics(token); onDismiss() })
+            }
             OutlinedTextField(artist, { artist = it }, label = { Text(translate("Artist")) }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = settingsTextFieldColors())
             OutlinedTextField(title, { title = it }, label = { Text(translate("Track")) }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = settingsTextFieldColors())
             Button({ player.searchLyrics(token, artist, title) }, enabled = player.lyricsToken == token && player.settings?.application?.privateMode != true) { Text(translate("Search")) }

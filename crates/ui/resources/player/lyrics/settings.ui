@@ -3,59 +3,50 @@
   <requires lib="gtk" version="4.20"/>
   <requires lib="libadwaita" version="1.9"/>
 
-  <object class="AdwPreferencesDialog" id="dialog">
+  <object class="AdwDialog" id="dialog">
     <property name="title" translatable="yes">Settings</property>
-    <property name="search-enabled">false</property>
+    <property name="child">
+      <object class="AdwToolbarView">
+        <child type="top">
+          <object class="AdwHeaderBar" id="header"/>
+        </child>
+        <property name="content">
+          <object class="AdwViewStack" id="stack"/>
+        </property>
+      </object>
+    </property>
   </object>
 
+  <object class="AdwViewSwitcher" id="switcher">
+    <property name="policy">wide</property>
+    <property name="stack">stack</property>
+  </object>
+
+  <!-- The current lines stay above the settings that change them. -->
+  <object class="GtkBox" id="lyrics_page">
+    <property name="orientation">vertical</property>
+    <child>
+      <object class="AdwClamp" id="stage">
+        <property name="visible">false</property>
+        <property name="maximum-size">572</property>
+        <property name="tightening-threshold">400</property>
+        <property name="margin-top">12</property>
+        <property name="margin-start">12</property>
+        <property name="margin-end">12</property>
+        <property name="child">
+          <object class="GtkBox" id="stage_host">
+            <property name="height-request">150</property>
+            <property name="overflow">hidden</property>
+            <style><class name="settings-stage"/></style>
+          </object>
+        </property>
+      </object>
+    </child>
+    <child>
   <object class="AdwPreferencesPage" id="page">
     <property name="title" translatable="yes">Lyrics</property>
     <property name="icon-name">rufin-text-center-symbolic</property>
-    <child>
-      <object class="AdwPreferencesGroup">
-        <property name="title" translatable="yes">Storage</property>
-        <child><object class="AdwSwitchRow" id="save_to_source"><property name="title" translatable="yes">Saves lyrics to your source</property><property name="subtitle" translatable="yes">Save action saves the lyrics directly to your source</property></object></child>
-        <child>
-          <object class="AdwActionRow" id="save_automatically">
-            <property name="title" translatable="yes">Save lyrics automatically</property>
-            <property name="activatable">true</property>
-            <child type="suffix">
-              <object class="GtkSwitch" id="automatic_toggle">
-                <property name="valign">center</property>
-                <property name="can-target">false</property>
-                <property name="focusable">false</property>
-              </object>
-            </child>
-          </object>
-        </child>
-        <child>
-          <object class="AdwActionRow" id="storage">
-            <property name="title" translatable="yes">Lyrics storage</property>
-            <child type="suffix">
-              <object class="GtkBox">
-                <property name="orientation">horizontal</property>
-                <property name="valign">center</property>
-                <style><class name="linked"/><class name="preference-selection-buttons"/></style>
-                <child>
-                  <object class="GtkToggleButton" id="sidecar">
-                    <property name="label" translatable="yes">Save in folder</property>
-                    <style><class name="preference-selection-button"/></style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkToggleButton" id="embed">
-                    <property name="label" translatable="yes">Embed in track</property>
-                    <property name="group">sidecar</property>
-                    <style><class name="preference-selection-button"/></style>
-                  </object>
-                </child>
-              </object>
-            </child>
-          </object>
-        </child>
-      </object>
-    </child>
-
+    <property name="vexpand">true</property>
     <child>
       <object class="AdwPreferencesGroup" id="language_and_readings">
         <child>
@@ -175,6 +166,53 @@
           </object>
         </child>
       </object>
+    </child>
+    <child>
+      <object class="AdwPreferencesGroup">
+        <property name="title" translatable="yes">Storage</property>
+        <child><object class="AdwSwitchRow" id="save_to_source"><property name="title" translatable="yes">Saves lyrics to your source</property><property name="subtitle" translatable="yes">Save action saves the lyrics directly to your source</property></object></child>
+        <child>
+          <object class="AdwActionRow" id="save_automatically">
+            <property name="title" translatable="yes">Save lyrics automatically</property>
+            <property name="activatable">true</property>
+            <child type="suffix">
+              <object class="GtkSwitch" id="automatic_toggle">
+                <property name="valign">center</property>
+                <property name="can-target">false</property>
+                <property name="focusable">false</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwActionRow" id="storage">
+            <property name="title" translatable="yes">Lyrics storage</property>
+            <child type="suffix">
+              <object class="GtkBox">
+                <property name="orientation">horizontal</property>
+                <property name="valign">center</property>
+                <style><class name="linked"/><class name="preference-selection-buttons"/></style>
+                <child>
+                  <object class="GtkToggleButton" id="sidecar">
+                    <property name="label" translatable="yes">Save in folder</property>
+                    <style><class name="preference-selection-button"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkToggleButton" id="embed">
+                    <property name="label" translatable="yes">Embed in track</property>
+                    <property name="group">sidecar</property>
+                    <style><class name="preference-selection-button"/></style>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+
+  </object>
     </child>
   </object>
 </interface>

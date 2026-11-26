@@ -6,6 +6,7 @@ pub mod layout;
 pub mod localization;
 pub mod lyrics_editor;
 pub mod lyrics_snippet;
+pub mod offset_ruler;
 pub mod settings;
 pub mod text_slide;
 pub mod view_model;

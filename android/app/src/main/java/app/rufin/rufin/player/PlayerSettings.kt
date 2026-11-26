@@ -54,6 +54,11 @@ import app.rufin.rufin.shared.rufin_core.VisualizerWeighting
 import app.rufin.rufin.settings.SettingsNumber
 import app.rufin.rufin.core.translate
 import app.rufin.rufin.shared.lyrics.JapaneseDictionaryStatus
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
+import app.rufin.rufin.ui.rememberArtwork
 import app.rufin.rufin.ui.LocalPlayerBottomPadding
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
@@ -66,12 +71,12 @@ internal enum class PlayerSettingsPage(val title: String) {
 /** The player's settings page: GTK's player settings, equalizer and lyrics/visualizer settings as tabs. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun PlayerSettingsScreen(player: PlayerConnection, onClose: () -> Unit) {
-    val pager = rememberPagerState { PlayerSettingsPage.entries.size }
-    var visited by remember { mutableStateOf(setOf(0)) }
+internal fun PlayerSettingsScreen(player: PlayerConnection, initial: PlayerSettingsPage, onPage: (PlayerSettingsPage) -> Unit, onClose: () -> Unit) {
+    val pager = rememberPagerState(initial.ordinal) { PlayerSettingsPage.entries.size }
+    var visited by remember { mutableStateOf(setOf(initial.ordinal)) }
     val settledPage by remember { derivedStateOf { pager.settledPage } }
     val selectedPage by remember { derivedStateOf { pager.targetPage } }
-    LaunchedEffect(settledPage) { visited = visited + settledPage }
+    LaunchedEffect(settledPage) { visited = visited + settledPage; onPage(PlayerSettingsPage.entries[settledPage]) }
     val fade = remember { Animatable(1f) }
     val scope = rememberCoroutineScope()
     val reduceMotion = LocalReduceMotion.current
@@ -92,7 +97,7 @@ internal fun PlayerSettingsScreen(player: PlayerConnection, onClose: () -> Unit)
                 beyondViewportPageCount = PlayerSettingsPage.entries.size - 1) { index ->
                 Box(Modifier.fillMaxSize()) {
                     if (index in visited) CompositionLocalProvider(LocalPlayerBottomPadding provides 0.dp) {
-                        PlayerSettingsContent(player, PlayerSettingsPage.entries[index], active = index == settledPage)
+                        PlayerSettingsContent(player, PlayerSettingsPage.entries[index], active = index == settledPage, stage = true)
                     }
                 }
             }
@@ -101,14 +106,39 @@ internal fun PlayerSettingsScreen(player: PlayerConnection, onClose: () -> Unit)
 }
 
 @Composable
-internal fun PlayerSettingsContent(player: PlayerConnection, page: PlayerSettingsPage, active: Boolean = true) {
-    SettingsPage {
+internal fun PlayerSettingsContent(player: PlayerConnection, page: PlayerSettingsPage, active: Boolean = true,
+    /** Whether the lyrics and the visualizer stand above their settings; their owner keeps the spectrum running. */
+    stage: Boolean = false) {
+    Column(Modifier.fillMaxSize()) {
+    if (stage && active && player.currentId != null && (page == PlayerSettingsPage.LYRICS || page == PlayerSettingsPage.VISUALIZER))
+        SettingsStage(player, page)
+    SettingsPage(Modifier.weight(1f)) {
         if (player.settings == null) Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         else when (page) {
             PlayerSettingsPage.PLAYBACK -> PlayerPlaybackSettings(player)
             PlayerSettingsPage.EQUALIZER -> EqualizerSettings(player, active)
             PlayerSettingsPage.LYRICS -> LyricsSettings(player)
             PlayerSettingsPage.VISUALIZER -> VisualizerSettings(player)
+        }
+    }
+    }
+}
+
+/** The view a tab's settings change, kept above them in the player's colours: the playing lines, or the
+ *  running spectrum. */
+@Composable
+private fun SettingsStage(player: PlayerConnection, page: PlayerSettingsPage) {
+    val palette = rememberPlayerPalette(player, rememberArtwork(player.currentItem?.artworkBinding, player, 256, animated = true))
+    // On the theme's own colours the stage is a box as the settings' rows are; on the cover's, the player's background.
+    val surface = MaterialTheme.colorScheme.surface
+    val box = MaterialTheme.colorScheme.surfaceContainer
+    val ends = listOf(palette.top, palette.bottom).map { if (it == surface) box else it }
+    MaterialTheme(colorScheme = palette.scheme) {
+        Surface(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 2.dp).height(148.dp)
+            .clip(RoundedCornerShape(18.dp)).drawBehind { drawRect(Brush.verticalGradient(ends)) },
+            color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface) {
+            if (page == PlayerSettingsPage.LYRICS) LyricsPanel(player, rememberLazyListState())
+            else VisualizerView(player)
         }
     }
 }
@@ -278,13 +308,6 @@ private fun LyricsSettings(player: PlayerConnection) {
     var highlightEdit by remember { mutableStateOf(false) }
     val accent = MaterialTheme.colorScheme.primary
     fun change(edit: SettingsOwner.() -> Unit) { player.lyricsPreference(edit) }
-    SettingsGroup(translate("Lyrics storage")) {
-    PreferenceSwitch("Saves lyrics to your source", lyrics.saveLyricsToSource) { change { setSaveLyricsToSource(it) } }
-    PreferenceSwitch("Save lyrics automatically", lyrics.saveLyricsAutomatically) { change { setSaveLyricsAutomatically(it) } }
-    PreferenceChoice(translate("Lyrics storage"), if (lyrics.saveLyricsAsSidecar) "sidecar" else "embedded",
-        listOf("sidecar" to translate("Save in folder"), "embedded" to translate("Embed in track")),
-        select = { change { setSaveLyricsAsSidecar(it == "sidecar") } })
-    }
     SettingsGroup(translate("Language and readings")) {
     PreferenceSwitch("Prefer translations", lyrics.preferTranslations) { change { setPreferTranslations(it) } }
     SettingsText(translate("Translation language"), lyrics.preferredTranslationLanguage, lyrics.preferredTranslationLanguage.ifBlank { translate("System default") }) { change { setPreferredTranslationLanguage(it) } }
@@ -314,6 +337,13 @@ private fun LyricsSettings(player: PlayerConnection) {
     SettingsGroup(translate("Sidebar")) {
     SettingsText(translate("Font family"), lyrics.lyricsFontFamily.orEmpty(), lyrics.lyricsFontFamily.orEmpty().ifBlank { translate("System default") }) { change { setLyricsFontFamily(it.ifBlank { null }) } }
     PreferenceSlider("Font size (px)", lyrics.lyricsFontSize?.toDouble() ?: 19.0, 12.0..28.0, 1.0, 19.0, listOf(12.0, 16.0, 20.0, 24.0, 28.0)) { change { setLyricsFontSize(it.toInt().toUShort()) } }
+    }
+    SettingsGroup(translate("Lyrics storage")) {
+    PreferenceSwitch("Saves lyrics to your source", lyrics.saveLyricsToSource) { change { setSaveLyricsToSource(it) } }
+    PreferenceSwitch("Save lyrics automatically", lyrics.saveLyricsAutomatically) { change { setSaveLyricsAutomatically(it) } }
+    PreferenceChoice(translate("Lyrics storage"), if (lyrics.saveLyricsAsSidecar) "sidecar" else "embedded",
+        listOf("sidecar" to translate("Save in folder"), "embedded" to translate("Embed in track")),
+        select = { change { setSaveLyricsAsSidecar(it == "sidecar") } })
     }
     if (highlightEdit) PlayerColorDialog("Karaoke highlight color",
         lyrics.lyricsHighlightColor?.let(::playerLyricsColor) ?: accent,
@@ -372,7 +402,7 @@ private fun VisualizerSettings(player: PlayerConnection) {
     )
     SettingsGroup {
         PreferenceChoice(translate("Preset"), slot.toString(), (if (slot < 0) listOf("-1" to presetDisplayName(translate("Custom"), modified)) else emptyList()) + visualizer.presets.mapIndexed { index, preset ->
-            val name = if (index < 7) translate(preset.name) else preset.name
+            val name = if (index < BuiltInPresets) translate(preset.name) else preset.name
             index.toString() to presetDisplayName(name, index == slot && modified)
         },
             select = { if (it != "-1") player.visualizerPreset(it.toULong(), false) })

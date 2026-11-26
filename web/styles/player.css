@@ -795,6 +795,138 @@ button.lyric-line:hover {
   height: 140px;
 }
 
+#lyrics-panel {
+  position: relative;
+}
+/* The pane's tools show while it is pointed at, as GTK's. */
+#lyrics-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  display: flex;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+}
+#lyrics-controls[hidden],
+#lyrics-sync-header[hidden],
+#lyrics-sync-dock[hidden] {
+  display: none;
+}
+#lyrics-panel:hover #lyrics-controls,
+#lyrics-controls:focus-within {
+  opacity: 1;
+}
+@media (hover: none) {
+  #lyrics-controls {
+    opacity: 1;
+  }
+}
+#lyrics-offset {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+#lyrics-offset:hover {
+  background: var(--hover);
+}
+/* The offset editor keeps a few lines above its dock, as GTK's pane. */
+#lyrics-panel[data-syncing] {
+  min-height: min-content;
+}
+#lyrics-panel[data-syncing] #lyrics {
+  min-height: 120px;
+}
+#lyrics-sync-header {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+#lyrics-sync-header strong {
+  flex: 1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#lyrics-sync-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 10px 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+.lyrics-sync-readout {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  font-size: 0.8em;
+  color: var(--muted);
+}
+#lyrics-offset-entry {
+  width: 9ch;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  font-size: 1.75em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.lyrics-sync-hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.8em;
+  color: var(--muted);
+}
+#lyrics-offset-ruler {
+  position: relative;
+  height: 44px;
+  overflow: hidden;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+  border-radius: 6px;
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+#lyrics-offset-ruler .ruler-tape {
+  position: absolute;
+  inset: 0;
+  --tick: color-mix(in srgb, var(--text) 50%, transparent);
+  /* A tick every 50 ms, a longer one at every label. */
+  background:
+    linear-gradient(90deg, var(--text) 2px, transparent 2px) calc(var(--tape-origin, 0px) - 1px) 0 / 50px 16px repeat-x,
+    linear-gradient(90deg, var(--tick) 1px, transparent 1px) calc(var(--tape-origin, 0px) - 0.5px) 0 / 10px 8px repeat-x;
+}
+#lyrics-offset-ruler .ruler-tape span {
+  position: absolute;
+  top: 22px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+#lyrics-offset-ruler .ruler-needle {
+  position: absolute;
+  left: calc(50% - 2px);
+  top: 0;
+  width: 4px;
+  height: 30px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.lyrics-sync-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 #lyrics rt {
   font-size: 0.5em;
 }
