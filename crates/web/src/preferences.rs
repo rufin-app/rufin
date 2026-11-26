@@ -164,7 +164,7 @@ async fn values(products: &ProductHandles) -> Result<Value, Error> {
         "can_add": quick_mix.can_add,
     });
     Ok(
-        json!({"values": values, "iroh_relay": products.settings.iroh_relay(), "stream_quality": stream_quality, "routes": routes, "home_blocks": blocks, "quick_mix": quick_mix, "providers": providers, "themes": themes, "theme_errors": theme_errors, "server_recommendations_shown": server_recommendations_shown}),
+        json!({"values": values, "iroh_relay": products.settings.iroh_relay(), "stream_quality": stream_quality, "routes": routes, "home_blocks": blocks, "quick_mix": quick_mix, "providers": providers, "themes": themes, "theme_preview": rufin_core::themes::preview(), "theme_errors": theme_errors, "server_recommendations_shown": server_recommendations_shown}),
     )
 }
 
@@ -202,10 +202,11 @@ fn provider_json(key: Value, title: String) -> Value {
     json!({"key": key, "title": title, "subtitle": subtitle})
 }
 
-/// Every theme GTK's Theme page shows, System first: the colors its preview draws and the
-/// accents it offers. Custom themes are read from the folder each time, so new files show up.
+/// Every theme GTK's Theme page shows, System first: the colors its preview's shapes take
+/// and the accents it offers. Custom themes are read from the folder each time, so new files show up.
 fn themes(settings: &rufin_core::settings::Settings) -> (Vec<Value>, Vec<String>) {
     use rufin_core::settings::{AccentPreference, ThemePreference};
+    use rufin_core::themes::PreviewColor;
     let appearance = &settings.appearance;
     let directory = rufin_core::paths::roots().config_dir().join("themes");
     let mut themes = rufin_core::themes::builtins();
@@ -220,14 +221,15 @@ fn themes(settings: &rufin_core::settings::Settings) -> (Vec<Value>, Vec<String>
             &themes,
             appearance.theme_accents.get(&theme.id).map(String::as_str),
         );
-        let color = |name: &str| colors.get(name).cloned().unwrap_or_default();
+        let color = |color: PreviewColor| colors.get(color.name()).cloned().unwrap_or_default();
+        let chosen = theme.accent(appearance.theme_accents.get(&theme.id).map(String::as_str));
+        let standard = appearance.accent_preference.color();
         json!({
-            "window": color("window-bg-color"), "sidebar": color("sidebar-bg-color"),
-            "view": color("view-bg-color"), "secondary": color("secondary-sidebar-bg-color"),
-            "text": color("view-fg-color"),
-            "accent": theme.accent(appearance.theme_accents.get(&theme.id).map(String::as_str))
-                .map(|accent| accent.color.clone())
-                .or_else(|| appearance.accent_preference.color().map(String::from)),
+            "window": color(PreviewColor::Window), "sidebar": color(PreviewColor::Sidebar),
+            "view": color(PreviewColor::View), "card": color(PreviewColor::Card),
+            "text": color(PreviewColor::Text),
+            "accent": chosen.map(|accent| accent.color.as_str()).or(standard),
+            "accent_text": chosen.map(|accent| accent.foreground.as_str()).or(standard.map(|_| "#ffffff")),
         })
     };
     let mut tiles = vec![json!({

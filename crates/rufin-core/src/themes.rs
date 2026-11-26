@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::Path};
 
 pub const CONTROLLER_COLORS: &[(&str, &str)] = &[
@@ -147,6 +147,123 @@ pub fn theme_colors(
         .into(),
     );
     colors
+}
+
+/// The theme color a preview shape takes.
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PreviewColor {
+    Window,
+    Sidebar,
+    View,
+    Card,
+    Text,
+    Accent,
+    AccentText,
+}
+
+impl PreviewColor {
+    /// The theme's own name for the color; the two accent colors come from the chosen accent.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Window => "window-bg-color",
+            Self::Sidebar => "sidebar-bg-color",
+            Self::View => "view-bg-color",
+            Self::Card => "card-bg-color",
+            Self::Text => "view-fg-color",
+            Self::Accent => "accent-bg-color",
+            Self::AccentText => "accent-fg-color",
+        }
+    }
+}
+
+/// One shape of a theme tile's picture: a rounded box, or the named icon in that box.
+#[derive(Clone, Copy, Serialize)]
+pub struct PreviewShape {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub radius: f32,
+    pub color: PreviewColor,
+    pub alpha: f32,
+    pub icon: Option<&'static str>,
+}
+
+/// A theme tile's picture, back to front: the top-left of the Home page at about half size,
+/// in pixels of a 96 pixel high tile. Shapes run past the tile's right and bottom edges and
+/// are clipped there, so a wider tile shows more of the page.
+pub fn preview() -> Vec<PreviewShape> {
+    use crate::settings::sidebar::SidebarRouteItem as Item;
+    use PreviewColor::*;
+    const EDGE: f32 = 2000.0;
+    let rect = |x, y, width, height, radius, color, alpha| PreviewShape {
+        x,
+        y,
+        width,
+        height,
+        radius,
+        color,
+        alpha,
+        icon: None,
+    };
+    let icon = |name, x, y, size, color, alpha| PreviewShape {
+        x,
+        y,
+        width: size,
+        height: size,
+        radius: 0.0,
+        color,
+        alpha,
+        icon: Some(name),
+    };
+    let mut shapes = vec![
+        rect(0.0, 0.0, EDGE, EDGE, 0.0, Window, 1.0),
+        icon("rufin-sidebar-show-symbolic", 8.0, 5.5, 8.0, Text, 0.85),
+        icon("rufin-go-previous-symbolic", 23.0, 5.5, 8.0, Text, 0.85),
+        icon("rufin-go-next-symbolic", 35.0, 5.5, 8.0, Text, 0.4),
+        rect(100.0, 3.5, EDGE, 12.0, 6.0, Text, 0.09),
+        icon("rufin-search-symbolic", 105.0, 6.0, 7.0, Text, 0.6),
+        rect(4.0, 19.0, 56.0, EDGE, 6.0, Sidebar, 1.0),
+        rect(7.0, 22.0, 50.0, 13.0, 4.0, Text, 0.11),
+    ];
+    let rows = [
+        (Item::Home, 18.0),
+        (Item::Favorites, 27.0),
+        (Item::Albums, 22.0),
+        (Item::Tracks, 19.0),
+        (Item::Artists, 21.0),
+        (Item::Folders, 24.0),
+    ];
+    for (row, (item, width)) in rows.into_iter().enumerate() {
+        let y = row as f32 * 15.0;
+        let (icon_alpha, text_alpha) = if row == 0 { (1.0, 0.95) } else { (0.75, 0.6) };
+        let name = crate::route::sidebar_route_descriptor(item).icon_name;
+        shapes.push(icon(name, 11.0, 24.5 + y, 8.0, Text, icon_alpha));
+        shapes.push(rect(24.0, 27.0 + y, width, 3.0, 1.5, Text, text_alpha));
+    }
+    shapes.extend([
+        rect(64.0, 19.0, EDGE, EDGE, 6.0, View, 1.0),
+        rect(68.0, 23.0, EDGE, 30.0, 5.0, Accent, 0.22),
+        rect(74.0, 30.0, 31.0, 31.0, 3.5, View, 1.0),
+        rect(74.0, 30.0, 31.0, 31.0, 3.5, Text, 0.2),
+        rect(111.0, 32.0, 46.0, 4.5, 2.25, Text, 0.95),
+        rect(111.0, 41.0, 30.0, 3.0, 1.5, Text, 0.55),
+        rect(111.0, 58.0, 33.0, 13.5, 6.75, Accent, 1.0),
+        icon(
+            "rufin-media-playback-start-symbolic",
+            116.0,
+            61.5,
+            6.5,
+            AccentText,
+            1.0,
+        ),
+        rect(125.5, 63.2, 13.0, 3.0, 1.5, AccentText, 1.0),
+        rect(148.0, 58.0, 30.0, 13.5, 6.75, Text, 0.11),
+        rect(68.0, 79.0, 26.0, 4.5, 2.25, Text, 0.95),
+        rect(68.0, 89.0, EDGE, 20.0, 5.0, Card, 1.0),
+    ]);
+    shapes
 }
 
 pub fn builtins() -> Vec<Theme> {

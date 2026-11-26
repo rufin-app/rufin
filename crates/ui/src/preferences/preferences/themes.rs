@@ -3,7 +3,7 @@ use crate::shell::shell::Shell;
 use adw::prelude::*;
 use gtk::glib;
 use rufin_core::settings::{AccentPreference, ThemePreference};
-use rufin_core::themes::Accent;
+use rufin_core::themes::{Accent, PreviewColor};
 use std::rc::Rc;
 
 pub(super) fn page(shell: &Rc<Shell>) -> adw::PreferencesPage {
@@ -122,6 +122,7 @@ fn populate(
         })
         .collect();
     let themes = shell.appearance.themes.borrow().clone();
+    let shapes = Rc::new(rufin_core::themes::preview());
     let choices = std::iter::once(None).chain(themes.iter().map(Some));
     let mut group = None;
     for (index, theme) in choices.enumerate() {
@@ -198,87 +199,111 @@ fn populate(
 
         grid.insert(&tile, -1);
         let weak = Rc::downgrade(shell);
-        preview.set_draw_func(move |_, context, width, height| {
+        let shapes = shapes.clone();
+        preview.set_draw_func(move |area, context, width, height| {
             let Some(shell) = weak.upgrade() else { return };
             let themes = shell.appearance.themes.borrow();
-            let theme = &themes[if index == 0 {
-                usize::from(shell.appearance.system_style.is_dark())
-            } else {
-                index - 1
-            }];
             let settings = shell.settings.current.borrow();
-            let base = &themes[usize::from(theme.mode == rufin_core::themes::Mode::Dark)];
-            let color = |name: &str| {
-                theme
-                    .colors
-                    .get(name)
-                    .and_then(|value| gtk::gdk::RGBA::parse(value).ok())
-                    .or_else(|| {
-                        base.colors
-                            .get(name)
-                            .and_then(|value| gtk::gdk::RGBA::parse(value).ok())
-                    })
-                    .unwrap_or(gtk::gdk::RGBA::new(0.0, 0.0, 6.0 / 255.0, 0.8))
+            let (width, height) = (f64::from(width), f64::from(height));
+            let rounded = |x: f64, y: f64, width: f64, height: f64, radius: f64| {
+                use std::f64::consts::{FRAC_PI_2, PI};
+                context.new_sub_path();
+                context.arc(x + width - radius, y + radius, radius, -FRAC_PI_2, 0.0);
+                context.arc(
+                    x + width - radius,
+                    y + height - radius,
+                    radius,
+                    0.0,
+                    FRAC_PI_2,
+                );
+                context.arc(x + radius, y + height - radius, radius, FRAC_PI_2, PI);
+                context.arc(x + radius, y + radius, radius, PI, PI + FRAC_PI_2);
+                context.close_path();
             };
-            let accent = theme
-                .accent(
+            rounded(0.0, 0.0, width, height, 6.0);
+            context.clip();
+            let icons = gtk::IconTheme::for_display(&area.display());
+            let draw = |theme: &rufin_core::themes::Theme| {
+                let base = &themes[usize::from(theme.mode == rufin_core::themes::Mode::Dark)];
+                let chosen = theme.accent(
                     settings
                         .appearance
                         .theme_accents
                         .get(&theme.id)
                         .map(String::as_str),
-                )
-                .and_then(|accent| gtk::gdk::RGBA::parse(&accent.color).ok())
-                .or_else(|| {
-                    settings
-                        .appearance
-                        .accent_preference
-                        .color()
-                        .and_then(|value| gtk::gdk::RGBA::parse(value).ok())
-                })
-                .unwrap_or_else(|| shell.appearance.system_style.accent_color_rgba());
-            let foreground = color("view-fg-color");
-            context.scale(f64::from(width) / 124.0, f64::from(height) / 96.0);
-            let rect = |color: gtk::gdk::RGBA, alpha: f64, x, y, width, height| {
-                context.set_source_rgba(
-                    f64::from(color.red()),
-                    f64::from(color.green()),
-                    f64::from(color.blue()),
-                    f64::from(color.alpha()) * alpha,
                 );
-                context.rectangle(x, y, width, height);
-                let _ = context.fill();
-            };
-            rect(color("window-bg-color"), 1.0, 0.0, 0.0, 124.0, 96.0);
-            rect(color("sidebar-bg-color"), 1.0, 3.0, 12.0, 23.0, 69.0);
-            rect(color("view-bg-color"), 1.0, 29.0, 12.0, 62.0, 69.0);
-            rect(
-                color("secondary-sidebar-bg-color"),
-                1.0,
-                94.0,
-                12.0,
-                27.0,
-                69.0,
-            );
-            rect(accent, 0.2, 32.0, 16.0, 56.0, 17.0);
-            rect(foreground, 0.3, 48.0, 20.0, 33.0, 2.0);
-            rect(foreground, 0.3, 48.0, 26.0, 24.0, 2.0);
-            rect(foreground, 0.15, 35.0, 19.0, 10.0, 10.0);
-            rect(foreground, 0.3, 32.0, 38.0, 20.0, 2.0);
-            for row in 0..2 {
-                for column in 0..3 {
-                    rect(
-                        foreground,
-                        0.15,
-                        32.0 + f64::from(column) * 19.0,
-                        45.0 + f64::from(row) * 18.0,
-                        16.0,
-                        14.0,
-                    );
+                let accent = chosen
+                    .and_then(|accent| gtk::gdk::RGBA::parse(&accent.color).ok())
+                    .or_else(|| {
+                        settings
+                            .appearance
+                            .accent_preference
+                            .color()
+                            .and_then(|value| gtk::gdk::RGBA::parse(value).ok())
+                    })
+                    .unwrap_or_else(|| shell.appearance.system_style.accent_color_rgba());
+                let accent_text = chosen
+                    .and_then(|accent| gtk::gdk::RGBA::parse(&accent.foreground).ok())
+                    .unwrap_or(gtk::gdk::RGBA::WHITE);
+                for shape in shapes.iter() {
+                    let color = match shape.color {
+                        PreviewColor::Accent => accent,
+                        PreviewColor::AccentText => accent_text,
+                        named => theme
+                            .colors
+                            .get(named.name())
+                            .or_else(|| base.colors.get(named.name()))
+                            .and_then(|value| gtk::gdk::RGBA::parse(value).ok())
+                            .unwrap_or(gtk::gdk::RGBA::new(0.0, 0.0, 6.0 / 255.0, 0.8)),
+                    };
+                    let color = color.with_alpha(color.alpha() * shape.alpha);
+                    let (x, y) = (f64::from(shape.x), f64::from(shape.y));
+                    let (width, height) = (f64::from(shape.width), f64::from(shape.height));
+                    let Some(name) = shape.icon else {
+                        context.set_source_rgba(
+                            f64::from(color.red()),
+                            f64::from(color.green()),
+                            f64::from(color.blue()),
+                            f64::from(color.alpha()),
+                        );
+                        rounded(x, y, width, height, f64::from(shape.radius));
+                        let _ = context.fill();
+                        continue;
+                    };
+                    let snapshot = gtk::Snapshot::new();
+                    icons
+                        .lookup_icon(
+                            name,
+                            &[],
+                            shape.width.ceil() as i32,
+                            area.scale_factor(),
+                            gtk::TextDirection::None,
+                            gtk::IconLookupFlags::empty(),
+                        )
+                        .snapshot_symbolic(&snapshot, width, height, &[color]);
+                    if let Some(node) = snapshot.to_node() {
+                        let _ = context.save();
+                        context.translate(x, y);
+                        node.draw(context);
+                        let _ = context.restore();
+                    }
                 }
+            };
+            if index > 0 {
+                draw(&themes[index - 1]);
+                return;
             }
-            rect(foreground, 0.15, 42.0, 4.0, 40.0, 4.0);
-            rect(accent, 1.0, 52.0, 86.0, 20.0, 4.0);
+            // System shows both: light above the diagonal, dark below it.
+            for (theme, corner) in [(&themes[0], (0.0, 0.0)), (&themes[1], (width, height))] {
+                let _ = context.save();
+                context.move_to(width, 0.0);
+                context.line_to(0.0, height);
+                context.line_to(corner.0, corner.1);
+                context.close_path();
+                context.clip();
+                draw(theme);
+                let _ = context.restore();
+            }
         });
         if theme.is_none_or(|theme| theme.accents.is_empty()) {
             let redraw = gtk::glib::closure_local!(
@@ -289,17 +314,10 @@ fn populate(
                 }
             );
             standard_accent.connect_closure("notify::selected", false, redraw.clone());
-            shell.appearance.system_style.connect_closure(
-                "notify::accent-color",
-                false,
-                redraw.clone(),
-            );
-            if theme.is_none() {
-                shell
-                    .appearance
-                    .system_style
-                    .connect_closure("notify::dark", false, redraw);
-            }
+            shell
+                .appearance
+                .system_style
+                .connect_closure("notify::accent-color", false, redraw);
         }
         accent.set_visible(index < 3 || theme.is_some_and(|theme| theme.accents.len() > 1));
         if index < 3 {

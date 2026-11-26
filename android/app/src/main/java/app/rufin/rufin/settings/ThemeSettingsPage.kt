@@ -58,9 +58,10 @@ internal fun ThemeSettingsPage(preferences: PreferencesConnection) {
                     .semantics { contentDescription = title },
                     shape = RoundedCornerShape(12.dp), color = colors.surfaceContainer,
                     border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.primary else colors.outlineVariant)) {
-                    ThemePreview(theme, theme?.dark ?: systemDark,
-                        standard && settings.accent == AccentPreference.SYSTEM,
-                        Modifier.padding(5.dp).fillMaxWidth().aspectRatio(9f / 16f))
+                    val shown = if (choice is ThemePreference.System) settings.themes.filter { it.id == "builtin:light" || it.id == "builtin:dark" }
+                        .sortedBy { it.dark } else listOfNotNull(theme)
+                    ThemePreview(shown, standard && settings.accent == AccentPreference.SYSTEM,
+                        Modifier.padding(5.dp).fillMaxWidth().aspectRatio(THEME_PREVIEW_RATIO))
                 }
                 Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(title, Modifier.weight(1f).padding(start = 2.dp),

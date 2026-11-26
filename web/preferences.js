@@ -63,7 +63,7 @@ function show(preferences) {
     link.hidden = !entry.visible;
     nav.append(link);
   }
-  if (preferences.themes) renderThemes(preferences.themes, preferences.theme_errors);
+  if (preferences.themes) renderThemes(preferences.themes, preferences.theme_preview, preferences.theme_errors);
   $("private-mode").lastElementChild.textContent = tr(values["/private_mode"] ? "Turn off private mode" : "Turn on private mode");
   setLayoutSettings({
     default_profile: { left_sidebar: values["/layout/default_profile/left_sidebar"], right_sidebar: values["/layout/default_profile/right_sidebar"] },
@@ -77,37 +77,28 @@ function show(preferences) {
   $("right-panel").classList.toggle("without-lyrics", values["/lyrics_panel_visible"] === false);
 }
 
-// Theme: every theme as a preview tile, as GTK's Theme page draws them; tiles with a choice of
-// accents carry its swatch.
-const svg = (tag, attributes) => {
-  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
-  for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
-  return node;
-};
-function themePreview(colors) {
-  const preview = svg("svg", { viewBox: "0 0 124 96", "aria-hidden": "true" });
-  const accent = colors.accent || "var(--accent)";
-  const rect = (fill, opacity, x, y, width, height) =>
-    preview.append(svg("rect", { x, y, width, height, style: `fill:${fill};fill-opacity:${opacity}` }));
-  rect(colors.window, 1, 0, 0, 124, 96);
-  rect(colors.sidebar, 1, 3, 12, 23, 69);
-  rect(colors.view, 1, 29, 12, 62, 69);
-  rect(colors.secondary, 1, 94, 12, 27, 69);
-  rect(accent, 0.2, 32, 16, 56, 17);
-  rect(colors.text, 0.3, 48, 20, 33, 2);
-  rect(colors.text, 0.3, 48, 26, 24, 2);
-  rect(colors.text, 0.15, 35, 19, 10, 10);
-  rect(colors.text, 0.3, 32, 38, 20, 2);
-  for (let row = 0; row < 2; row++)
-    for (let column = 0; column < 3; column++) rect(colors.text, 0.15, 32 + column * 19, 45 + row * 18, 16, 14);
-  rect(colors.text, 0.15, 42, 4, 40, 4);
-  rect(accent, 1, 52, 86, 20, 4);
+// Theme: every theme as a preview tile, in the shapes GTK's Theme page draws; tiles with a
+// choice of accents carry its swatch. System shows light above the diagonal and dark below it.
+function themePreview(shapes, schemes) {
+  const preview = el("span", "theme-preview");
+  for (const colors of schemes) {
+    const layer = el("span");
+    for (const shape of shapes) {
+      const node = shape.icon ? icon(shape.icon) : el("i");
+      const fallback = shape.color === "accent" ? "var(--accent)" : "var(--accent-foreground)";
+      Object.assign(node.style, {
+        left: `${shape.x}px`, top: `${shape.y}px`, width: `${shape.width}px`, height: `${shape.height}px`,
+        borderRadius: `${shape.radius}px`, background: colors[shape.color] || fallback, opacity: shape.alpha,
+      });
+      layer.append(node);
+    }
+    preview.append(layer);
+  }
   return preview;
 }
 
-function renderThemes(themes, errors) {
+function renderThemes(themes, shapes, errors) {
   const current = JSON.stringify(values["/theme_preference"]);
-  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
   $("pref-themes").replaceChildren(
     ...themes.map((theme) => {
       const tile = el("div", "theme-tile");
@@ -117,7 +108,7 @@ function renderThemes(themes, errors) {
       select.title = theme.name;
       select.setAttribute("aria-label", theme.name);
       select.setAttribute("aria-checked", String(JSON.stringify(theme.preference) === current));
-      select.append(themePreview(theme.preview || (dark ? theme.dark : theme.light)));
+      select.append(themePreview(shapes, theme.preview ? [theme.preview] : [theme.light, theme.dark]));
       select.addEventListener("click", () => save({ operation: "theme", theme: theme.preference }));
       const footer = el("div", "theme-footer");
       footer.append(el("span", "theme-name", theme.name));

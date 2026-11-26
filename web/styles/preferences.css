@@ -153,11 +153,26 @@ label.pref-row {
   border-radius: 9px;
   background: transparent;
 }
-.theme-select svg {
+.theme-preview {
+  position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 124 / 96;
+  height: 96px;
+  overflow: hidden;
   border-radius: 6px;
+}
+.theme-preview > span,
+.theme-preview > span > * {
+  position: absolute;
+}
+.theme-preview > span {
+  inset: 0;
+}
+.theme-preview > span:first-child:not(:only-child) {
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.theme-preview > span:last-child:not(:only-child) {
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 .theme-select[aria-checked="true"] {
   box-shadow: 0 0 0 2px var(--accent);
