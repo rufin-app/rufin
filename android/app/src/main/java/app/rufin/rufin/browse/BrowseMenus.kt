@@ -448,7 +448,9 @@ internal fun BrowseShareSheet(player: PlayerConnection, item: BrowseItem, share:
         item.row.route is Route.PlaylistDetail -> "Playlist"
         else -> "Artist"
     }
-    ShareSheet(player, ShareSubject(item.row.title, menuSubtitle(item), item.row.artworkIdentity, card, share, lyrics = false),
+    // The lyrics card shares the playing track's lyrics, so only that track's row offers it.
+    val playing = item.row.isTrack && item.row.mediaUri == player.currentId?.mediaUri
+    ShareSheet(player, ShareSubject(item.row.title, menuSubtitle(item), item.row.artworkIdentity, card, share, lyrics = playing),
         ShareKind.SONG, remember { ShareCardStyle() }, null, null, onDismiss)
 }
 
