@@ -181,15 +181,17 @@ export function init() {
   const popup = document.getElementById("playback-settings"), main = document.getElementById("playback-settings-main"), page = document.getElementById("playback-equalizer-page");
   const start = action(async () => { signature = ""; await refreshPresets(); render(await api("/equalizer")); watch(); });
   const stop = () => { clearTimeout(clipTimer); $("clip").classList.remove("clipped"); stream?.close(); stream = null; void flush().then(() => view && request("commit")).catch(report); };
-  const turn = (equalizer) => { main.hidden = equalizer; page.hidden = !equalizer; if (popup.matches(":popover-open")) openPopup(popup, document.getElementById("playback-settings-button"), "center"); };
-  const openPage = () => { page.append($("body")); turn(true); if (!popup.matches(":popover-open")) openPopup(popup, document.getElementById("playback-settings-button"), "center"); void start(); };
+  // The popover keeps the page it was closed on, and shows the equalizer again when it opens there.
+  const place = () => openPopup(popup, document.getElementById("playback-settings-button"), "center");
+  const turn = (equalizer) => { main.hidden = equalizer; page.hidden = !equalizer; };
+  const mount = () => { page.append($("body")); place(); void start().then(() => { if (popup.matches(":popover-open")) place(); }); };
   document.getElementById("open-equalizer").addEventListener("click", () => { dialog.append($("body")); dialog.showModal(); void start(); });
-  document.getElementById("playback-equalizer").addEventListener("click", openPage);
-  $("back").addEventListener("click", () => { stop(); turn(false); });
-  popup.addEventListener("toggle", event => { if (event.newState === "closed" && !page.hidden) { stop(); turn(false); } });
+  document.getElementById("playback-equalizer").addEventListener("click", () => { turn(true); mount(); });
+  $("back").addEventListener("click", () => { stop(); turn(false); place(); });
+  popup.addEventListener("toggle", event => { if (page.hidden) return; if (event.newState === "closed") stop(); else mount(); });
   dialog.addEventListener("close", stop);
   // A modal name dialog closes the popover; naming a preset from its page comes back to it.
-  $("name-dialog").addEventListener("close", () => { if ($("body").parentElement === page && !shown()) openPage(); });
+  $("name-dialog").addEventListener("close", () => { if ($("body").parentElement === page && !shown()) place(); });
   $("preset").addEventListener("focus", action(refreshPresets)); $("preset").addEventListener("change", action(() => operation("select", { preset: $("preset").value || null })));
   $("mode").addEventListener("change", () => { signature = ""; render(view); });
   $("layout").addEventListener("change", action(async () => { await flush(); queue("Layout", { value: $("layout").value }); await commit(); }));

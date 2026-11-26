@@ -2,7 +2,7 @@ pub const CROSSFADE_DURATION_TITLE: &str = localization::msgid("Crossfade durati
 pub const PLAYBACK_SPEED_TITLE: &str = localization::msgid("Playback speed");
 pub const PRESERVE_PITCH_TITLE: &str = localization::msgid("Preserve pitch");
 use crate::widgets::scale::{install_scale_scroll_forwarding, install_sliding_value_bubble};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -24,14 +24,19 @@ pub fn configure_playback_settings_popover(
     shell: &Rc<crate::shell::shell::Shell>,
 ) {
     let shell = Rc::downgrade(shell);
+    // The popover opens on the page it was closed on, until the app exits.
+    let on_equalizer = Rc::new(Cell::new(false));
     button.set_create_popup_func(move |button| {
         if let Some(shell) = shell.upgrade() {
-            button.set_popover(Some(&playback_settings_popover(&shell)));
+            button.set_popover(Some(&playback_settings_popover(&shell, &on_equalizer)));
         }
     });
 }
 
-fn playback_settings_popover(window: &Rc<crate::shell::shell::Shell>) -> gtk::Popover {
+fn playback_settings_popover(
+    window: &Rc<crate::shell::shell::Shell>,
+    on_equalizer: &Rc<Cell<bool>>,
+) -> gtk::Popover {
     let shell = &window.player_ui;
     let settings = window.settings.current.borrow().clone();
     let playback = settings.playback;
@@ -61,6 +66,7 @@ fn playback_settings_popover(window: &Rc<crate::shell::shell::Shell>) -> gtk::Po
     // between the button and the window's top, whatever room the compositor has outside it.
     let settings_scroller = settings_page.clone();
     let header_height = equalizer_page.spacing();
+    let stack = pages.clone();
     popover.connect_show(move |popover| {
         let Some(button) = popover.parent() else {
             return;
@@ -68,9 +74,8 @@ fn playback_settings_popover(window: &Rc<crate::shell::shell::Shell>) -> gtk::Po
         let Some(bounds) = button.root().and_then(|root| button.compute_bounds(&root)) else {
             return;
         };
-        settings_scroller.set_max_content_height(-1);
         let natural = |widget: &gtk::Widget| widget.measure(gtk::Orientation::Vertical, -1).1;
-        let frame = natural(popover.upcast_ref()) - natural(settings_scroller.upcast_ref());
+        let frame = natural(popover.upcast_ref()) - natural(stack.upcast_ref());
         let room = (bounds.y() as i32 - frame).max(1);
         settings_scroller.set_max_content_height(room);
         equalizer_scroller.set_max_content_height(
@@ -90,7 +95,8 @@ fn playback_settings_popover(window: &Rc<crate::shell::shell::Shell>) -> gtk::Po
     let weak = Rc::downgrade(window);
     let stack = pages.downgrade();
     let page = equalizer_page.downgrade();
-    equalizer.connect_activated(move |_| {
+    let remembered = Rc::clone(on_equalizer);
+    let open_equalizer = move || {
         let (Some(window), Some(stack), Some(page)) =
             (weak.upgrade(), stack.upgrade(), page.upgrade())
         else {
@@ -100,12 +106,19 @@ fn playback_settings_popover(window: &Rc<crate::shell::shell::Shell>) -> gtk::Po
             equalizer_host.append(&crate::player::equalizer::EqualizerSurface::new(&window).root);
         }
         stack.set_visible_child(&page);
-    });
+        remembered.set(true);
+    };
+    if on_equalizer.get() {
+        open_equalizer();
+    }
+    equalizer.connect_activated(move |_| open_equalizer());
     let stack = pages.downgrade();
+    let remembered = Rc::clone(on_equalizer);
     equalizer_back.connect_clicked(move |_| {
         if let Some(stack) = stack.upgrade() {
             show_state(&equalizer_state);
             stack.set_visible_child(&settings_page);
+            remembered.set(false);
         }
     });
     if !local_output {
