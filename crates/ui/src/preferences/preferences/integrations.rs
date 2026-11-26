@@ -25,46 +25,26 @@ use crate::shell::shell::Shell;
 const LASTFM_API_CREATE_URL: &str = "https://www.last.fm/api/account/create";
 const LISTENBRAINZ_TOKEN_URL: &str = "https://listenbrainz.org/settings/";
 const FANART_KEY_URL: &str = "https://fanart.tv/get-an-api-key/";
-const LIST_WIDTH: i32 = 290;
+const LIST_WIDTH: i32 = 272;
 
-/// The top of an integration's page.
+/// A scrobbling account's row: its status and the button that connects it.
 #[derive(Clone)]
-struct Hero {
-    status: gtk::Label,
+struct Account {
+    row: adw::ActionRow,
     action: gtk::Button,
 }
 
-impl Hero {
-    fn new(group: &adw::PreferencesGroup, name: &str, status: &str) -> Self {
-        let resource = "preferences/integration_hero.ui";
-        let builder = crate::ui_resource::builder(resource);
-        crate::objects!(builder, resource, {
-            hero: gtk::Box,
-            hero_name: gtk::Label,
-            hero_status: gtk::Label,
-            hero_action: gtk::Button,
-        });
-        hero_name.set_label(name);
-        hero_status.set_label(status);
-        group.add(&hero);
-        Self {
-            status: hero_status,
-            action: hero_action,
-        }
+impl Account {
+    fn set_status(&self, status: &str) {
+        self.row.set_subtitle(status);
     }
 
-    fn with_action(self, label: &str) -> Self {
-        self.action.set_label(label);
-        self.action.set_visible(true);
-        self
-    }
-
-    /// A scrobbling account's state: Connect is the primary action until it is connected.
-    fn show_account(&self, connected: bool, status: &str) {
+    /// Connect is the primary action until the account is connected.
+    fn show(&self, connected: bool, status: &str) {
         if !self.action.is_sensitive() {
             return;
         }
-        self.status.set_label(status);
+        self.set_status(status);
         self.action.set_label(&if connected {
             tr("Reconnect")
         } else {
@@ -83,7 +63,6 @@ struct ListItem {
     id: String,
     row: gtk::ListBoxRow,
     status: gtk::Label,
-    active: gtk::Box,
     chevron: gtk::Image,
 }
 
@@ -95,7 +74,6 @@ impl ListItem {
             row: gtk::ListBoxRow,
             row_name: gtk::Label,
             row_status: gtk::Label,
-            row_active: gtk::Box,
             row_chevron: gtk::Image,
         });
         row_name.set_label(name);
@@ -103,14 +81,12 @@ impl ListItem {
             id: id.to_owned(),
             row,
             status: row_status,
-            active: row_active,
             chevron: row_chevron,
         }
     }
 
-    fn show(&self, status: &str, active: bool) {
+    fn show(&self, status: &str) {
         self.status.set_label(status);
-        self.active.set_visible(active);
     }
 }
 
@@ -119,7 +95,7 @@ struct ServerItem {
     id: String,
     item: ListItem,
     page: adw::PreferencesPage,
-    hero: Hero,
+    account: Account,
     url: adw::ActionRow,
     /// An Audioscrobbler server's username and password, shown while it is signed out.
     sign_in: [adw::EntryRow; 2],
@@ -134,14 +110,14 @@ struct Integrations {
     detail_page: adw::NavigationPage,
     split: gtk::Box,
     list_scroller: gtk::ScrolledWindow,
+    sections: gtk::Box,
     separator: gtk::Separator,
     details: gtk::Stack,
     lists: [gtk::ListBox; 5],
-    titles: [gtk::Label; 5],
     items: RefCell<Vec<ListItem>>,
     servers: RefCell<Vec<ServerItem>>,
     add_server_row: gtk::ListBoxRow,
-    accounts: [(&'static str, Hero); 3],
+    accounts: [(&'static str, Account); 3],
     /// Remote folder rows by connection, with the index of their kind's group.
     folders: RefCell<Vec<(sources::SourceId, usize, adw::ActionRow)>>,
     folder_groups: [(adw::PreferencesGroup, adw::ActionRow); 2],
@@ -161,6 +137,7 @@ pub(super) fn page(
         detail_page: adw::NavigationPage,
         split: gtk::Box,
         list_scroller: gtk::ScrolledWindow,
+        sections: gtk::Box,
         split_separator: gtk::Separator,
         details: gtk::Stack,
         scrobbling_list: gtk::ListBox,
@@ -168,70 +145,27 @@ pub(super) fn page(
         presence_list: gtk::ListBox,
         folders_list: gtk::ListBox,
         network_list: gtk::ListBox,
-        scrobbling_title: gtk::Label,
-        lookups_title: gtk::Label,
-        presence_title: gtk::Label,
-        folders_title: gtk::Label,
-        network_title: gtk::Label,
         relay_mode: adw::ComboRow,
         relay_address: adw::EntryRow,
         relay_save: gtk::Button,
-        lastfm_hero: adw::PreferencesGroup,
-        listenbrainz_hero: adw::PreferencesGroup,
-        librefm_hero: adw::PreferencesGroup,
-        add_server_hero: adw::PreferencesGroup,
-        metadata_hero: adw::PreferencesGroup,
-        lyrics_hero: adw::PreferencesGroup,
-        discord_hero: adw::PreferencesGroup,
-        links_hero: adw::PreferencesGroup,
-        webdav_hero: adw::PreferencesGroup,
-        smb_hero: adw::PreferencesGroup,
+        lastfm_account: adw::ActionRow,
+        lastfm_connect: gtk::Button,
+        listenbrainz_account: adw::ActionRow,
+        listenbrainz_connect: gtk::Button,
+        librefm_account: adw::ActionRow,
+        librefm_connect: gtk::Button,
         webdav_group: adw::PreferencesGroup,
         smb_group: adw::PreferencesGroup,
         add_webdav: adw::ActionRow,
         add_smb: adw::ActionRow,
         lyrics_providers: adw::PreferencesGroup,
     });
-    let not_connected = tr("Not connected");
-    let lastfm = Hero::new(&lastfm_hero, "Last.fm", &not_connected).with_action(&tr("Connect"));
-    let listenbrainz =
-        Hero::new(&listenbrainz_hero, "ListenBrainz", &not_connected).with_action(&tr("Connect"));
-    let librefm = Hero::new(&librefm_hero, "Libre.fm", &not_connected).with_action(&tr("Connect"));
-    let add_server = Hero::new(
-        &add_server_hero,
-        &tr("Add server"),
-        &tr("Self-hosted scrobbling"),
-    );
-    Hero::new(
-        &metadata_hero,
-        &tr("Metadata"),
-        &tr("Covers and artist images your library doesn't have"),
-    );
-    Hero::new(
-        &lyrics_hero,
-        &tr("Lyrics"),
-        &tr("Lyrics your library doesn't have"),
-    );
-    Hero::new(
-        &discord_hero,
-        "Discord",
-        &tr("Shows what you play on your Discord profile"),
-    );
-    Hero::new(
-        &links_hero,
-        &tr("Page links"),
-        &tr("Service icons on album and artist pages"),
-    );
-    Hero::new(
-        &webdav_hero,
-        &tr("WebDAV / Nextcloud"),
-        &tr("Remote folders over WebDAV"),
-    );
-    Hero::new(
-        &smb_hero,
-        &tr("SMB / Samba"),
-        &tr("Remote folders on a Windows share or NAS"),
-    );
+    let [lastfm, listenbrainz, librefm] = [
+        (lastfm_account, lastfm_connect),
+        (listenbrainz_account, listenbrainz_connect),
+        (librefm_account, librefm_connect),
+    ]
+    .map(|(row, action)| Account { row, action });
 
     let entries = [
         (&scrobbling_list, "lastfm", "Last.fm".into()),
@@ -253,7 +187,7 @@ pub(super) fn page(
         items.push(item);
     }
     let add_server_row = items[3].row.clone();
-    items[3].show(&tr("ListenBrainz or Audioscrobbler API"), false);
+    items[3].show(&tr("ListenBrainz or Audioscrobbler API"));
 
     let lyrics = lyrics_provider_group(shell, &lyrics_providers);
     lyrics.populate();
@@ -264,6 +198,7 @@ pub(super) fn page(
         detail_page,
         split,
         list_scroller,
+        sections,
         separator: split_separator,
         details,
         lists: [
@@ -272,13 +207,6 @@ pub(super) fn page(
             presence_list,
             folders_list,
             network_list,
-        ],
-        titles: [
-            scrobbling_title,
-            lookups_title,
-            presence_title,
-            folders_title,
-            network_title,
         ],
         items: RefCell::new(items),
         servers: RefCell::new(Vec::new()),
@@ -295,7 +223,7 @@ pub(super) fn page(
     });
 
     bind_scrobbling(&state, &builder, drafts, &lastfm, &listenbrainz, &librefm);
-    bind_add_server(&state, &builder, &add_server);
+    bind_add_server(&state, &builder);
     bind_metadata(shell, &builder);
     bind_lyrics(&state, &builder);
     bind_presence(shell, &builder);
@@ -375,7 +303,7 @@ pub(super) fn page(
                 };
                 relay_mode.set_selected(mode);
                 relay_address.set_text(relay.custom_url().unwrap_or_default());
-                refresh_state.item("iroh_relay").show(&label, mode != 0);
+                refresh_state.item("iroh_relay").show(&label);
                 shown_relay.replace(Some(relay));
             }
         }),
@@ -459,30 +387,24 @@ impl Integrations {
             }
         }
         self.separator.set_visible(!narrow);
+        if narrow {
+            self.sections.remove_css_class("side");
+        } else {
+            self.sections.add_css_class("side");
+        }
+        let margin = if narrow { 0 } else { 8 };
+        self.details.set_margin_start(margin);
+        self.details.set_margin_end(margin);
         self.list_scroller.set_hexpand(narrow);
         self.list_scroller
             .set_width_request(if narrow { -1 } else { LIST_WIDTH });
+        // Beside the open page a row is tinted as the open one; alone, it points at its page.
         for list in &self.lists {
-            if narrow {
-                list.remove_css_class("navigation-sidebar");
-                list.add_css_class("boxed-list");
-                list.set_selection_mode(gtk::SelectionMode::None);
+            list.set_selection_mode(if narrow {
+                gtk::SelectionMode::None
             } else {
-                list.remove_css_class("boxed-list");
-                list.add_css_class("navigation-sidebar");
-                list.set_selection_mode(gtk::SelectionMode::Single);
-            }
-        }
-        for title in &self.titles {
-            if narrow {
-                title.remove_css_class("dim-label");
-                title.remove_css_class("caption-heading");
-                title.add_css_class("heading");
-            } else {
-                title.remove_css_class("heading");
-                title.add_css_class("dim-label");
-                title.add_css_class("caption-heading");
-            }
+                gtk::SelectionMode::Single
+            });
         }
         for item in self.items.borrow().iter() {
             item.chevron.set_visible(narrow);
@@ -509,58 +431,46 @@ impl Integrations {
             (
                 preferences.lastfm.connected,
                 preferences.lastfm.username.as_str(),
-                preferences.lastfm.enabled,
             ),
             (
                 preferences.listenbrainz.connected,
                 preferences.listenbrainz.username.as_str(),
-                preferences.listenbrainz.enabled,
             ),
             (
                 preferences.librefm.connected,
                 preferences.librefm.username.as_str(),
-                preferences.librefm.enabled,
             ),
         ];
-        for ((id, hero), (connected, username, enabled)) in self.accounts.iter().zip(accounts) {
-            hero.show_account(connected, &connection_subtitle(connected, username));
-            self.item(id)
-                .show(&account_status(connected, username), connected && enabled);
+        for ((id, account), (connected, username)) in self.accounts.iter().zip(accounts) {
+            account.show(connected, &connection_subtitle(connected, username));
+            self.item(id).show(&account_status(connected, username));
         }
         self.sync_servers(&preferences);
 
         let metadata = settings.application.external_metadata_enabled;
-        self.item("metadata").show(
-            &if metadata {
-                tr("Covers, artist images, tags")
-            } else {
-                tr("Off")
-            },
-            metadata,
-        );
+        self.item("metadata").show(&if metadata {
+            tr("Covers, artist images, tags")
+        } else {
+            tr("Off")
+        });
         let lyrics = &settings.lyrics.preferences;
         let providers = lyrics
             .external_lyrics_providers
             .iter()
             .map(|provider| tr(provider.title()))
             .collect::<Vec<_>>();
-        self.item("lyrics").show(
-            &if lyrics.external_lyrics_enabled {
+        self.item("lyrics")
+            .show(&if lyrics.external_lyrics_enabled {
                 providers.join(", ")
             } else {
                 tr("Off")
-            },
-            lyrics.external_lyrics_enabled,
-        );
+            });
         let presence = settings.rich_presence.enabled;
-        self.item("discord").show(
-            &if presence {
-                tr("Rich Presence on")
-            } else {
-                tr("Off")
-            },
-            presence,
-        );
+        self.item("discord").show(&if presence {
+            tr("Rich Presence on")
+        } else {
+            tr("Off")
+        });
         let links = &settings.application.external_site_links;
         let services = [
             (links.lastfm, "Last.fm".to_owned()),
@@ -570,14 +480,11 @@ impl Integrations {
         .into_iter()
         .filter_map(|(on, name)| on.then_some(name))
         .collect::<Vec<_>>();
-        self.item("links").show(
-            &if links.enabled {
-                services.join(", ")
-            } else {
-                tr("Off")
-            },
-            links.enabled,
-        );
+        self.item("links").show(&if links.enabled {
+            services.join(", ")
+        } else {
+            tr("Off")
+        });
         self.sync_folders();
     }
 
@@ -617,7 +524,7 @@ impl Integrations {
                 .find(|item| item.id == server.id)
                 .expect("server page");
             let protocol = protocol_title(server.protocol);
-            item.hero.show_account(
+            item.account.show(
                 server.connected,
                 &format!(
                     "{} · {protocol}",
@@ -628,21 +535,18 @@ impl Integrations {
             // session stops working.
             let audioscrobbler = server.protocol == ScrobblingProtocol::Audioscrobbler;
             if audioscrobbler {
-                item.hero.action.set_label(&tr("Sign in again"));
+                item.account.action.set_label(&tr("Sign in again"));
             }
-            item.hero
+            item.account
                 .action
                 .set_visible(!audioscrobbler || !server.connected);
             for row in &item.sign_in {
                 row.set_visible(audioscrobbler && !server.connected);
             }
-            item.item.show(
-                &format!(
-                    "{} · {protocol}",
-                    account_status(server.connected, &server.username)
-                ),
-                server.connected && server.enabled,
-            );
+            item.item.show(&format!(
+                "{} · {protocol}",
+                account_status(server.connected, &server.username)
+            ));
             item.url.set_subtitle(&server.url);
             item.enabled.set_active(server.enabled);
             item.now_playing.set_active(server.now_playing_enabled);
@@ -654,7 +558,8 @@ impl Integrations {
         let builder = crate::ui_resource::builder(resource);
         crate::objects!(builder, resource, {
             server_page: adw::PreferencesPage,
-            server_hero: adw::PreferencesGroup,
+            server_account: adw::ActionRow,
+            server_connect: gtk::Button,
             server_protocol: gtk::Label,
             server_url: adw::ActionRow,
             server_token: adw::PasswordEntryRow,
@@ -665,7 +570,10 @@ impl Integrations {
             server_remove: adw::ButtonRow,
         });
         server_page.set_title(&server.name);
-        let hero = Hero::new(&server_hero, &server.name, "").with_action(&tr("Connect"));
+        let account = Account {
+            row: server_account,
+            action: server_connect,
+        };
         server_protocol.set_label(&protocol_title(server.protocol));
         let listenbrainz = server.protocol == ScrobblingProtocol::ListenBrainz;
         server_token.set_visible(listenbrainz);
@@ -702,7 +610,7 @@ impl Integrations {
         }
         let connect: Rc<dyn Fn()> = {
             let weak = Rc::downgrade(self);
-            let hero = hero.clone();
+            let account = account.clone();
             let rows = (
                 server_token.downgrade(),
                 server_username.downgrade(),
@@ -723,11 +631,17 @@ impl Integrations {
                 } else {
                     (username.text().trim().to_string(), password.text())
                 };
-                state.sign_in_server(&hero, id.clone(), username, secret.to_string(), &password);
+                state.sign_in_server(
+                    &account,
+                    id.clone(),
+                    username,
+                    secret.to_string(),
+                    &password,
+                );
             })
         };
-        let hero_connect = Rc::clone(&connect);
-        hero.action.connect_clicked(move |_| hero_connect());
+        let account_connect = Rc::clone(&connect);
+        account.action.connect_clicked(move |_| account_connect());
         let apply_connect = Rc::clone(&connect);
         server_token.connect_apply(move |_| apply_connect());
         server_password.connect_entry_activated(move |_| connect());
@@ -758,7 +672,7 @@ impl Integrations {
             id: server.id.clone(),
             item,
             page: server_page,
-            hero,
+            account,
             url: server_url,
             sign_in: [server_username, server_password.upcast()],
             enabled: server_enabled,
@@ -769,32 +683,32 @@ impl Integrations {
     /// The account opens its sign-in page in the browser and waits for it.
     fn connect_browser(
         self: &Rc<Self>,
-        hero: &Hero,
+        account: &Account,
         request: ScrobblingConnection,
         opening: String,
     ) {
         let lastfm = matches!(request, ScrobblingConnection::LastFm { .. });
-        hero.action.set_sensitive(false);
-        hero.status.set_label(&opening);
+        account.action.set_sensitive(false);
+        account.set_status(&opening);
         let state = Rc::clone(self);
-        let hero = hero.clone();
+        let account = account.clone();
         gtk::glib::spawn_future_local(async move {
             let result = connect_scrobbling(&state.shell, request, lastfm).await;
-            hero.action.set_sensitive(true);
+            account.action.set_sensitive(true);
             match result {
-                Ok(username) => hero.show_account(true, &connection_subtitle(true, &username)),
-                Err(error) => hero.status.set_label(&error),
+                Ok(username) => account.show(true, &connection_subtitle(true, &username)),
+                Err(error) => account.set_status(&error),
             }
             let settings = state.shell.settings.current.borrow().clone();
             state.refresh(&settings);
         });
     }
 
-    fn connect_listenbrainz(self: &Rc<Self>, hero: &Hero, token: String) {
-        hero.action.set_sensitive(false);
-        hero.status.set_label(&tr("Checking the user token..."));
+    fn connect_listenbrainz(self: &Rc<Self>, account: &Account, token: String) {
+        account.action.set_sensitive(false);
+        account.set_status(&tr("Checking the user token..."));
         let state = Rc::clone(self);
-        let hero = hero.clone();
+        let account = account.clone();
         gtk::glib::spawn_future_local(async move {
             let result = state
                 .shell
@@ -802,9 +716,9 @@ impl Integrations {
                 .scrobbling
                 .connect_listenbrainz(token)
                 .await;
-            hero.action.set_sensitive(true);
+            account.action.set_sensitive(true);
             if let Err(error) = result {
-                hero.status.set_label(&error.to_string());
+                account.set_status(&error.to_string());
                 return;
             }
             let settings = state.shell.settings.current.borrow().clone();
@@ -815,16 +729,16 @@ impl Integrations {
     /// Signs in to an added server again; the password row is emptied once it is used.
     fn sign_in_server(
         self: &Rc<Self>,
-        hero: &Hero,
+        account: &Account,
         id: String,
         username: String,
         secret: String,
         password: &adw::PasswordEntryRow,
     ) {
-        hero.action.set_sensitive(false);
-        hero.status.set_label(&tr("Signing in..."));
+        account.action.set_sensitive(false);
+        account.set_status(&tr("Signing in..."));
         let state = Rc::clone(self);
-        let hero = hero.clone();
+        let account = account.clone();
         let password = password.downgrade();
         gtk::glib::spawn_future_local(async move {
             let result = state
@@ -833,13 +747,13 @@ impl Integrations {
                 .scrobbling
                 .sign_in_server(id, username, secret)
                 .await;
-            hero.action.set_sensitive(true);
+            account.action.set_sensitive(true);
             if let Some(password) = password.upgrade() {
                 password.set_text("");
             }
             match result {
                 Ok(preferences) => state.sync_servers(&preferences),
-                Err(error) => hero.status.set_label(&error.to_string()),
+                Err(error) => account.set_status(&error.to_string()),
             }
         });
     }
@@ -860,10 +774,8 @@ impl Integrations {
                 .iter()
                 .filter(|connection| (connection.kind == "smb") == (kind == "smb"))
                 .collect::<Vec<_>>();
-            self.item(kind).show(
-                &localization::folder_count_text(ours.len() as u64),
-                !ours.is_empty(),
-            );
+            self.item(kind)
+                .show(&localization::folder_count_text(ours.len() as u64));
             for connection in ours {
                 if let Some((_, _, row)) = self
                     .folders
@@ -977,9 +889,9 @@ fn bind_scrobbling(
     state: &Rc<Integrations>,
     builder: &gtk::Builder,
     drafts: &ScrobblingCredentialDrafts,
-    lastfm: &Hero,
-    listenbrainz: &Hero,
-    librefm: &Hero,
+    lastfm: &Account,
+    listenbrainz: &Account,
+    librefm: &Account,
 ) {
     let resource = "preferences/integrations.ui";
     crate::objects!(builder, resource, {
@@ -1081,7 +993,7 @@ fn bind_scrobbling(
 
     let weak = Rc::downgrade(state);
     let (key, secret) = (lastfm_api_key.downgrade(), lastfm_api_secret.downgrade());
-    let hero = lastfm.clone();
+    let account = lastfm.clone();
     lastfm.action.connect_clicked(move |_| {
         let (Some(state), Some(key), Some(secret)) =
             (weak.upgrade(), key.upgrade(), secret.upgrade())
@@ -1089,7 +1001,7 @@ fn bind_scrobbling(
             return;
         };
         state.connect_browser(
-            &hero,
+            &account,
             ScrobblingConnection::LastFm {
                 api_key: key.text().trim().to_string(),
                 api_secret: secret.text().trim().to_string(),
@@ -1098,11 +1010,11 @@ fn bind_scrobbling(
         );
     });
     let weak = Rc::downgrade(state);
-    let hero = librefm.clone();
+    let account = librefm.clone();
     librefm.action.connect_clicked(move |_| {
         if let Some(state) = weak.upgrade() {
             state.connect_browser(
-                &hero,
+                &account,
                 ScrobblingConnection::LibreFm,
                 tr("Opening Libre.fm authorization..."),
             );
@@ -1110,17 +1022,17 @@ fn bind_scrobbling(
     });
     let weak = Rc::downgrade(state);
     let token = listenbrainz_token.downgrade();
-    let hero = listenbrainz.clone();
+    let account = listenbrainz.clone();
     listenbrainz.action.connect_clicked(move |_| {
         let (Some(state), Some(token)) = (weak.upgrade(), token.upgrade()) else {
             return;
         };
         let token = token.text().trim().to_string();
         if token.is_empty() {
-            hero.status.set_label(&tr("Enter your user token first"));
+            account.set_status(&tr("Enter your user token first"));
             return;
         }
-        state.connect_listenbrainz(&hero, token);
+        state.connect_listenbrainz(&account, token);
     });
 
     // Saved keys arrive after the page shows; typed ones stay.
@@ -1154,7 +1066,7 @@ fn bind_scrobbling(
     });
 }
 
-fn bind_add_server(state: &Rc<Integrations>, builder: &gtk::Builder, hero: &Hero) {
+fn bind_add_server(state: &Rc<Integrations>, builder: &gtk::Builder) {
     let resource = "preferences/integrations.ui";
     crate::objects!(builder, resource, {
         add_protocol_group: adw::PreferencesGroup,
@@ -1164,6 +1076,7 @@ fn bind_add_server(state: &Rc<Integrations>, builder: &gtk::Builder, hero: &Hero
         add_token: adw::PasswordEntryRow,
         add_username: adw::EntryRow,
         add_password: adw::PasswordEntryRow,
+        add_status: gtk::Label,
         add_connect: gtk::Button,
     });
     let show_protocol = {
@@ -1196,7 +1109,6 @@ fn bind_add_server(state: &Rc<Integrations>, builder: &gtk::Builder, hero: &Hero
     add_protocol.connect_active_name_notify(show_protocol);
 
     let weak = Rc::downgrade(state);
-    let hero_for_add = hero.clone();
     let protocol_toggles = add_protocol.downgrade();
     let fields: [adw::EntryRow; 5] = [
         add_name,
@@ -1232,13 +1144,13 @@ fn bind_add_server(state: &Rc<Integrations>, builder: &gtk::Builder, hero: &Hero
             },
         };
         if request.name.is_empty() || request.url.is_empty() {
-            hero_for_add.status.set_label(&tr("Enter a name and URL."));
+            add_status.set_label(&tr("Enter a name and URL."));
             return;
         }
         button.set_sensitive(false);
-        hero_for_add.status.set_label(&tr("Signing in..."));
+        add_status.set_label(&tr("Signing in..."));
         let button = button.downgrade();
-        let hero = hero_for_add.clone();
+        let status = add_status.clone();
         let fields = fields.clone();
         gtk::glib::spawn_future_local(async move {
             let result = state.shell.products.scrobbling.add_server(request).await;
@@ -1249,11 +1161,11 @@ fn bind_add_server(state: &Rc<Integrations>, builder: &gtk::Builder, hero: &Hero
             let preferences = match result {
                 Ok(preferences) => preferences,
                 Err(error) => {
-                    hero.status.set_label(&error.to_string());
+                    status.set_label(&error.to_string());
                     return;
                 }
             };
-            hero.status.set_label(&tr("Self-hosted scrobbling"));
+            status.set_label("");
             for field in &fields {
                 field.set_text("");
             }

@@ -2,15 +2,11 @@
 <interface domain="rufin">
   <requires lib="gtk" version="4.20" />
   <requires lib="libadwaita" version="1.9" />
-  <!-- An integration in the list: name, status and whether it is on. -->
+  <!-- An integration in the list: its name and status. -->
   <object class="GtkListBoxRow" id="row">
     <property name="child">
       <object class="GtkBox">
         <property name="spacing">12</property>
-        <property name="margin-top">6</property>
-        <property name="margin-bottom">6</property>
-        <property name="margin-start">4</property>
-        <property name="margin-end">4</property>
         <child>
           <object class="GtkBox">
             <property name="orientation">vertical</property>
@@ -20,9 +16,6 @@
               <object class="GtkLabel" id="row_name">
                 <property name="xalign">0</property>
                 <property name="ellipsize">end</property>
-                <style>
-                  <class name="heading" />
-                </style>
               </object>
             </child>
             <child>
@@ -35,18 +28,6 @@
                 </style>
               </object>
             </child>
-          </object>
-        </child>
-        <child>
-          <object class="GtkBox" id="row_active">
-            <property name="valign">center</property>
-            <property name="visible">false</property>
-            <accessibility>
-              <property name="label" translatable="yes">Active</property>
-            </accessibility>
-            <style>
-              <class name="integration-active" />
-            </style>
           </object>
         </child>
         <child>

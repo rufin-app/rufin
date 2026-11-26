@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface domain="rufin">
+  <requires lib="gtk" version="4.20" />
+  <!-- A preferences category in the sidebar. -->
+  <object class="GtkListBoxRow" id="row">
+    <property name="activatable">true</property>
+    <property name="child">
+      <object class="GtkBox">
+        <property name="spacing">10</property>
+        <property name="valign">center</property>
+        <style>
+          <class name="preferences-category-content" />
+        </style>
+        <child>
+          <object class="GtkImage" id="row_icon">
+            <property name="pixel-size">20</property>
+            <property name="valign">center</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkLabel" id="row_label">
+            <property name="xalign">0</property>
+            <property name="hexpand">true</property>
+            <property name="ellipsize">end</property>
+            <style>
+              <class name="preferences-category-label" />
+            </style>
+          </object>
+        </child>
+      </object>
+    </property>
+  </object>
+</interface>

@@ -281,6 +281,9 @@ fn set_preferences_back_visible(button: &gtk::Button, visible: bool) {
     button.update_state(&[gtk::accessible::State::Hidden(!visible)]);
 }
 
+/// The categories as icons only: a row's icon with the list's and the row's own padding.
+const COMPACT_CATEGORIES_WIDTH: f64 = 52.0;
+
 fn present_preferences_dialog_with_page(
     shell: &Rc<Shell>,
     initial_page: PreferencesPageKind,
@@ -354,6 +357,7 @@ fn build_preferences_dialog(
         let category_back = category_back.downgrade();
         let title = page_title.downgrade();
         let content = content_page.downgrade();
+        let nested = Rc::clone(&navigation_controls.navigation);
         Rc::new(move || {
             let (Some(split), Some(nested_back), Some(category_back), Some(title), Some(content)) = (
                 split.upgrade(),
@@ -369,6 +373,10 @@ fn build_preferences_dialog(
             );
             let page_title = if split.is_collapsed() && !split.shows_content() {
                 split.sidebar().unwrap().title()
+            } else if nested_back.is_visible()
+                && let Some(page) = nested.upgrade().and_then(|pages| pages.visible_page())
+            {
+                page.title()
             } else {
                 content.title()
             };
@@ -409,8 +417,42 @@ fn build_preferences_dialog(
         .bind_property("can-close", &content_page, "can-pop")
         .sync_create()
         .build();
-    let breakpoint = adw::Breakpoint::new(
+    // Shrinking the dialog first narrows the categories to their icons, then folds them away. The
+    // last breakpoint that matches is the one applied.
+    let compact = adw::Breakpoint::new(
         adw::BreakpointCondition::parse("max-width: 760sp").expect("preferences breakpoint"),
+    );
+    compact.add_setter(
+        &split_view,
+        "sidebar-width-unit",
+        Some(&adw::LengthUnit::Px.to_value()),
+    );
+    for width in ["min-sidebar-width", "max-sidebar-width"] {
+        compact.add_setter(
+            &split_view,
+            width,
+            Some(&COMPACT_CATEGORIES_WIDTH.to_value()),
+        );
+    }
+    for kind in PreferencesPageKind::ALL {
+        let resource = "preferences/category_row.ui";
+        let builder = crate::ui_resource::builder(resource);
+        crate::objects!(builder, resource, {
+            row: gtk::ListBoxRow,
+            row_icon: gtk::Image,
+            row_label: gtk::Label,
+        });
+        let title = kind.title();
+        row_icon.set_icon_name(Some(kind.icon_name()));
+        row_label.set_label(&title);
+        row.update_property(&[gtk::accessible::Property::Label(&title)]);
+        compact.add_setter(&row_label, "visible", Some(&false.to_value()));
+        compact.add_setter(&row, "tooltip-text", Some(&title.to_value()));
+        categories.append(&row);
+    }
+    responsive.add_breakpoint(compact);
+    let breakpoint = adw::Breakpoint::new(
+        adw::BreakpointCondition::parse("max-width: 620sp").expect("preferences breakpoint"),
     );
     breakpoint.add_setter(&split_view, "collapsed", Some(&true.to_value()));
     responsive.add_breakpoint(breakpoint);

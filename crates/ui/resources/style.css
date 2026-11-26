@@ -3499,12 +3499,35 @@ button.menu-preview-entry:not(.menu-preview-shown) label {
   text-decoration-line: line-through;
 }
 
-/* Integrations: the dot of an active integration. */
-.integration-active {
-  min-width: 7px;
-  min-height: 7px;
-  border-radius: 50%;
-  background-color: var(--success-color);
+/* Integrations: boxed groups, tighter beside the open page, whose row is tinted. */
+.integration-sections {
+  padding: 0 12px 24px;
+}
+
+.integration-sections > box > label {
+  margin: 31px 0 13px;
+}
+
+.integration-sections row {
+  min-height: 54px;
+  padding: 0 14px;
+}
+
+.integration-sections.side {
+  padding: 0 12px 16px;
+}
+
+.integration-sections.side > box > label {
+  margin: 18px 2px 8px;
+}
+
+.integration-sections.side row {
+  min-height: 50px;
+  padding: 0 12px;
+}
+
+.integration-sections.side row:selected {
+  background-color: color-mix(in srgb, var(--accent-bg-color) 18%, transparent);
 }
 
 /* Radio. A station without a picture shows the radio icon on the fallback tile. */

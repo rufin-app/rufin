@@ -17,85 +17,113 @@
                     <property name="maximum-size">600</property>
                     <property name="tightening-threshold">400</property>
                     <property name="child">
-                      <object class="GtkBox">
+                      <object class="GtkBox" id="sections">
                         <property name="orientation">vertical</property>
-                        <property name="spacing">16</property>
-                        <property name="margin-top">16</property>
-                        <property name="margin-bottom">16</property>
-                        <property name="margin-start">12</property>
-                        <property name="margin-end">12</property>
+                        <style>
+                          <class name="integration-sections" />
+                        </style>
                         <child>
                           <object class="GtkBox">
                             <property name="orientation">vertical</property>
-                            <property name="spacing">6</property>
                             <child>
-                              <object class="GtkLabel" id="scrobbling_title">
+                              <object class="GtkLabel">
                                 <property name="label" translatable="yes">Scrobbling</property>
                                 <property name="xalign">0</property>
+                                <style>
+                                  <class name="heading" />
+                                </style>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkListBox" id="scrobbling_list" />
+                              <object class="GtkListBox" id="scrobbling_list">
+                                <style>
+                                  <class name="boxed-list" />
+                                </style>
+                              </object>
                             </child>
                           </object>
                         </child>
                         <child>
                           <object class="GtkBox">
                             <property name="orientation">vertical</property>
-                            <property name="spacing">6</property>
                             <child>
-                              <object class="GtkLabel" id="lookups_title">
+                              <object class="GtkLabel">
                                 <property name="label" translatable="yes">Lookups</property>
                                 <property name="xalign">0</property>
+                                <style>
+                                  <class name="heading" />
+                                </style>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkListBox" id="lookups_list" />
+                              <object class="GtkListBox" id="lookups_list">
+                                <style>
+                                  <class name="boxed-list" />
+                                </style>
+                              </object>
                             </child>
                           </object>
                         </child>
                         <child>
                           <object class="GtkBox">
                             <property name="orientation">vertical</property>
-                            <property name="spacing">6</property>
                             <child>
-                              <object class="GtkLabel" id="presence_title">
+                              <object class="GtkLabel">
                                 <property name="label" translatable="yes">Presence and links</property>
                                 <property name="xalign">0</property>
+                                <style>
+                                  <class name="heading" />
+                                </style>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkListBox" id="presence_list" />
+                              <object class="GtkListBox" id="presence_list">
+                                <style>
+                                  <class name="boxed-list" />
+                                </style>
+                              </object>
                             </child>
                           </object>
                         </child>
                         <child>
                           <object class="GtkBox">
                             <property name="orientation">vertical</property>
-                            <property name="spacing">6</property>
                             <child>
-                              <object class="GtkLabel" id="folders_title">
+                              <object class="GtkLabel">
                                 <property name="label" translatable="yes">Remote folders</property>
                                 <property name="xalign">0</property>
+                                <style>
+                                  <class name="heading" />
+                                </style>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkListBox" id="folders_list" />
+                              <object class="GtkListBox" id="folders_list">
+                                <style>
+                                  <class name="boxed-list" />
+                                </style>
+                              </object>
                             </child>
                           </object>
                         </child>
                         <child>
                           <object class="GtkBox">
                             <property name="orientation">vertical</property>
-                            <property name="spacing">6</property>
                             <child>
-                              <object class="GtkLabel" id="network_title">
+                              <object class="GtkLabel">
                                 <property name="label" translatable="yes">Connection settings</property>
                                 <property name="xalign">0</property>
+                                <style>
+                                  <class name="heading" />
+                                </style>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkListBox" id="network_list" />
+                              <object class="GtkListBox" id="network_list">
+                                <style>
+                                  <class name="boxed-list" />
+                                </style>
+                              </object>
                             </child>
                           </object>
                         </child>
@@ -124,7 +152,23 @@
                       <object class="AdwPreferencesPage">
                         <property name="title">Last.fm</property>
                         <child>
-                          <object class="AdwPreferencesGroup" id="lastfm_hero" />
+                          <object class="AdwPreferencesGroup">
+                            <child>
+                              <object class="AdwActionRow" id="lastfm_account">
+                                <property name="title" translatable="yes">Account</property>
+                                <property name="use-markup">false</property>
+                                <child type="suffix">
+                                  <object class="GtkButton" id="lastfm_connect">
+                                    <property name="label" translatable="yes">Connect</property>
+                                    <property name="valign">center</property>
+                                    <style>
+                                      <class name="suggested-action" />
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
                         </child>
                         <child>
                           <object class="AdwPreferencesGroup">
@@ -182,11 +226,22 @@
                       <object class="AdwPreferencesPage">
                         <property name="title">ListenBrainz</property>
                         <child>
-                          <object class="AdwPreferencesGroup" id="listenbrainz_hero" />
-                        </child>
-                        <child>
                           <object class="AdwPreferencesGroup">
-                            <property name="title" translatable="yes">Account</property>
+                            <child>
+                              <object class="AdwActionRow" id="listenbrainz_account">
+                                <property name="title" translatable="yes">Account</property>
+                                <property name="use-markup">false</property>
+                                <child type="suffix">
+                                  <object class="GtkButton" id="listenbrainz_connect">
+                                    <property name="label" translatable="yes">Connect</property>
+                                    <property name="valign">center</property>
+                                    <style>
+                                      <class name="suggested-action" />
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
                             <child>
                               <object class="AdwPasswordEntryRow" id="listenbrainz_token">
                                 <property name="title" translatable="yes">User token</property>
@@ -232,7 +287,23 @@
                       <object class="AdwPreferencesPage">
                         <property name="title">Libre.fm</property>
                         <child>
-                          <object class="AdwPreferencesGroup" id="librefm_hero" />
+                          <object class="AdwPreferencesGroup">
+                            <child>
+                              <object class="AdwActionRow" id="librefm_account">
+                                <property name="title" translatable="yes">Account</property>
+                                <property name="use-markup">false</property>
+                                <child type="suffix">
+                                  <object class="GtkButton" id="librefm_connect">
+                                    <property name="label" translatable="yes">Connect</property>
+                                    <property name="valign">center</property>
+                                    <style>
+                                      <class name="suggested-action" />
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
                         </child>
                         <child>
                           <object class="AdwPreferencesGroup">
@@ -261,9 +332,6 @@
                     <property name="child">
                       <object class="AdwPreferencesPage">
                         <property name="title" translatable="yes">Add server</property>
-                        <child>
-                          <object class="AdwPreferencesGroup" id="add_server_hero" />
-                        </child>
                         <child>
                           <object class="AdwPreferencesGroup" id="add_protocol_group">
                             <child>
@@ -305,13 +373,28 @@
                               </object>
                             </child>
                             <child>
-                              <object class="GtkButton" id="add_connect">
-                                <property name="label" translatable="yes">Connect</property>
-                                <property name="halign">end</property>
+                              <object class="GtkBox">
+                                <property name="spacing">12</property>
                                 <property name="margin-top">12</property>
-                                <style>
-                                  <class name="suggested-action" />
-                                </style>
+                                <child>
+                                  <object class="GtkLabel" id="add_status">
+                                    <property name="hexpand">true</property>
+                                    <property name="xalign">0</property>
+                                    <property name="wrap">true</property>
+                                    <style>
+                                      <class name="dim-label" />
+                                    </style>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkButton" id="add_connect">
+                                    <property name="label" translatable="yes">Connect</property>
+                                    <property name="valign">center</property>
+                                    <style>
+                                      <class name="suggested-action" />
+                                    </style>
+                                  </object>
+                                </child>
                               </object>
                             </child>
                           </object>
@@ -328,10 +411,8 @@
                       <object class="AdwPreferencesPage">
                         <property name="title" translatable="yes">Metadata</property>
                         <child>
-                          <object class="AdwPreferencesGroup" id="metadata_hero" />
-                        </child>
-                        <child>
                           <object class="AdwPreferencesGroup">
+                            <property name="description" translatable="yes">Covers and artist images your library doesn't have</property>
                             <child>
                               <object class="AdwSwitchRow" id="external_metadata_row">
                                 <property name="title" translatable="yes">External metadata lookup</property>
@@ -387,10 +468,8 @@
                       <object class="AdwPreferencesPage">
                         <property name="title" translatable="yes">Lyrics</property>
                         <child>
-                          <object class="AdwPreferencesGroup" id="lyrics_hero" />
-                        </child>
-                        <child>
                           <object class="AdwPreferencesGroup">
+                            <property name="description" translatable="yes">Lyrics your library doesn't have</property>
                             <child>
                               <object class="AdwSwitchRow" id="external_lyrics_row">
                                 <property name="title" translatable="yes">External lyrics lookup</property>
@@ -421,10 +500,8 @@
                       <object class="AdwPreferencesPage">
                         <property name="title">Discord</property>
                         <child>
-                          <object class="AdwPreferencesGroup" id="discord_hero" />
-                        </child>
-                        <child>
                           <object class="AdwPreferencesGroup">
+                            <property name="description" translatable="yes">Shows what you play on your Discord profile</property>
                             <child>
                               <object class="AdwSwitchRow" id="presence_row">
                                 <property name="title" translatable="yes">Discord Rich Presence</property>
@@ -471,10 +548,8 @@
                       <object class="AdwPreferencesPage">
                         <property name="title" translatable="yes">Page links</property>
                         <child>
-                          <object class="AdwPreferencesGroup" id="links_hero" />
-                        </child>
-                        <child>
                           <object class="AdwPreferencesGroup">
+                            <property name="description" translatable="yes">Service icons on album and artist pages</property>
                             <child>
                               <object class="AdwSwitchRow" id="external_links_row">
                                 <property name="title" translatable="yes">Show external site links</property>
@@ -574,10 +649,8 @@
                       <object class="AdwPreferencesPage">
                         <property name="title" translatable="yes">WebDAV / Nextcloud</property>
                         <child>
-                          <object class="AdwPreferencesGroup" id="webdav_hero" />
-                        </child>
-                        <child>
                           <object class="AdwPreferencesGroup" id="webdav_group">
+                            <property name="description" translatable="yes">Remote folders over WebDAV</property>
                             <child>
                               <object class="AdwActionRow" id="add_webdav">
                                 <property name="title" translatable="yes">Add WebDAV folder</property>
@@ -603,10 +676,8 @@
                       <object class="AdwPreferencesPage">
                         <property name="title" translatable="yes">SMB / Samba</property>
                         <child>
-                          <object class="AdwPreferencesGroup" id="smb_hero" />
-                        </child>
-                        <child>
                           <object class="AdwPreferencesGroup" id="smb_group">
+                            <property name="description" translatable="yes">Remote folders on a Windows share or NAS</property>
                             <child>
                               <object class="AdwActionRow" id="add_smb">
                                 <property name="title" translatable="yes">Add SMB folder</property>
