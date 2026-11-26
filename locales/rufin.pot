@@ -814,6 +814,9 @@ msgstr ""
 msgid "Channels"
 msgstr ""
 
+msgid "Chat on Matrix"
+msgstr ""
+
 msgid "Check for updates"
 msgstr ""
 
@@ -1211,6 +1214,9 @@ msgstr ""
 msgid "Credit the artists a tag names after feat. or ft. as artists of their own"
 msgstr ""
 
+msgid "Credits"
+msgstr ""
+
 msgid "Crossfade duration"
 msgstr ""
 
@@ -1358,6 +1364,9 @@ msgid "Detail"
 msgstr ""
 
 msgid "Details"
+msgstr ""
+
+msgid "Developers"
 msgstr ""
 
 msgid "Device invitation"
@@ -1659,6 +1668,9 @@ msgid "Equalizer is controlled by the receiver"
 msgstr ""
 
 msgid "Equalizer"
+msgstr ""
+
+msgid "Errors"
 msgstr ""
 
 msgid "Ever played"
@@ -2277,6 +2289,9 @@ msgstr ""
 msgid "Legacy"
 msgstr ""
 
+msgid "Legal"
+msgstr ""
+
 msgid "Less"
 msgstr ""
 
@@ -2407,6 +2422,9 @@ msgid "Logarithmic"
 msgstr ""
 
 msgid "Logs are copied"
+msgstr ""
+
+msgid "Logs"
 msgstr ""
 
 msgid "Look up the artists that listeners play alongside the current one"
@@ -3644,6 +3662,9 @@ msgstr ""
 msgid "ReplayGain"
 msgstr ""
 
+msgid "Report an Issue"
+msgstr ""
+
 #, rust-format
 msgid "Request failed ({status})"
 msgstr ""
@@ -4637,16 +4658,19 @@ msgstr ""
 msgid "Transition mode"
 msgstr ""
 
+msgid "Translate"
+msgstr ""
+
 msgid "Translation language"
+msgstr ""
+
+msgid "Translators"
 msgstr ""
 
 msgid "Tray icon"
 msgstr ""
 
 msgid "Treble"
-msgstr ""
-
-msgid "Troubleshooting"
 msgstr ""
 
 msgid "Trust self-signed certificate"
@@ -4855,6 +4879,9 @@ msgstr ""
 msgid "Waiting for the other device to approve"
 msgstr ""
 
+msgid "Warnings"
+msgstr ""
+
 msgid "Waveform seekbar"
 msgstr ""
 
@@ -4865,6 +4892,9 @@ msgid "WebDAV / Nextcloud"
 msgstr ""
 
 msgid "WebDAV"
+msgstr ""
+
+msgid "Website"
 msgstr ""
 
 msgid "Wednesday"
