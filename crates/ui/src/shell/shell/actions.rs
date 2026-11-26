@@ -18,7 +18,6 @@ use localization::{TRANSLATOR_CREDITS, tr};
 use super::{Shell, layout, navigation};
 
 const KEY_SEEK_SECONDS: i32 = 10;
-const KEY_VOLUME_STEP: f64 = 0.05;
 
 pub(crate) fn connect_shell_actions(shell: &Rc<Shell>) {
     install_window_actions(shell);
@@ -314,7 +313,7 @@ pub(crate) fn install_window_actions(shell: &Rc<Shell>) {
     let volume_up_accels = &["<Control>Up"][..];
     add_window_action(shell, "volume-up", volume_up_accels, {
         let shell = Rc::clone(shell);
-        move || adjust_volume(&shell, KEY_VOLUME_STEP)
+        move || adjust_volume(&shell, 1.0)
     });
     #[cfg(target_os = "macos")]
     let volume_down_accels = &["<Meta>Down"][..];
@@ -322,7 +321,7 @@ pub(crate) fn install_window_actions(shell: &Rc<Shell>) {
     let volume_down_accels = &["<Control>Down"][..];
     add_window_action(shell, "volume-down", volume_down_accels, {
         let shell = Rc::clone(shell);
-        move || adjust_volume(&shell, -KEY_VOLUME_STEP)
+        move || adjust_volume(&shell, -1.0)
     });
     add_window_action(shell, "previous-audio-output", &[], {
         let shell = Rc::clone(shell);
@@ -668,7 +667,8 @@ fn seek_by(shell: &Shell, delta_seconds: i32) {
     shell.products.playback.seek_seconds(seconds);
 }
 
-fn adjust_volume(shell: &Rc<Shell>, delta: f64) {
+fn adjust_volume(shell: &Rc<Shell>, direction: f64) {
+    let delta = direction * shell.settings.current.borrow().volume_step_fraction();
     let Some(volume) = shell
         .player_ui
         .selected_playback()

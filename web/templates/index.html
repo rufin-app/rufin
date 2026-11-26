@@ -428,6 +428,7 @@
               max="1"
               step="0.01"
               value="{{ page.volume }}"
+              data-step="{{ page.volume_step }}"
               aria-label="{{ localization::tr("Volume") }}"
             /><noscript><button class="without-js" form="transport-form" formaction="/api/playback/volume">{{ localization::tr("Save") }}</button></noscript>
           </div>

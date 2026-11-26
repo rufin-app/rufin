@@ -395,6 +395,9 @@ pub struct Settings {
     pub downloads: Vec<SourceDownloadSettings>,
     #[serde(default)]
     pub show_bottom_bar_rating: bool,
+    /// Percent of the volume range one wheel notch or volume shortcut moves.
+    #[serde(default = "default_volume_step")]
+    pub volume_step: u8,
     #[serde(default)]
     pub tray_enabled: bool,
     #[serde(default)]
@@ -453,6 +456,7 @@ impl Default for Settings {
             lyrics: LyricsSettings::default(),
             downloads: Vec::new(),
             show_bottom_bar_rating: false,
+            volume_step: DEFAULT_VOLUME_STEP,
             tray_enabled: false,
             symbolic_tray_icon: false,
             keep_running_after_close: false,
@@ -488,6 +492,11 @@ impl Settings {
         self.recent_search_results.insert(0, result);
         self.recent_search_results.truncate(20);
         true
+    }
+
+    /// What one volume step moves the volume by, as a fraction of its range.
+    pub fn volume_step_fraction(&self) -> f64 {
+        f64::from(self.volume_step) / 100.0
     }
 
     pub fn allows_notifications(&self) -> bool {
@@ -543,6 +552,7 @@ impl Settings {
             .application
             .auto_dj_refill_count
             .clamp(MIN_AUTO_DJ_REFILL_COUNT, MAX_AUTO_DJ_REFILL_COUNT);
+        self.volume_step = self.volume_step.clamp(MIN_VOLUME_STEP, MAX_VOLUME_STEP);
         self.lastfm_api_key = self.lastfm_api_key.trim().to_string();
         self.application.fanart_api_key = self.application.fanart_api_key.trim().to_string();
         dedupe(&mut self.application.cover_providers);
@@ -726,6 +736,14 @@ fn dedupe<T: PartialEq + Copy>(providers: &mut Vec<T>) {
         seen.push(*provider);
         first
     });
+}
+
+pub const MIN_VOLUME_STEP: u8 = 1;
+pub const MAX_VOLUME_STEP: u8 = 20;
+pub const DEFAULT_VOLUME_STEP: u8 = 5;
+
+fn default_volume_step() -> u8 {
+    DEFAULT_VOLUME_STEP
 }
 
 fn default_true() -> bool {

@@ -2985,9 +2985,22 @@ fn connect_transport_controls(shell: &Rc<crate::player::PlayerUi>) {
             }
             volume_shell.apply_user_volume(scale.value());
         });
+    shell.sync_volume_step();
 }
 
 impl crate::player::PlayerUi {
+    /// One wheel notch or Page Up/Down on the volume slider moves it by the volume step.
+    pub fn sync_volume_step(&self) {
+        if let Some(shell) = self.shell() {
+            let step = shell.settings.current.borrow().volume_step_fraction();
+            self.views
+                .player_controls
+                .volume
+                .adjustment()
+                .set_page_increment(step);
+        }
+    }
+
     pub fn set_current_rating_and_favorite(
         &self,
         favorite: bool,

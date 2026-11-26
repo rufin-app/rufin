@@ -91,6 +91,7 @@ const SETTINGS: &[&str] = &[
     "/playback/ebu_r128_target_lufs",
     "/playback/write_ebu_r128_tags",
     "/playback/volume_scale",
+    "/volume_step",
     "/playback/stream_quality",
     "/playback/stream_cache_enabled",
     "/playback/stream_cache_gigabytes",

@@ -134,6 +134,15 @@
       </object>
     </child>
   </object>
+  <object class="AdwActionRow" id="volume_step_row">
+    <property name="title" translatable="yes">Volume step</property>
+    <property name="subtitle" translatable="yes">Percent the volume changes per scroll or volume shortcut</property>
+    <child type="suffix">
+      <object class="GtkSpinButton" id="volume_step">
+        <property name="valign">center</property>
+      </object>
+    </child>
+  </object>
   <object class="AdwSwitchRow" id="server_recommendations_row">
     <property name="title" translatable="yes">Override server recommendations</property>
     <property name="subtitle" translatable="yes">Play Rufin's picks instead of the server's own</property>

@@ -1595,6 +1595,8 @@ struct Page {
     pub queue_total: usize,
     pub paused: bool,
     pub volume: f64,
+    /// Percent one wheel notch moves the volume.
+    pub volume_step: u8,
     pub folder: String,
     pub folders: Vec<(String, String)>,
     /// The address of this page.
@@ -1796,6 +1798,7 @@ async fn index(
         queue_total: 0,
         paused: true,
         volume: 1.0,
+        volume_step: rufin_core::settings::app::DEFAULT_VOLUME_STEP,
         folder: String::new(),
         folders: vec![],
         here: link(&parameters),
@@ -1807,6 +1810,7 @@ async fn index(
         let settings = products.settings.load();
         page.layout = serde_json::to_string(&settings.layout).map_err(internal)?;
         page.private_mode = settings.application.private_mode;
+        page.volume_step = settings.volume_step;
         page.routes = navigation_routes(&settings.sidebar);
         drop(settings);
         let configured = products.source.list_sources();

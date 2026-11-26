@@ -589,6 +589,15 @@ function init() {
   );
   $("volume").addEventListener("input", () => run(() => setVolume(false)));
   $("volume").addEventListener("change", () => run(() => setVolume(true)));
+  // A wheel notch moves the volume by the volume step, as GTK's slider does.
+  $("volume").addEventListener("wheel", (event) => {
+    if (!event.deltaY) return;
+    event.preventDefault();
+    const step = Number($("volume").dataset.step) / 100;
+    $("volume").value = Math.min(1, Math.max(0, Number($("volume").value) - Math.sign(event.deltaY) * step));
+    run(() => setVolume(false));
+    run(() => setVolume(true));
+  }, { passive: false });
   $("volume").addEventListener("pointerdown", () => {
     volumeEditing = true;
   });

@@ -133,6 +133,7 @@ pub(super) const CHOICES: &[(&str, &str)] = &[
         "/playback/write_ebu_r128_tags",
     ),
     ("playback.volume_scale", "/playback/volume_scale"),
+    ("playback.volume_step", "/volume_step"),
     ("playback.stream_quality", "/playback/stream_quality"),
     (
         "playback.stream_cache_enabled",

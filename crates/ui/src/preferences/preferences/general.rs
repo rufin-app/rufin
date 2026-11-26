@@ -11,6 +11,7 @@ use crate::player::playback_settings::{
 };
 use crate::widgets::forms::{controlled_selection_row, selection_row};
 use crate::widgets::scale::{install_scale_scroll_forwarding, install_sliding_value_bubble};
+use rufin_core::settings::app::{MAX_VOLUME_STEP, MIN_VOLUME_STEP};
 use std::{cell::Cell, rc::Rc};
 
 use crate::shell::shell::Shell;
@@ -49,6 +50,8 @@ pub fn playback_page(shell: &Rc<Shell>) -> gtk::Box {
         similar_artists_row: adw::SwitchRow,
         refill_row: adw::ActionRow,
         refill: gtk::SpinButton,
+        volume_step_row: adw::ActionRow,
+        volume_step: gtk::SpinButton,
         refill_count_row: adw::ActionRow,
         refill_count: gtk::SpinButton,
         skip_low_rated_row: adw::SwitchRow,
@@ -353,6 +356,25 @@ pub fn playback_page(shell: &Rc<Shell>) -> gtk::Box {
         "Perceptual for a finer control at low volume; Linear for a direct scale",
     ));
     audio_group.add(&volume_scale_row);
+
+    volume_step.set_range(f64::from(MIN_VOLUME_STEP), f64::from(MAX_VOLUME_STEP));
+    volume_step.set_increments(1.0, 5.0);
+    volume_step.set_value(f64::from(app_settings.volume_step));
+    let volume_step_shell = Rc::clone(shell);
+    volume_step.connect_value_changed(move |spin| {
+        let step = spin.value().round() as u8;
+        if volume_step_shell
+            .settings
+            .set_app_setting("volume step setting", step, |settings| {
+                &mut settings.volume_step
+            })
+            .is_some()
+        {
+            volume_step_shell.player_ui.sync_volume_step();
+        }
+    });
+    volume_step_row.set_activatable_widget(Some(&volume_step));
+    audio_group.add(&volume_step_row);
     audio_group.add(&audio_fade_row);
 
     let quality_shell = Rc::clone(shell);

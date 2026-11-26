@@ -64,6 +64,7 @@ function show(preferences) {
     nav.append(link);
   }
   if (preferences.themes) renderThemes(preferences.themes, preferences.theme_preview, preferences.theme_errors);
+  $("volume").dataset.step = values["/volume_step"];
   $("private-mode").lastElementChild.textContent = tr(values["/private_mode"] ? "Turn off private mode" : "Turn on private mode");
   setLayoutSettings({
     default_profile: { left_sidebar: values["/layout/default_profile/left_sidebar"], right_sidebar: values["/layout/default_profile/right_sidebar"] },

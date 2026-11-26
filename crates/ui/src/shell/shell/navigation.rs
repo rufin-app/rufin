@@ -162,6 +162,9 @@ impl Shell {
         if previous.layout != current.layout {
             self.update_layout();
         }
+        if previous.volume_step != current.volume_step {
+            self.player_ui.sync_volume_step();
+        }
         if previous.application.home_blocks != current.application.home_blocks
             || previous.application.home != current.application.home
             || previous.application.quick_mix != current.application.quick_mix
