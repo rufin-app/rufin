@@ -144,7 +144,7 @@ impl ShellAllocationOwner {
         owner.set_vexpand(true);
         owner.set_halign(gtk::Align::Fill);
         owner.set_valign(gtk::Align::Fill);
-        owner.set_accessible_role(gtk::AccessibleRole::Presentation);
+        owner.set_accessible_role(gtk::AccessibleRole::Generic);
         child.set_parent(&owner);
         owner
     }

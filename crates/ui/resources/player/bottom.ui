@@ -250,6 +250,7 @@
   </object>
 
   <object class="GtkScale" id="progress">
+    <accessibility><property name="label" translatable="yes">Playback position</property></accessibility>
     <property name="orientation">horizontal</property>
     <property name="draw-value">false</property>
     <property name="show-fill-level">true</property>
@@ -318,6 +319,7 @@
   </object>
 
   <object class="GtkScale" id="volume">
+    <accessibility><property name="label" translatable="yes">Volume</property></accessibility>
     <property name="show-fill-level">true</property>
     <property name="restrict-to-fill-level">false</property>
     <property name="fill-level">0</property>

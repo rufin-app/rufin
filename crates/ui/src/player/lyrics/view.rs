@@ -241,7 +241,7 @@ mod karaoke_text {
             base.set_parent(&widget);
             widget.imp().label.replace(Some(base));
             widget.add_css_class("lyrics-cue-sung");
-            widget.set_accessible_role(gtk::AccessibleRole::Presentation);
+            widget.set_accessible_role(gtk::AccessibleRole::Generic);
             widget
         }
 

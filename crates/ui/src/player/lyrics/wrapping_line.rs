@@ -204,7 +204,7 @@ glib::wrapper! {
 impl WrappingLine {
     pub fn new() -> Self {
         let line: Self = glib::Object::new();
-        line.set_accessible_role(gtk::AccessibleRole::Presentation);
+        line.set_accessible_role(gtk::AccessibleRole::Generic);
         line
     }
 

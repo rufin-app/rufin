@@ -774,6 +774,12 @@ pub fn build_transport_controls(builder: &gtk::Builder, resource: &str) -> Trans
     );
     progress_row.set_spacing(BOTTOM_PLAYER_PROGRESS_SPACING);
     progress.set_width_request(BOTTOM_PLAYER_PROGRESS_WIDTH);
+    // A screen reader says the position as a time, not as a count of seconds.
+    progress.connect_value_changed(|progress| {
+        progress.update_property(&[gtk::accessible::Property::ValueText(&format_duration(
+            progress.value() as u32,
+        ))]);
+    });
     progress_stack.set_size_request(BOTTOM_PLAYER_PROGRESS_WIDTH, BOTTOM_PLAYER_WAVEFORM_HEIGHT);
     elapsed.set_xalign(1.0);
     duration.set_xalign(0.0);
@@ -1209,7 +1215,7 @@ pub fn transport_button_position(width: i32, center_y: f64, slot: f64, size: i32
 }
 
 use crate::player::{progress::seekbar_target_seconds, state::NowPlayingPresentation};
-use crate::widgets::controls::set_active_class;
+use crate::widgets::controls::set_active;
 use rufin_core::route::Route;
 use rufin_core::settings::presentation::format_duration;
 use std::sync::{
@@ -1330,10 +1336,10 @@ impl crate::player::PlayerUi {
 
         let shuffle_enabled = player.is_some_and(|player| player.controls.shuffle_enabled);
         let auto_dj_enabled = player.is_some_and(|player| player.controls.auto_dj_enabled);
-        set_active_class(&controls.shuffle_button, shuffle_enabled);
-        set_active_class(&controls.repeat_button, repeat_mode != QueueRepeatMode::Off);
+        set_active(&controls.shuffle_button, shuffle_enabled);
+        set_active(&controls.repeat_button, repeat_mode != QueueRepeatMode::Off);
         set_repeat_button_icon(&controls.repeat_button, repeat_mode);
-        set_active_class(&controls.dj_button, auto_dj_enabled);
+        set_active(&controls.dj_button, auto_dj_enabled);
         controls
             .sleep_timer
             .update(player.and_then(|player| player.controls.sleep_timer));

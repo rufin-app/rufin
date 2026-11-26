@@ -210,7 +210,7 @@ fn allocation_owner_for_child(child: &impl IsA<gtk::Widget>) -> AllocationOwner 
     owner.set_vexpand(child.vexpands());
     owner.set_halign(child.halign());
     owner.set_valign(child.valign());
-    owner.set_accessible_role(gtk::AccessibleRole::Presentation);
+    owner.set_accessible_role(gtk::AccessibleRole::Generic);
     child.set_parent(&owner);
     owner
 }
