@@ -296,6 +296,12 @@ impl PlaybackOwner {
                     .collect();
                 return self.play_selection(PlayRequest::uris(uris, placement));
             }
+            Server::Message { text } => {
+                if let Some(active) = self.active() {
+                    let _ = active.command(Command::ServerMessage(text));
+                }
+                return;
+            }
         })
     }
 

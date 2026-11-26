@@ -23,7 +23,7 @@ const JELLYFIN_WEBSOCKET_KEY_BYTES: usize = 16;
 const FEED_RETRY_MIN: Duration = Duration::from_secs(5);
 const FEED_RETRY_MAX: Duration = Duration::from_secs(60);
 /// The general commands the server may send, besides Playstate and Play.
-const SUPPORTED_COMMANDS: [&str; 10] = [
+const SUPPORTED_COMMANDS: [&str; 11] = [
     "VolumeUp",
     "VolumeDown",
     "Mute",
@@ -34,6 +34,7 @@ const SUPPORTED_COMMANDS: [&str; 10] = [
     "SetShuffleQueue",
     "PlayState",
     "PlayNext",
+    "DisplayMessage",
 ];
 const SEEK_STEP_MILLIS: i64 = 10_000;
 const VOLUME_STEP: f64 = 0.05;
@@ -343,6 +344,17 @@ fn server_control(message_type: &str, data: &Value, kind: ServerKind) -> Option<
                 "SetShuffleQueue" => ServerControl::Shuffle {
                     enabled: argument("ShuffleMode")? == "Shuffle",
                 },
+                "DisplayMessage" => {
+                    let text = argument("Text")
+                        .map(str::trim)
+                        .filter(|text| !text.is_empty())?;
+                    ServerControl::Message {
+                        text: match argument("Header").map(str::trim) {
+                            Some(header) if !header.is_empty() => format!("{header}: {text}"),
+                            _ => text.to_owned(),
+                        },
+                    }
+                }
                 _ => return None,
             })
         }

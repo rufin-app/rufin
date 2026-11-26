@@ -598,6 +598,9 @@ fn finish_playback_projection(
             playback::PlaybackNotice::OperationFailed(error) => {
                 show_playback_failure(shell, &next_player, error);
             }
+            playback::PlaybackNotice::ServerMessage(text) => {
+                shell.control_feedback.show_feedback_toast(text);
+            }
         }
     }
 

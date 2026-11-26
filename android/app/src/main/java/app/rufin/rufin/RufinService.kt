@@ -320,7 +320,13 @@ class RufinService : MediaSessionService() {
             try {
                 while (isActive) {
                     val state = withContext(Dispatchers.Default) { subscription.next() }
-                    state.notices.filterIsInstance<PlaybackNotice.OperationFailed>().forEach { mutablePlaybackNotices.tryEmit(it.v1) }
+                    state.notices.forEach { notice ->
+                        when (notice) {
+                            is PlaybackNotice.OperationFailed -> mutablePlaybackNotices.tryEmit(notice.v1)
+                            is PlaybackNotice.ServerMessage -> mutablePlaybackNotices.tryEmit(notice.v1)
+                            else -> Unit
+                        }
+                    }
                     val previous = mutablePlayback.value
                     nativePlayer.update(state)
                     mutablePlayback.value = state

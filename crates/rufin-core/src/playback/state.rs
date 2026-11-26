@@ -71,6 +71,8 @@ pub struct AutoDjRequest {
 pub enum Command {
     Radio(crate::playback::RadioPlayRequest),
     OperationFailed(String),
+    /// Text a server's session sent for this device's user.
+    ServerMessage(String),
     ObserveExternal {
         output: PlaybackOutput,
         observation: ExternalPlayback,
@@ -1050,6 +1052,10 @@ impl Player {
                     self.report_error(message);
                     self.dirty = true;
                 })
+            }
+            Command::ServerMessage(text) => {
+                self.notices.push(PlaybackNotice::ServerMessage(text));
+                Ok(())
             }
             Command::ObserveExternal {
                 output,

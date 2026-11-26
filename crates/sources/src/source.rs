@@ -618,6 +618,10 @@ pub enum ServerControl {
         track_object_ids: Vec<String>,
         placement: library::QueuePlacement,
     },
+    /// Text for the device's user, with the header when the server gave one.
+    Message {
+        text: String,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

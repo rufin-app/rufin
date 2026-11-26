@@ -8,6 +8,7 @@ import {
   button,
   el,
   icon,
+  notice,
   noticeError,
   run,
   setIcon,
@@ -167,8 +168,9 @@ function showPlayback(value) {
   }
   // The heart shows the playback row's favorite, which follows every committed change.
   showFavorite($("current-favorite"), !!track?.favorite);
-  for (const notice of value?.notices || []) {
-    if (notice.type !== "operation_failed") continue;
+  for (const item of value?.notices || []) {
+    if (item.type === "server_message") notice(item.text);
+    if (item.type !== "operation_failed") continue;
     const message = [
       "Not Found",
       "File not found",
@@ -176,7 +178,7 @@ function showPlayback(value) {
       "Resource not found.",
       "the configured source no longer exists",
       "Could not play this track",
-    ].includes(notice.error)
+    ].includes(item.error)
       ? tr("Could not play this track")
       : ({
           "Track unavailable": tr("Track unavailable"),
@@ -185,7 +187,7 @@ function showPlayback(value) {
           "Access denied": tr("Access denied"),
           "Couldn't connect to the server": tr("Couldn't connect to the server"),
           "Audio output failed": tr("Audio output failed"),
-        })[notice.error] || notice.error;
+        })[item.error] || item.error;
     noticeError(message);
   }
   markCurrent();

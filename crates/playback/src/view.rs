@@ -229,6 +229,8 @@ pub enum PlaybackNotice {
     RunStarted(RunId),
     PositionDiscontinuity(crate::PositionDiscontinuity),
     OperationFailed(String),
+    /// Text a server's session sent for this device's user.
+    ServerMessage(String),
 }
 
 #[derive(Clone, Debug, PartialEq)]

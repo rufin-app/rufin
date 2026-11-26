@@ -1112,6 +1112,7 @@ fn publication_json(
                         playback::PlaybackNotice::RunStarted(run) => json!({"type":"run_started","run":run.get()}),
                         playback::PlaybackNotice::PositionDiscontinuity(position) => json!({"type":"position_discontinuity","run":position.run.get(),"position_ms":position.position_millis}),
                         playback::PlaybackNotice::OperationFailed(error) => json!({"type":"operation_failed","error":error}),
+                        playback::PlaybackNotice::ServerMessage(text) => json!({"type":"server_message","text":text}),
                         }).collect::<Vec<_>>().into();
     }
     value
