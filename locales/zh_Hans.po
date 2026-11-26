@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: Rufin\n"
 "Report-Msgid-Bugs-To: https://github.com/rufin-app/rufin/issues\n"
 "POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"PO-Revision-Date: 2026-11-26 18:27+0000\n"
+"PO-Revision-Date: 2026-11-26 18:58+0000\n"
 "Last-Translator: Jiahao Li <thejiahao@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Chinese (Simplified Han script) <https://hosted.weblate.org/"
 "projects/rufin/app/zh_Hans/>\n"
@@ -881,10 +881,10 @@ msgid "Clear Japanese dictionary"
 msgstr "清除日语词典缓存"
 
 msgid "Clear Mapping"
-msgstr ""
+msgstr "清除映射"
 
 msgid "Clear album"
-msgstr ""
+msgstr "清除专辑"
 
 msgid "Clear all cache"
 msgstr "清除全部缓存"
@@ -899,7 +899,7 @@ msgid "Clear all data?"
 msgstr "清除全部数据？"
 
 msgid "Clear artist"
-msgstr "清空艺人"
+msgstr "清除艺人"
 
 msgid "Clear artwork cache"
 msgstr "清除封面缓存"
@@ -923,10 +923,10 @@ msgid "Clear stream cache"
 msgstr "清除串流缓存"
 
 msgid "Clear this cache?"
-msgstr ""
+msgstr "清除此缓存？"
 
 msgid "Clear title"
-msgstr "清空标题"
+msgstr "清除标题"
 
 msgid "Clear waveform cache"
 msgstr "清除波形图缓存"
@@ -1181,7 +1181,7 @@ msgid "Couldn’t download Japanese dictionary"
 msgstr ""
 
 msgid "Country"
-msgstr ""
+msgstr "国家/地区"
 
 msgid "Covers and artist images your library doesn't have"
 msgstr "媒体库中缺失的封面和艺人图片"
@@ -1221,7 +1221,7 @@ msgid "Crossfeed"
 msgstr "交叉馈送"
 
 msgid "Current artwork"
-msgstr ""
+msgstr "当前封面"
 
 msgid "Custom HTTP headers"
 msgstr "自定义 HTTP 标头"
@@ -1343,7 +1343,7 @@ msgid "Demos"
 msgstr "小样"
 
 msgid "Descending"
-msgstr ""
+msgstr "降序"
 
 msgid "Description"
 msgstr ""
@@ -1382,7 +1382,7 @@ msgid "Disable private mode"
 msgstr "禁用无痕模式"
 
 msgid "Disabled"
-msgstr ""
+msgstr "已禁用"
 
 msgid "Disc number"
 msgstr "碟片编号"
@@ -1492,7 +1492,7 @@ msgid "Downloads"
 msgstr "下载内容"
 
 msgid "Drag the ruler, or pick a line as it starts"
-msgstr ""
+msgstr "拖动标尺，或在某句开始时选中它"
 
 msgid "Drag to a folder"
 msgstr ""
@@ -1540,7 +1540,7 @@ msgid "Each rating you change is also written to its file's tags"
 msgstr "每次更改评分都会写入文件标签"
 
 msgid "Earlier"
-msgstr ""
+msgstr "提前"
 
 msgid "Edit Lyrics"
 msgstr "编辑歌词"
@@ -1570,7 +1570,7 @@ msgid "Edit"
 msgstr "编辑"
 
 msgid "Embed in track"
-msgstr "嵌入在曲目中"
+msgstr "嵌入曲目"
 
 msgid "Emby Connect"
 msgstr "Emby Connect"
@@ -1624,7 +1624,7 @@ msgid "Ends around {time}"
 msgstr ""
 
 msgid "Enter a name and URL."
-msgstr ""
+msgstr "请输入名称和 URL。"
 
 msgid "Enter a name and the server's URL."
 msgstr ""
@@ -2068,7 +2068,7 @@ msgid "Ignore playback volume"
 msgstr "忽略播放音量"
 
 msgid "Image files"
-msgstr ""
+msgstr "图片文件"
 
 msgid "Image"
 msgstr "图片"
@@ -2194,7 +2194,7 @@ msgid "LED spectrum"
 msgstr "LED 频谱"
 
 msgid "LIVE"
-msgstr ""
+msgstr "LIVE"
 
 msgid "LRCLIB"
 msgstr "LRCLIB"
@@ -2229,10 +2229,8 @@ msgstr "上次播放"
 msgid "Last.fm"
 msgstr "Last.fm"
 
-#, fuzzy
-#| msgid "Play Later"
 msgid "Later"
-msgstr "最后播放"
+msgstr "延后"
 
 msgid "Layout"
 msgstr "布局"
@@ -2310,7 +2308,7 @@ msgid "Listening"
 msgstr "收听"
 
 msgid "Live"
-msgstr ""
+msgstr "现场"
 
 msgid "Load file contents"
 msgstr "加载文件内容"
@@ -2328,16 +2326,16 @@ msgid "Local Address"
 msgstr "本地地址"
 
 msgid "Local File Access"
-msgstr ""
+msgstr "本地文件访问"
 
 msgid "Local File Mapping"
-msgstr ""
+msgstr "本地文件映射"
 
 msgid "Local Folders"
 msgstr ""
 
 msgid "Local Prefix"
-msgstr ""
+msgstr "本地前缀"
 
 msgid "Local file access configured"
 msgstr ""
@@ -2360,7 +2358,7 @@ msgid "Local library"
 msgstr "本地媒体库"
 
 msgid "Local music folder"
-msgstr ""
+msgstr "本地音乐文件夹"
 
 msgid "Local network permission is required for remote connections"
 msgstr ""
@@ -2441,7 +2439,7 @@ msgid "Many"
 msgstr "多"
 
 msgid "Mapped Local Path"
-msgstr ""
+msgstr "映射的本地路径"
 
 msgid "March {year}"
 msgstr "{year} 年 3 月"
@@ -2462,7 +2460,7 @@ msgid "Maximum level (dB)"
 msgstr "最高电平 (dB)"
 
 msgid "Maximum year"
-msgstr ""
+msgstr "结束年份"
 
 msgid "Maximum"
 msgstr "最大"
@@ -2507,7 +2505,7 @@ msgid "Minimum level (dB)"
 msgstr "最低电平 (dB)"
 
 msgid "Minimum year"
-msgstr ""
+msgstr "起始年份"
 
 msgid "Minimum"
 msgstr ""
@@ -3329,7 +3327,7 @@ msgid "Pronunciation"
 msgstr ""
 
 msgid "Protocol"
-msgstr ""
+msgstr "协议"
 
 msgid "Providers"
 msgstr "数据源"
@@ -3793,7 +3791,7 @@ msgid "Saved..."
 msgstr ""
 
 msgid "Saving..."
-msgstr ""
+msgstr "正在保存…"
 
 msgid "Scanning tracks"
 msgstr ""
@@ -3979,10 +3977,10 @@ msgid "Server Library"
 msgstr "服务器媒体库"
 
 msgid "Server Prefix"
-msgstr ""
+msgstr "服务器前缀"
 
 msgid "Server Sample"
-msgstr ""
+msgstr "服务器示例"
 
 msgid "Server Settings"
 msgstr "服务器设置"
@@ -4012,7 +4010,7 @@ msgid "Services"
 msgstr "服务"
 
 msgid "Set from the line you picked"
-msgstr ""
+msgstr "已根据选中行设置"
 
 msgid "Set the Discord activity type to Listening"
 msgstr "将 Discord 活动类型设置为 “正在收听”"
@@ -4319,7 +4317,7 @@ msgid "Starting page"
 msgstr "启动页面"
 
 msgid "Starting..."
-msgstr ""
+msgstr "正在启动…"
 
 msgid "Static"
 msgstr ""
@@ -4631,7 +4629,7 @@ msgid "Turns off lookups, scrobbling, play reporting and update checks"
 msgstr ""
 
 msgid "Type to search or create a new playlist"
-msgstr ""
+msgstr "输入以搜索或创建播放列表"
 
 msgid "Type to search"
 msgstr "输入以搜索"
@@ -4646,7 +4644,7 @@ msgid "Unavailable output"
 msgstr ""
 
 msgid "Unavailable"
-msgstr ""
+msgstr "不可用"
 
 msgid "Undo"
 msgstr "撤销"
@@ -4882,7 +4880,7 @@ msgid "Yearly"
 msgstr "年度"
 
 msgid "Years"
-msgstr ""
+msgstr "年份"
 
 msgid "Yellow"
 msgstr "黄色"
@@ -4915,7 +4913,7 @@ msgid "above"
 msgstr "大于"
 
 msgid "after"
-msgstr ""
+msgstr "晚于"
 
 msgid "all"
 msgstr "全部"
@@ -4924,7 +4922,7 @@ msgid "any"
 msgstr "任何"
 
 msgid "before"
-msgstr ""
+msgstr "早于"
 
 msgid "below"
 msgstr "小于"
@@ -4933,7 +4931,7 @@ msgid "contains"
 msgstr "包含"
 
 msgid "days"
-msgstr ""
+msgstr "天"
 
 msgid "does not contain"
 msgstr "不包含"
@@ -4951,13 +4949,13 @@ msgid "fanart.tv key"
 msgstr "fanart.tv 密钥"
 
 msgid "in the last"
-msgstr ""
+msgstr "最近"
 
 msgid "is empty"
 msgstr "为空"
 
 msgid "is not empty"
-msgstr "不为空"
+msgstr "非空"
 
 msgid "is not"
 msgstr "非"
@@ -4966,7 +4964,7 @@ msgid "is"
 msgstr "为"
 
 msgid "not in the last"
-msgstr ""
+msgstr "非最近"
 
 msgid "of these rules"
 msgstr "以下规则"
@@ -4975,7 +4973,7 @@ msgid "of these"
 msgstr ""
 
 msgid "range"
-msgstr "范围"
+msgstr "介于"
 
 msgid "to"
 msgstr "到"
