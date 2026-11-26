@@ -416,8 +416,8 @@ private fun HomeCard(title: String, content: @Composable ColumnScope.() -> Unit)
 }
 
 /** Home's Quick mix in its card: two columns of rows with lines between their lines, each the mosaic of the albums its next press
- *  starts with, its page's cover, its glyph and name, and the tracks it plays. A tap opens the tracks it plays; Play over the
- *  cover plays them; a hold opens its menu, core's Quick mix menu. */
+ *  starts with, its page's cover, its glyph and name, and the tracks it plays. A tap opens the tracks it plays; a hold opens its
+ *  menu, core's Quick mix menu, which plays them. */
 @Composable
 private fun QuickMixTiles(tiles: List<AndroidQuickMixTile>, player: PlayerConnection, onMenu: (BrowseItem) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -448,15 +448,8 @@ private fun QuickMixTile(tile: AndroidQuickMixTile, player: PlayerConnection, mo
     Row(modifier.height(64.dp).focusRing(shape).clip(shape)
         .combinedClickable(onClick = { browse.openRoute(Route.QuickMix(tile.entry), tile.title) }, onLongClick = { menu() }),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        // A phone has no hover to show GTK's Play over the cover, so it is always there; the whole cover takes the tap.
-        Box(Modifier.size(48.dp).focusRing(CoverShape).clip(CoverShape).clickable { browse.playQuickMix(tile.entry) },
-            contentAlignment = Alignment.Center) {
-            val pixels = with(LocalDensity.current) { 48.dp.roundToPx() }
-            Artwork(rememberArtwork(tile.artworkIdentity, player, pixels), Modifier.fillMaxSize())
-            Box(Modifier.size(26.dp).background(Color.Black.copy(alpha = .52f), CircleShape), contentAlignment = Alignment.Center) {
-                RufinIcon("rufin-media-playback-start-symbolic", translate("Play"), Modifier.size(14.dp), OnBand)
-            }
-        }
+        val pixels = with(LocalDensity.current) { 48.dp.roundToPx() }
+        Artwork(rememberArtwork(tile.artworkIdentity, player, pixels), Modifier.size(48.dp).clip(CoverShape))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 RufinIcon(tile.icon, null, Modifier.size(16.dp), scheme.onSurfaceVariant)

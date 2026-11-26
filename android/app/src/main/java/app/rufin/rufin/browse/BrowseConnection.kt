@@ -349,7 +349,7 @@ internal class BrowseConnection(private val connection: RufinConnection, private
     }
     /** Plays Quick mix's entry `entry` at `placement`, as its Home tile does; says so when nothing matched, as Mix
      *  does. */
-    fun playQuickMix(entry: UInt, placement: QueuePlacement = QueuePlacement.Replace(0UL)) = connection.runAction {
+    fun playQuickMix(entry: UInt, placement: QueuePlacement) = connection.runAction {
         val library = library ?: return@runAction
         connection.connectedService().playRequest {
             if (library.playQuickMix(entry, placement)) error(translate("No matching tracks found"))
