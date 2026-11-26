@@ -4066,9 +4066,6 @@ msgstr "Simpan Lirik"
 msgid "Save Server Settings"
 msgstr "Simpan Pengaturan Server"
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr "Tombol Simpan langsung menyimpan lirik ke sumber Anda"
-
 msgid "Save changes automatically"
 msgstr "Simpan perubahan otomatis"
 
@@ -4108,9 +4105,6 @@ msgstr "Tersimpan"
 
 msgid "Saved..."
 msgstr "Tersimpan..."
-
-msgid "Saves lyrics to your source"
-msgstr "Menyimpan lirik ke sumber Anda"
 
 msgid "Saving..."
 msgstr "Menyimpan..."
@@ -5541,6 +5535,12 @@ msgstr ""
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr ""
+
+#~ msgid "Save action saves the lyrics directly to your source"
+#~ msgstr "Tombol Simpan langsung menyimpan lirik ke sumber Anda"
+
+#~ msgid "Saves lyrics to your source"
+#~ msgstr "Menyimpan lirik ke sumber Anda"
 
 #~ msgid "Favorite tracks, plus tracks from favorite albums and artists"
 #~ msgstr "Lagu favorit, ditambah lagu dari album dan artis favorit"

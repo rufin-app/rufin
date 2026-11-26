@@ -4514,9 +4514,6 @@ msgstr "儲存歌詞"
 msgid "Save Server Settings"
 msgstr "儲存伺服器設定"
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr ""
-
 msgid "Save changes automatically"
 msgstr ""
 
@@ -4568,9 +4565,6 @@ msgstr "已儲存"
 #| msgid "Saved"
 msgid "Saved..."
 msgstr "已儲存"
-
-msgid "Saves lyrics to your source"
-msgstr ""
 
 msgid "Saving..."
 msgstr "正在儲存..."

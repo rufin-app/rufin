@@ -10,8 +10,8 @@ msgstr ""
 "PO-Revision-Date: 2026-11-26 16:28+0000\n"
 "Last-Translator: Marco Santos "
 "<bitaites.marco@users.noreply.hosted.weblate.org>\n"
-"Language-Team: Portuguese <https://hosted.weblate.org/projects/rufin/app/pt/>"
-"\n"
+"Language-Team: Portuguese <https://hosted.weblate.org/projects/rufin/app/pt/"
+">\n"
 "Language: pt\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -3732,9 +3732,6 @@ msgstr ""
 msgid "Save Server Settings"
 msgstr ""
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr ""
-
 msgid "Save changes automatically"
 msgstr ""
 
@@ -3774,9 +3771,6 @@ msgid "Saved"
 msgstr ""
 
 msgid "Saved..."
-msgstr ""
-
-msgid "Saves lyrics to your source"
 msgstr ""
 
 msgid "Saving..."

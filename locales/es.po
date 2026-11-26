@@ -3866,9 +3866,6 @@ msgstr "Guardar letras"
 msgid "Save Server Settings"
 msgstr "Guardar las Configuraciones del Servidor"
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr "La acción de guardar, guarda las letras directamente en tu fuente"
-
 msgid "Save changes automatically"
 msgstr "Guardar cambios automáticamente"
 
@@ -3911,9 +3908,6 @@ msgstr "Guardados"
 
 msgid "Saved..."
 msgstr "Guardado..."
-
-msgid "Saves lyrics to your source"
-msgstr "Guardar letras en tu fuente"
 
 msgid "Saving..."
 msgstr "Guardando..."
@@ -5312,6 +5306,12 @@ msgstr "La opción de actualización automática de {app_name} no es válida."
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Bienvenido al instalador de Rufin"
+
+#~ msgid "Save action saves the lyrics directly to your source"
+#~ msgstr "La acción de guardar, guarda las letras directamente en tu fuente"
+
+#~ msgid "Saves lyrics to your source"
+#~ msgstr "Guardar letras en tu fuente"
 
 #~ msgid "Favorite tracks, plus tracks from favorite albums and artists"
 #~ msgstr "Pistas favoritas, mas pistas de álbumes y artistas favoritos"

@@ -4397,9 +4397,6 @@ msgstr "Tallenna sanoitukset"
 msgid "Save Server Settings"
 msgstr "Tallenna palvelinasetukset"
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr ""
-
 #, fuzzy
 #| msgid "Save lyrics automatically"
 msgid "Save changes automatically"
@@ -4450,9 +4447,6 @@ msgstr "Tallennettu"
 #| msgid "Saved"
 msgid "Saved..."
 msgstr "Tallennettu"
-
-msgid "Saves lyrics to your source"
-msgstr ""
 
 msgid "Saving..."
 msgstr "Tallennetaan..."

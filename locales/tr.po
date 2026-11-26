@@ -3907,9 +3907,6 @@ msgstr "Şarkı Sözlerini Kaydet"
 msgid "Save Server Settings"
 msgstr "Sunucu Ayarlarını Kaydet"
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr "Kaydet eylemi şarkı sözlerini doğrudan kaynağınıza kaydeder"
-
 msgid "Save changes automatically"
 msgstr "Değişiklikleri otomatik kaydet"
 
@@ -3952,9 +3949,6 @@ msgstr "Kaydedildi"
 
 msgid "Saved..."
 msgstr "Kaydedildi..."
-
-msgid "Saves lyrics to your source"
-msgstr "Şarkı sözlerini kaynağınıza kaydeder"
 
 msgid "Saving..."
 msgstr "Kaydediliyor..."
@@ -5376,6 +5370,12 @@ msgstr "{app_name} otomatik güncelleme seçeneği geçersiz."
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Rufin Kurulumuna Hoş Geldiniz"
+
+#~ msgid "Save action saves the lyrics directly to your source"
+#~ msgstr "Kaydet eylemi şarkı sözlerini doğrudan kaynağınıza kaydeder"
+
+#~ msgid "Saves lyrics to your source"
+#~ msgstr "Şarkı sözlerini kaynağınıza kaydeder"
 
 #~ msgid "Favorite tracks, plus tracks from favorite albums and artists"
 #~ msgstr "Favori parçalar ile favori albüm ve sanatçılardan parçalar"

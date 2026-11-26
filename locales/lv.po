@@ -4472,9 +4472,6 @@ msgstr "Saglabāt tekstus"
 msgid "Save Server Settings"
 msgstr "Saglabāt servera iestatījumus"
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr "Saglabāšanas darbība saglabā tekstus tieši jūsu avotā"
-
 msgid "Save changes automatically"
 msgstr "Automātiski saglabāt izmaiņas"
 
@@ -4522,9 +4519,6 @@ msgstr "Saglabāts"
 #| msgid "Saved"
 msgid "Saved..."
 msgstr "Saglabāts"
-
-msgid "Saves lyrics to your source"
-msgstr "Saglabāt tekstus avotā"
 
 msgid "Saving..."
 msgstr "Saglabāšana..."
@@ -6188,6 +6182,12 @@ msgstr "Lietotnes {app_name} automātiskās atjaunināšanas opcija ir nederīga
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Laipni lūdzam Rufin instalācijas programmā"
+
+#~ msgid "Save action saves the lyrics directly to your source"
+#~ msgstr "Saglabāšanas darbība saglabā tekstus tieši jūsu avotā"
+
+#~ msgid "Saves lyrics to your source"
+#~ msgstr "Saglabāt tekstus avotā"
 
 #~ msgid "Favorite tracks, plus tracks from favorite albums and artists"
 #~ msgstr ""

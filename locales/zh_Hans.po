@@ -3751,9 +3751,6 @@ msgstr "保存歌词"
 msgid "Save Server Settings"
 msgstr "保存服务器设置"
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr "保存时会将歌词存入数据源"
-
 msgid "Save changes automatically"
 msgstr "自动保存变更"
 
@@ -3794,9 +3791,6 @@ msgstr "已保存"
 
 msgid "Saved..."
 msgstr ""
-
-msgid "Saves lyrics to your source"
-msgstr "保存歌词到数据源"
 
 msgid "Saving..."
 msgstr ""
@@ -5160,3 +5154,9 @@ msgstr ""
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "欢迎使用 Rufin 安装程序"
+
+#~ msgid "Save action saves the lyrics directly to your source"
+#~ msgstr "保存时会将歌词存入数据源"
+
+#~ msgid "Saves lyrics to your source"
+#~ msgstr "保存歌词到数据源"

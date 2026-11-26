@@ -3726,9 +3726,6 @@ msgstr ""
 msgid "Save Server Settings"
 msgstr ""
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr ""
-
 msgid "Save changes automatically"
 msgstr ""
 
@@ -3768,9 +3765,6 @@ msgid "Saved"
 msgstr ""
 
 msgid "Saved..."
-msgstr ""
-
-msgid "Saves lyrics to your source"
 msgstr ""
 
 msgid "Saving..."

@@ -3894,9 +3894,6 @@ msgstr "Liedtexte speichern"
 msgid "Save Server Settings"
 msgstr "Servereinstellungen speichern"
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr "Die Speicheraktion speichert die Liedtexte direkt in deiner Quelle"
-
 msgid "Save changes automatically"
 msgstr "Änderungen automatisch speichern"
 
@@ -3938,9 +3935,6 @@ msgstr "Gespeichert"
 
 msgid "Saved..."
 msgstr "Gespeichert …"
-
-msgid "Saves lyrics to your source"
-msgstr "Speichert Liedtexte in deiner Quelle"
 
 msgid "Saving..."
 msgstr "Wird gespeichert …"
@@ -5337,6 +5331,12 @@ msgstr "Die Option für automatische Updates von {app_name} ist ungültig."
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Willkommen beim Rufin-Setup"
+
+#~ msgid "Save action saves the lyrics directly to your source"
+#~ msgstr "Die Speicheraktion speichert die Liedtexte direkt in deiner Quelle"
+
+#~ msgid "Saves lyrics to your source"
+#~ msgstr "Speichert Liedtexte in deiner Quelle"
 
 #~ msgid "Favorite tracks, plus tracks from favorite albums and artists"
 #~ msgstr ""

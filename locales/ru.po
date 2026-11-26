@@ -4046,10 +4046,6 @@ msgstr "Сохранить текст песни"
 msgid "Save Server Settings"
 msgstr "Сохранить Настройки Сервера"
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr ""
-"Действие «Сохранить» сохраняет текст песни непосредственно в исходный файл"
-
 msgid "Save changes automatically"
 msgstr "Автоматически сохранять изменения"
 
@@ -4094,9 +4090,6 @@ msgstr "Сохранено"
 
 msgid "Saved..."
 msgstr "Сохранено..."
-
-msgid "Saves lyrics to your source"
-msgstr "Сохраняет текст песни в источнике"
 
 msgid "Saving..."
 msgstr "Сохранение..."
@@ -5605,6 +5598,13 @@ msgstr "Параметр автоматического обновления {ap
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Добро пожаловать в программу установки Rufin"
+
+#~ msgid "Save action saves the lyrics directly to your source"
+#~ msgstr ""
+#~ "Действие «Сохранить» сохраняет текст песни непосредственно в исходный файл"
+
+#~ msgid "Saves lyrics to your source"
+#~ msgstr "Сохраняет текст песни в источнике"
 
 #~ msgid "Favorite tracks, plus tracks from favorite albums and artists"
 #~ msgstr ""
