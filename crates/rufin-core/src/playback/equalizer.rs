@@ -284,7 +284,7 @@ impl EqualizerState {
                 sender.send_replace(request);
             } else {
                 sender.send_if_modified(|current| {
-                    if current.config.same_processing(&request.config)
+                    if current.config == request.config
                         && current.output == request.output
                         && current.local_device == request.local_device
                         && current.meter == request.meter
@@ -345,9 +345,7 @@ impl EqualizerState {
         let pending = cast
             && (facts.is_some_and(|f| f.error.is_some())
                 || self.processing.get(&backend_key(&output)).is_none_or(|tx| {
-                    !tx.borrow()
-                        .config
-                        .same_processing(&self.preferences.config(&output))
+                    tx.borrow().config != self.preferences.config(&output)
                         || tx.borrow().cast_encoding != entry.cast_format.encoding()
                 }));
         EqView {
@@ -434,6 +432,9 @@ fn identity() -> String {
     format!("preset-{}", super::random_identity())
 }
 
+fn slider_gain(gain_db: f64) -> f64 {
+    ((gain_db * 10.).round() / 10.).clamp(-24., 12.)
+}
 pub fn template(layout: BandLayout) -> EqProfile {
     let frequencies = match layout {
         BandLayout::Classic10 => CLASSIC,
@@ -478,8 +479,7 @@ pub fn template(layout: BandLayout) -> EqProfile {
 fn builtin(id: &str) -> Option<SavedPreset> {
     let (id, name, gains) = BUILTINS.iter().find(|(key, _, _)| *key == id)?;
     let mut profile = template(BandLayout::Classic10);
-    // Existing presets keep their original gain; the new boost preset starts with headroom.
-    profile.automatic_preamp = *id == "full-bass-treble";
+    profile.automatic_preamp = false;
     for (filter, gain) in profile.bands.iter_mut().zip(gains) {
         filter.gain_db = *gain;
     }
@@ -757,6 +757,18 @@ impl PlaybackOwner {
             .and_then(|facts| facts.sample_rate)
             .unwrap_or(48_000);
         let profile = &mut entry.draft.profile;
+        if matches!(
+            edit,
+            EqEdit::BandFrequency { .. }
+                | EqEdit::BandWidth { .. }
+                | EqEdit::BandWidthUnit { .. }
+                | EqEdit::BandKind { .. }
+                | EqEdit::AddBand
+                | EqEdit::RemoveBand { .. }
+        ) {
+            profile.bands = profile.filters(rate);
+            profile.layout = BandLayout::Parametric;
+        }
         match edit {
             EqEdit::Enabled { value } => entry.enabled = value,
             EqEdit::Crossfeed { value } => entry.crossfeed = value,
@@ -766,11 +778,9 @@ impl PlaybackOwner {
             EqEdit::BandGain { index, value } => band(profile, index)?.gain_db = value,
             EqEdit::BandFrequency { index, value } => {
                 band(profile, index)?.frequency_hz = value;
-                profile.layout = BandLayout::Parametric;
             }
             EqEdit::BandWidth { index, value } => {
                 band(profile, index)?.width = value;
-                profile.layout = BandLayout::Parametric;
             }
             EqEdit::BandWidthUnit { index, q } => {
                 let filter = band(profile, index)?;
@@ -785,12 +795,8 @@ impl PlaybackOwner {
                         value: audio_processing::effects::native_bandwidth_hz(filter, rate),
                     }
                 };
-                profile.layout = BandLayout::Parametric;
             }
-            EqEdit::BandKind { index, value } => {
-                band(profile, index)?.kind = value;
-                profile.layout = BandLayout::Parametric;
-            }
+            EqEdit::BandKind { index, value } => band(profile, index)?.kind = value,
             EqEdit::BandEnabled { index, value } => band(profile, index)?.enabled = value,
             EqEdit::AddBand => {
                 profile.bands.push(Filter {
@@ -800,32 +806,32 @@ impl PlaybackOwner {
                     width: FilterWidth::Q { value: 1. },
                     enabled: true,
                 });
-                profile.layout = BandLayout::Parametric;
             }
             EqEdit::RemoveBand { index } => {
                 band(profile, index)?;
                 profile.bands.remove(index as usize);
-                profile.layout = BandLayout::Parametric;
             }
             EqEdit::Layout { value } => {
-                let needs_copy = profile.bands.iter().any(|band| band.gain_db != 0.)
-                    && !state
-                        .preferences
-                        .presets
-                        .iter()
-                        .any(|preset| preset.profile == *profile)
-                    && !BUILTINS.iter().any(|(id, _, _)| {
-                        builtin(id).is_some_and(|preset| preset.profile == *profile)
-                    });
-                if needs_copy {
-                    state.preferences.presets.push(SavedPreset {
-                        id: identity(),
-                        name: "Custom copy".into(),
-                        profile: profile.clone(),
-                    });
+                let curve = EqProfile {
+                    manual_preamp_db: 0.,
+                    automatic_preamp: false,
+                    bass_db: 0.,
+                    treble_db: 0.,
+                    ..profile.clone()
+                };
+                let mut bands = template(value).bands;
+                let centres: Vec<_> = bands.iter().map(|band| band.frequency_hz).collect();
+                // Rates below 48 kHz cannot describe the top bands.
+                let gains = audio_processing::effects::response_curve_db(
+                    &curve,
+                    rate.max(48_000),
+                    &centres,
+                );
+                for (band, gain) in bands.iter_mut().zip(gains) {
+                    band.gain_db = slider_gain(gain);
                 }
                 profile.layout = value;
-                profile.bands = template(value).bands;
+                profile.bands = bands;
             }
             EqEdit::Preamp { value } => {
                 profile.manual_preamp_db = value;
@@ -922,7 +928,7 @@ impl PlaybackOwner {
             };
             state.preferences.output_mut(&output).draft.save_target = Some(id.clone());
             state.preferences.output_mut(&output).selection = Some(id.clone());
-            if !previous_processing.same_processing(&state.preferences.config(&active)) {
+            if previous_processing != state.preferences.config(&active) {
                 state.submit(&active, false);
             }
             state.publish(&self.settings);
@@ -1157,7 +1163,7 @@ impl PlaybackOwner {
         let matches_request = state
             .processing
             .get(&backend_key(&output))
-            .is_some_and(|sender| sender.borrow().config.same_processing(&config));
+            .is_some_and(|sender| sender.borrow().config == config);
         let facts = state.facts.entry(output).or_default();
         facts.config = Some(config);
         facts.sample_rate = sample_rate;
@@ -1224,6 +1230,7 @@ fn parse_preset(text: &str, format: EqPresetFormat) -> Result<(String, EqProfile
                 automatic_preamp: false,
                 ..Default::default()
             };
+            let mut curve: Vec<(f64, f64)> = Vec::new();
             for (index, line) in text.lines().enumerate() {
                 let line = line.split('#').next().unwrap_or("").trim();
                 if line.is_empty() {
@@ -1236,8 +1243,35 @@ fn parse_preset(text: &str, format: EqPresetFormat) -> Result<(String, EqProfile
                         return Err(fail());
                     }
                     profile.manual_preamp_db = words[1].parse().map_err(|_| fail())?;
+                } else if words[0].eq_ignore_ascii_case("GraphicEQ:") {
+                    if !curve.is_empty() || !profile.bands.is_empty() {
+                        return Err(fail());
+                    }
+                    let points = line.split_once(':').map_or("", |(_, points)| points);
+                    for point in points.split(';') {
+                        let values: Vec<_> = point.split_whitespace().collect();
+                        match values[..] {
+                            [] => {}
+                            [frequency, gain] => curve.push((
+                                frequency
+                                    .parse()
+                                    .ok()
+                                    .filter(|hz: &f64| hz.is_finite() && *hz > 0.)
+                                    .ok_or_else(fail)?,
+                                gain.parse()
+                                    .ok()
+                                    .filter(|db: &f64| db.is_finite())
+                                    .ok_or_else(fail)?,
+                            )),
+                            _ => return Err(fail()),
+                        }
+                    }
+                    if curve.is_empty() {
+                        return Err(fail());
+                    }
                 } else if words[0].eq_ignore_ascii_case("Filter") {
-                    if words.len() != 12
+                    if !curve.is_empty()
+                        || words.len() != 12
                         || !words[1].ends_with(':')
                         || !words[4].eq_ignore_ascii_case("Fc")
                         || !words[6].eq_ignore_ascii_case("Hz")
@@ -1271,13 +1305,31 @@ fn parse_preset(text: &str, format: EqPresetFormat) -> Result<(String, EqProfile
                     return Err(fail());
                 }
             }
+            if !curve.is_empty() {
+                // The curve becomes sliders, read between its points on a log-frequency axis.
+                curve.sort_by(|a, b| a.0.total_cmp(&b.0));
+                profile.layout = BandLayout::Bands31;
+                profile.bands = template(BandLayout::Bands31).bands;
+                for band in &mut profile.bands {
+                    let after = curve.partition_point(|point| point.0 < band.frequency_hz);
+                    let below = curve[after.saturating_sub(1)];
+                    let above = curve[after.min(curve.len() - 1)];
+                    let position = if above.0 > below.0 {
+                        ((band.frequency_hz / below.0).ln() / (above.0 / below.0).ln())
+                            .clamp(0., 1.)
+                    } else {
+                        0.
+                    };
+                    band.gain_db = slider_gain(below.1 + (above.1 - below.1) * position);
+                }
+            }
             profile.validate()?;
             Ok(("Imported preset".into(), profile))
         }
     }
 }
 fn export_apo(profile: &EqProfile, rate: u32) -> Result<String, String> {
-    let mut bands = profile.bands.clone();
+    let mut bands = profile.filters(rate);
     for (kind, freq, gain) in [
         (FilterKind::LowShelf, 100., profile.bass_db),
         (FilterKind::HighShelf, 10000., profile.treble_db),

@@ -98,6 +98,43 @@ impl EqProfile {
         range(self.bass_db, -12.0, 12.0, "Bass")?;
         range(self.treble_db, -12.0, 12.0, "Treble")
     }
+    /// The filters the band bank runs. Slider layouts solve each gain so the combined
+    /// response at every band centre equals its slider, within the bank's gain range.
+    pub fn filters(&self, rate: u32) -> Vec<Filter> {
+        let mut filters = self.bands.clone();
+        if self.layout == BandLayout::Parametric || rate == 0 {
+            return filters;
+        }
+        let nyquist = f64::from(rate) / 2.0;
+        let active = (0..filters.len())
+            .filter(|&i| filters[i].enabled && filters[i].frequency_hz < nyquist)
+            .collect::<Vec<_>>();
+        let at_centres = |filter: &Filter| {
+            let response = Coefficients::new(filter, rate);
+            active
+                .iter()
+                .map(|&i| response.map_or(0.0, |r| r.db(PI * self.bands[i].frequency_hz / nyquist)))
+                .collect::<Vec<_>>()
+        };
+        let mut parts = active
+            .iter()
+            .map(|&i| at_centres(&filters[i]))
+            .collect::<Vec<_>>();
+        for _ in 0..32 {
+            let mut moved = 0.0_f64;
+            for (centre, &i) in active.iter().enumerate() {
+                let total = parts.iter().map(|part| part[centre]).sum::<f64>();
+                let gain = (filters[i].gain_db + self.bands[i].gain_db - total).clamp(-24.0, 12.0);
+                moved = moved.max((gain - filters[i].gain_db).abs());
+                filters[i].gain_db = gain;
+                parts[centre] = at_centres(&filters[i]);
+            }
+            if moved < 0.001 {
+                break;
+            }
+        }
+        filters
+    }
 }
 impl ProcessingConfig {
     pub fn validate(&self) -> Result<(), String> {
@@ -116,17 +153,6 @@ impl ProcessingConfig {
                     && (p.automatic_preamp || p.manual_preamp_db == 0.0)
                     && p.bands.iter().all(|b| !b.enabled || b.gain_db == 0.0)
             })
-    }
-    pub fn same_processing(&self, other: &Self) -> bool {
-        let mut a = self.clone();
-        let mut b = other.clone();
-        if let Some(p) = &mut a.equalizer {
-            p.layout = BandLayout::Parametric;
-        }
-        if let Some(p) = &mut b.equalizer {
-            p.layout = BandLayout::Parametric;
-        }
-        a == b
     }
 }
 pub fn native_bandwidth_hz(filter: &Filter, sample_rate: u32) -> f64 {
@@ -225,7 +251,7 @@ impl Coefficients {
 }
 fn coefficients(profile: &EqProfile, rate: u32) -> Vec<Coefficients> {
     profile
-        .bands
+        .filters(rate)
         .iter()
         .chain(tone(profile).iter())
         .filter_map(|f| Coefficients::new(f, rate))
@@ -244,7 +270,9 @@ pub fn effective_preamp_db(profile: &EqProfile, rate: u32) -> f64 {
     if rate == 0 {
         return 0.0;
     }
-    let filters = coefficients(profile, rate);
+    headroom_db(profile, rate, &coefficients(profile, rate))
+}
+fn headroom_db(profile: &EqProfile, rate: u32, filters: &[Coefficients]) -> f64 {
     if filters.is_empty() {
         return 0.0;
     }
@@ -273,7 +301,7 @@ pub fn effective_preamp_db(profile: &EqProfile, rate: u32) -> f64 {
     points.dedup();
     let values = points
         .iter()
-        .map(|f| response(&filters, rate, *f))
+        .map(|f| response(filters, rate, *f))
         .collect::<Vec<_>>();
     let mut maximum = values.iter().copied().fold(0.0, f64::max);
     for i in 1..points.len() - 1 {
@@ -285,8 +313,8 @@ pub fn effective_preamp_db(profile: &EqProfile, rate: u32) -> f64 {
         for _ in 0..32 {
             let a = lo + (hi - lo) / 3.0;
             let b = hi - (hi - lo) / 3.0;
-            let va = response(&filters, rate, a);
-            let vb = response(&filters, rate, b);
+            let va = response(filters, rate, a);
+            let vb = response(filters, rate, b);
             maximum = maximum.max(va).max(vb);
             if va < vb {
                 lo = a;
@@ -308,7 +336,11 @@ pub fn response_curve_db(profile: &EqProfile, rate: u32, frequencies: &[f64]) ->
         return vec![0.0; frequencies.len()];
     }
     let filters = coefficients(profile, rate);
-    let preamp = effective_preamp_db(profile, rate);
+    let preamp = if profile.automatic_preamp {
+        headroom_db(profile, rate, &filters)
+    } else {
+        profile.manual_preamp_db
+    };
     frequencies
         .iter()
         .map(|f| response(&filters, rate, *f) + preamp)
@@ -713,7 +745,7 @@ impl EffectsBin {
             ));
         }
         for (index, filters) in [
-            (1, profile.map(|p| p.bands.clone())),
+            (1, profile.map(|p| p.filters(processing_rate))),
             (2, profile.map(|p| tone(p).to_vec())),
         ] {
             let Some(bank) = &stages[index] else {
