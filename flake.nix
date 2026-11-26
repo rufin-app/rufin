@@ -108,6 +108,10 @@
                 craneLib.removeReferencesToVendoredSourcesHook
               ];
 
+              # nixpkgs builds rustc on Linux with glibc malloc; the upstream toolchain uses
+              # jemalloc, without which the release link of the workspace exceeds the 16 GB runner.
+              LD_PRELOAD = "${pkgs.jemalloc}/lib/libjemalloc.so";
+
               configurePhase = "cmakeConfigurePhase";
               buildPhaseCargoCommand = "cmake --build . --parallel $NIX_BUILD_CORES";
               installPhaseCommand = "cmake --install .";
