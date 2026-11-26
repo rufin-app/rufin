@@ -1,12 +1,11 @@
 package app.rufin.rufin.settings
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -19,7 +18,6 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.unit.dp
 import app.rufin.rufin.core.AndroidThemeOption
 import app.rufin.rufin.rufinIconResources
 
@@ -35,7 +33,7 @@ internal fun ThemePreview(themes: List<AndroidThemeOption>, systemAccent: Boolea
     }
     val menu = painterResource(rufinIconResources.getValue("rufin-open-menu-symbolic").drawable)
     val search = painterResource(rufinIconResources.getValue("rufin-search-symbolic").drawable)
-    Canvas(modifier.clip(RoundedCornerShape(8.dp)).clearAndSetSemantics { }) {
+    Canvas(modifier.clipToBounds().clearAndSetSemantics { }) {
         if (schemes.size == 1) page(schemes[0], menu, search)
         else schemes.forEachIndexed { index, scheme ->
             val half = Path().apply {

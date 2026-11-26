@@ -39,7 +39,7 @@ internal fun ThemeSettingsPage(preferences: PreferencesConnection) {
     val themes = listOf(ThemePreference.System to translate("System"), ThemePreference.Light to translate("Light"),
         ThemePreference.Dark to translate("Dark")) +
         settings.themes.filter { it.id != "builtin:light" && it.id != "builtin:dark" }.map { ThemePreference.Named(it.id) to it.name }
-    LazyVerticalGrid(GridCells.Adaptive(96.dp), Modifier.fillMaxSize(),
+    LazyVerticalGrid(GridCells.Adaptive(100.dp), Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp + LocalPlayerBottomPadding.current),
         horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         items(themes, key = { it.second + it.first.toString() }) { (choice, title) ->
@@ -53,25 +53,26 @@ internal fun ThemeSettingsPage(preferences: PreferencesConnection) {
             val selected = settings.theme == choice
             val standard = choice !is ThemePreference.Named
             val colors = MaterialTheme.colorScheme
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Surface(Modifier.fillMaxWidth().selectable(selected, role = Role.RadioButton) { preferences.selectTheme(choice) }
-                    .semantics { contentDescription = title },
-                    shape = RoundedCornerShape(12.dp), color = colors.surfaceContainer,
-                    border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.primary else colors.outlineVariant)) {
+            // One container per theme: its picture, then its name and accent.
+            Surface(Modifier.fillMaxWidth().selectable(selected, role = Role.RadioButton) { preferences.selectTheme(choice) }
+                .semantics { contentDescription = title },
+                shape = RoundedCornerShape(12.dp), color = colors.surfaceContainer,
+                border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.primary else colors.outlineVariant)) {
+                Column {
                     val shown = if (choice is ThemePreference.System) settings.themes.filter { it.id == "builtin:light" || it.id == "builtin:dark" }
                         .sortedBy { it.dark } else listOfNotNull(theme)
                     ThemePreview(shown, standard && settings.accent == AccentPreference.SYSTEM,
-                        Modifier.padding(5.dp).fillMaxWidth().aspectRatio(THEME_PREVIEW_RATIO))
-                }
-                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, Modifier.weight(1f).padding(start = 2.dp),
-                        style = MaterialTheme.typography.labelMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    if (standard) ThemeAccentMenu(
-                        settings.accents.map { AccentEntry(translate(it.title), it.color, it.accent == settings.accent) { preferences.selectAccent(it.accent) } },
-                        theme?.dark ?: systemDark)
-                    else if ((theme?.accents?.size ?: 0) > 1) ThemeAccentMenu(
-                        theme!!.accents.map { AccentEntry(it.name, it.color, it.id == theme.accentId) { preferences.selectThemeAccent(themeId, it.id) } },
-                        theme.dark)
+                        Modifier.fillMaxWidth().aspectRatio(THEME_PREVIEW_RATIO))
+                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(title, Modifier.weight(1f).padding(start = 8.dp),
+                            style = MaterialTheme.typography.labelMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        if (standard) ThemeAccentMenu(
+                            settings.accents.map { AccentEntry(translate(it.title), it.color, it.accent == settings.accent) { preferences.selectAccent(it.accent) } },
+                            theme?.dark ?: systemDark)
+                        else if ((theme?.accents?.size ?: 0) > 1) ThemeAccentMenu(
+                            theme!!.accents.map { AccentEntry(it.name, it.color, it.id == theme.accentId) { preferences.selectThemeAccent(themeId, it.id) } },
+                            theme.dark)
+                    }
                 }
             }
         }
