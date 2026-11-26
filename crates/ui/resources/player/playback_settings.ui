@@ -9,31 +9,102 @@
       <class name="playback-settings-popover" />
     </style>
     <property name="child">
-      <object class="GtkScrolledWindow">
-        <property name="hscrollbar-policy">never</property>
-        <property name="vscrollbar-policy">automatic</property>
-        <property name="min-content-width">400</property>
-        <property name="propagate-natural-width">false</property>
-        <property name="propagate-natural-height">true</property>
-        <property name="child">
-          <object class="GtkBox">
-            <property name="orientation">vertical</property>
-            <property name="margin-top">2</property>
-            <property name="margin-bottom">2</property>
-            <property name="margin-start">2</property>
-            <property name="margin-end">2</property>
-            <property name="width-request">400</property>
-            <child>
-              <object class="AdwPreferencesGroup" id="settings_group">
+      <object class="GtkStack" id="pages">
+        <property name="transition-type">over-up-down</property>
+        <property name="transition-duration">250</property>
+        <property name="vhomogeneous">false</property>
+        <property name="interpolate-size">true</property>
+        <child>
+          <object class="GtkScrolledWindow" id="settings_page">
+            <style><class name="playback-settings-page" /></style>
+            <property name="hscrollbar-policy">never</property>
+            <property name="vscrollbar-policy">automatic</property>
+            <property name="min-content-width">400</property>
+            <property name="propagate-natural-width">false</property>
+            <property name="propagate-natural-height">true</property>
+            <property name="child">
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <property name="margin-top">2</property>
+                <property name="margin-bottom">2</property>
+                <property name="margin-start">2</property>
+                <property name="margin-end">2</property>
+                <property name="width-request">400</property>
                 <child>
-                  <object class="AdwActionRow" id="audio_output">
-                    <property name="title" translatable="yes">Audio output</property>
+                  <object class="AdwPreferencesGroup" id="settings_group">
+                    <child>
+                      <object class="AdwActionRow" id="audio_output">
+                        <property name="title" translatable="yes">Audio output</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="equalizer">
+                        <property name="title" translatable="yes">Equalizer</property>
+                        <property name="activatable">true</property>
+                        <child type="suffix">
+                          <object class="GtkLabel" id="equalizer_state">
+                            <property name="ellipsize">end</property>
+                            <style><class name="dim-label" /></style>
+                          </object>
+                        </child>
+                        <child type="suffix">
+                          <object class="GtkImage">
+                            <property name="icon-name">rufin-go-next-symbolic</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="equalizer_page">
+            <style><class name="playback-settings-page" /></style>
+            <property name="orientation">vertical</property>
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkCenterBox" id="equalizer_header">
+                <property name="margin-start">2</property>
+                <property name="margin-end">2</property>
+                <child type="start">
+                  <object class="GtkButton" id="equalizer_back">
+                    <property name="icon-name">rufin-go-previous-symbolic</property>
+                    <property name="tooltip-text" translatable="yes">Back</property>
+                    <style><class name="flat" /><class name="circular" /></style>
+                  </object>
+                </child>
+                <child type="center">
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">Equalizer</property>
+                    <style><class name="heading" /></style>
                   </object>
                 </child>
               </object>
             </child>
+            <child>
+              <object class="GtkScrolledWindow" id="equalizer_scroller">
+                <property name="hscrollbar-policy">never</property>
+                <property name="vscrollbar-policy">automatic</property>
+                <property name="min-content-width">400</property>
+                <property name="propagate-natural-width">false</property>
+                <property name="propagate-natural-height">true</property>
+                <property name="child">
+                  <object class="GtkBox" id="equalizer_host">
+                    <property name="orientation">vertical</property>
+                    <property name="margin-top">2</property>
+                    <property name="margin-bottom">2</property>
+                    <property name="margin-start">2</property>
+                    <property name="margin-end">2</property>
+                    <property name="width-request">400</property>
+                  </object>
+                </property>
+              </object>
+            </child>
           </object>
-        </property>
+        </child>
       </object>
     </property>
   </object>

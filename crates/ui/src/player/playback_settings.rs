@@ -47,6 +47,66 @@ fn playback_settings_popover(window: &Rc<crate::shell::shell::Shell>) -> gtk::Po
         visualizer: adw::SwitchRow,
         combine: adw::SwitchRow,
         audio_output: adw::ActionRow,
+        pages: gtk::Stack,
+        settings_page: gtk::ScrolledWindow,
+        equalizer: adw::ActionRow,
+        equalizer_state: gtk::Label,
+        equalizer_page: gtk::Box,
+        equalizer_back: gtk::Button,
+        equalizer_host: gtk::Box,
+        equalizer_header: gtk::CenterBox,
+        equalizer_scroller: gtk::ScrolledWindow,
+    });
+    // The popover stays inside the window, above its button: each page scrolls in the height
+    // between the button and the window's top, whatever room the compositor has outside it.
+    let settings_scroller = settings_page.clone();
+    let header_height = equalizer_page.spacing();
+    popover.connect_show(move |popover| {
+        let Some(button) = popover.parent() else {
+            return;
+        };
+        let Some(bounds) = button.root().and_then(|root| button.compute_bounds(&root)) else {
+            return;
+        };
+        settings_scroller.set_max_content_height(-1);
+        let natural = |widget: &gtk::Widget| widget.measure(gtk::Orientation::Vertical, -1).1;
+        let frame = natural(popover.upcast_ref()) - natural(settings_scroller.upcast_ref());
+        let room = (bounds.y() as i32 - frame).max(1);
+        settings_scroller.set_max_content_height(room);
+        equalizer_scroller.set_max_content_height(
+            (room - natural(equalizer_header.upcast_ref()) - header_height).max(1),
+        );
+    });
+    let owner = window.products.playback.clone();
+    let show_state = move |label: &gtk::Label| {
+        let view = owner.equalizer_view(String::new());
+        label.set_label(&if view.enabled {
+            crate::player::equalizer::equalizer_preset_title(&view.name)
+        } else {
+            tr("Off")
+        });
+    };
+    show_state(&equalizer_state);
+    let weak = Rc::downgrade(window);
+    let stack = pages.downgrade();
+    let page = equalizer_page.downgrade();
+    equalizer.connect_activated(move |_| {
+        let (Some(window), Some(stack), Some(page)) =
+            (weak.upgrade(), stack.upgrade(), page.upgrade())
+        else {
+            return;
+        };
+        if equalizer_host.first_child().is_none() {
+            equalizer_host.append(&crate::player::equalizer::EqualizerSurface::new(&window).root);
+        }
+        stack.set_visible_child(&page);
+    });
+    let stack = pages.downgrade();
+    equalizer_back.connect_clicked(move |_| {
+        if let Some(stack) = stack.upgrade() {
+            show_state(&equalizer_state);
+            stack.set_visible_child(&settings_page);
+        }
     });
     if !local_output {
         settings_group.set_description(Some(&tr("Audio processing is unavailable while casting")));

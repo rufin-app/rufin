@@ -3156,6 +3156,8 @@ entry.lyrics-offset-value.flat:focus-within {
   min-height: 0;
 }
 
+/* Opaque, so the equalizer page covers the settings page as it slides over it. */
+.playback-settings-page { background: var(--popover-bg-color); }
 .equalizer-surface { padding: 0; }
 .equalizer-surface flowboxchild { padding: 0; background: none; }
 .equalizer-editor { padding: 12px; }

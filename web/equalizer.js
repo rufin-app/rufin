@@ -1,5 +1,5 @@
 import { api } from "./connection.js";
-import { tr, notice } from "./ui.js";
+import { tr, notice, openPopup } from "./ui.js";
 const $ = (id) => document.getElementById(`eq-${id}`);
 let view, stream, sending, response, deferredView, clipTimer, nameAction, responseSending, signature = "", latestProfile = "";
 const pending = new Map();
@@ -28,9 +28,11 @@ async function flush() { while (sending) await sending; }
 async function commit() { await flush(); await request("commit"); }
 async function operation(name, extra) { const output = view.output; await flush(); const result = await request(name, { output, ...extra }); await refreshPresets(); render(await api("/equalizer")); return result; }
 function action(fn) { return () => Promise.resolve().then(fn).catch(report); }
+// The one equalizer body sits in its dialog (Preferences) or on the playback settings popover's page.
+function shown() { const body = $("body"); return body.closest("dialog")?.open || (body.closest("[popover]")?.matches(":popover-open") && !body.parentElement.hidden); }
 function watch() {
   stream?.close();
-  if (!document.getElementById("equalizer-dialog").open) return;
+  if (!shown()) return;
   stream = new EventSource(`/api/equalizer/events?meter=true&spectrum=${$("spectrum").checked}`);
   stream.addEventListener("equalizer", event => render(JSON.parse(event.data)));
 }
@@ -40,8 +42,8 @@ async function refreshPresets() {
   if (view) $("preset").value = view.preset_id || "";
 }
 function render(next) {
-  if (!document.getElementById("equalizer-dialog").open) return;
-  const busy = document.activeElement?.closest("#equalizer-dialog") && (pending.size || sending);
+  if (!shown()) return;
+  const busy = document.activeElement?.closest("#eq-body") && (pending.size || sending);
   if (busy && view && view.output === next.output) { deferredView = next; view.peak_db = next.peak_db; view.spectrum_db = next.spectrum_db; draw(); return; }
   view = next;
   checked("enabled", view.enabled); checked("auto", view.profile.automatic_preamp); checked("crossfeed", view.crossfeed); checked("mono", view.mono); checked("assigned", view.assigned);
@@ -50,7 +52,7 @@ function render(next) {
   $("bass-value").textContent = `${number.format(view.profile.bass_db)} dB`; $("treble-value").textContent = `${number.format(view.profile.treble_db)} dB`;
   $("rename").disabled = view.preset_builtin || !(view.preset_id || view.save_target); $("delete").disabled = $("rename").disabled;
   $("apply").hidden = !view.cast || !view.pending; $("cast-format").hidden = !view.cast; $("spectrum").disabled = view.cast;
-  for (const input of document.querySelectorAll("#equalizer-dialog input, #equalizer-dialog select")) input.disabled = !view.available;
+  for (const input of document.querySelectorAll("#eq-body input, #eq-body select")) input.disabled = !view.available;
   $("spectrum").disabled = view.cast || !view.available;
   $("clip").textContent = view.cast ? tr("Encoding peak") : tr("Clipping");
   $("peak").textContent = view.cast && view.peak_db.length ? `${number.format(Math.max(...view.peak_db))} dBFS` : "";
@@ -89,7 +91,7 @@ function bindNumber(input, type, payload, reflect = () => {}) {
 function buildBands() {
   const parametric = mode() === "parametric";
   $("bands").replaceChildren(); $("filters").replaceChildren(); $("bands").hidden = parametric; $("add").hidden = !parametric; $("layout").hidden = parametric;
-  $("graph").style.minWidth = `${parametric ? 350 : Math.max(350, view.profile.bands.length * 62 + 48)}px`;
+  $("graph").style.minWidth = `${parametric ? 350 : Math.max(350, view.profile.bands.length * parseFloat(getComputedStyle($("graph")).getPropertyValue("--eq-band-min")) + 48)}px`;
   view.profile.bands.forEach((band, index) => {
     if (!parametric) {
       const column = element("div"); column.className = "eq-band";
@@ -125,7 +127,7 @@ async function loadResponse() {
   if (responseSending || !$("response").checked || !view) return;
   responseSending = true;
   try {
-    while (document.getElementById("equalizer-dialog").open && $("response").checked) {
+    while (shown() && $("response").checked) {
       const stamp = latestProfile;
       const next = await api(`/equalizer/response?output=${encodeURIComponent(view.output)}`);
       if (stamp === latestProfile) { response = next; draw(); break; }
@@ -176,8 +178,18 @@ function askName(operation, title) {
 }
 export function init() {
   const dialog = document.getElementById("equalizer-dialog");
-  document.getElementById("open-equalizer").addEventListener("click", action(async () => { dialog.showModal(); await refreshPresets(); render(await api("/equalizer")); watch(); }));
-  dialog.addEventListener("close", () => { clearTimeout(clipTimer); $("clip").classList.remove("clipped"); stream?.close(); stream = null; void flush().then(() => view && request("commit")).catch(report); });
+  const popup = document.getElementById("playback-settings"), main = document.getElementById("playback-settings-main"), page = document.getElementById("playback-equalizer-page");
+  const start = action(async () => { signature = ""; await refreshPresets(); render(await api("/equalizer")); watch(); });
+  const stop = () => { clearTimeout(clipTimer); $("clip").classList.remove("clipped"); stream?.close(); stream = null; void flush().then(() => view && request("commit")).catch(report); };
+  const turn = (equalizer) => { main.hidden = equalizer; page.hidden = !equalizer; if (popup.matches(":popover-open")) openPopup(popup, document.getElementById("playback-settings-button"), "center"); };
+  const openPage = () => { page.append($("body")); turn(true); if (!popup.matches(":popover-open")) openPopup(popup, document.getElementById("playback-settings-button"), "center"); void start(); };
+  document.getElementById("open-equalizer").addEventListener("click", () => { dialog.append($("body")); dialog.showModal(); void start(); });
+  document.getElementById("playback-equalizer").addEventListener("click", openPage);
+  $("back").addEventListener("click", () => { stop(); turn(false); });
+  popup.addEventListener("toggle", event => { if (event.newState === "closed" && !page.hidden) { stop(); turn(false); } });
+  dialog.addEventListener("close", stop);
+  // A modal name dialog closes the popover; naming a preset from its page comes back to it.
+  $("name-dialog").addEventListener("close", () => { if ($("body").parentElement === page && !shown()) openPage(); });
   $("preset").addEventListener("focus", action(refreshPresets)); $("preset").addEventListener("change", action(() => operation("select", { preset: $("preset").value || null })));
   $("mode").addEventListener("change", () => { signature = ""; render(view); });
   $("layout").addEventListener("change", action(async () => { await flush(); queue("Layout", { value: $("layout").value }); await commit(); }));

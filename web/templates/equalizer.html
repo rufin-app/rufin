@@ -1,5 +1,5 @@
 {% import "macros.html" as m %}
-<dialog id="equalizer-dialog" aria-labelledby="equalizer-title">
+<dialog id="equalizer-dialog" aria-labelledby="equalizer-title"><div id="eq-body">
   <header class="eq-header"><h2 id="equalizer-title">{{ localization::tr("Equalizer") }}</h2><label><input id="eq-enabled" type="checkbox" />{{ localization::tr("Enabled") }}</label><button type="button" data-close="equalizer-dialog">{{ localization::tr("Close") }}</button></header>
   <div class="eq-toolbar"><select id="eq-preset" aria-label="{{ localization::tr("Preset") }}"></select><button id="eq-save" type="button">{{ localization::tr("Save") }}</button><details class="eq-menu"><summary>{{ localization::tr("More") }}</summary><div>
     <button id="eq-duplicate" type="button">{{ localization::tr("Duplicate") }}</button><button id="eq-rename" type="button">{{ localization::tr("Rename") }}</button><button id="eq-import" type="button">{{ localization::tr("Import") }}</button><button id="eq-export" type="button">{{ localization::tr("Export") }}</button><button id="eq-delete" type="button">{{ localization::tr("Delete") }}</button>
@@ -15,7 +15,7 @@
     <label><input id="eq-crossfeed" type="checkbox"/>{{ localization::tr("Crossfeed") }}</label><label><input id="eq-mono" type="checkbox"/>{{ localization::tr("Mono") }}</label>
   </div></details>
   <footer class="eq-toolbar"><label><input id="eq-assigned" type="checkbox"/>{{ localization::tr("Use for this output") }}</label><select id="eq-cast-format" aria-label="{{ localization::tr("Cast format") }}"><option value="Mp3">MP3</option><option value="Flac">FLAC</option></select><button id="eq-apply" type="button" hidden>{{ localization::tr("Apply") }}</button><output id="eq-status" role="status"></output></footer>
-</dialog>
+</div></dialog>
 <dialog id="eq-name-dialog" aria-labelledby="eq-name-title">
   <form id="eq-name-form">
     <h2 id="eq-name-title">{{ localization::tr("Preset name") }}</h2>

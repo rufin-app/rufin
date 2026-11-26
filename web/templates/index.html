@@ -435,6 +435,9 @@
         <label class="menu-switch" id="sleep-timer-finish">{{ localization::tr("Finish the last track") }}<input id="sleep-timer-finish-track" type="checkbox" role="switch" /></label>
       </div>
       <div id="playback-settings" popover="auto" role="menu" aria-label="{{ localization::tr("Settings") }}">
+        <div id="playback-settings-main">
+        <button class="menu-item" role="menuitem" type="button" id="playback-equalizer"><span>{{ localization::tr("Equalizer") }}</span>{% call m::icon("rufin-go-next-symbolic") %}{% endcall %}</button>
+        <hr />
         <label class="menu-switch">{{ localization::tr("Show playback queue") }}<input type="checkbox" role="switch" data-setting="/right_panel/queue_visible" /></label>
         <label class="menu-switch">{{ localization::tr("Show lyrics") }}<input type="checkbox" role="switch" data-setting="/lyrics_panel_visible" /></label>
         <hr />
@@ -443,6 +446,8 @@
           <label><input type="radio" name="transition-mode" value='"Gapless"' data-setting="/playback/transition_mode" />{{ localization::tr("Gapless") }}</label>
           <label><input type="radio" name="transition-mode" value='"Crossfade"' data-setting="/playback/transition_mode" />{{ localization::tr("Crossfade") }}</label>
         </div>
+        </div>
+        <div id="playback-equalizer-page" hidden><button type="button" class="icon-button" id="eq-back" title="{{ localization::tr("Back") }}" aria-label="{{ localization::tr("Back") }}">{% call m::icon("rufin-go-previous-symbolic") %}{% endcall %}</button></div>
       </div>
       <div id="toast" role="status" hidden></div>
       <div id="connect-progress" role="status" hidden><span id="connect-progress-text"></span><button id="connect-progress-open">{{ localization::tr("Open Rufin Connect") }}</button><button id="connect-progress-dismiss" class="icon-button" aria-label="{{ localization::tr("Close") }}">×</button></div>
