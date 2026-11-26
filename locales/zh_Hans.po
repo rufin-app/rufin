@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: Rufin\n"
 "Report-Msgid-Bugs-To: https://github.com/rufin-app/rufin/issues\n"
 "POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"PO-Revision-Date: 2026-11-26 18:58+0000\n"
+"PO-Revision-Date: 2026-11-26 22:16+0000\n"
 "Last-Translator: Jiahao Li <thejiahao@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Chinese (Simplified Han script) <https://hosted.weblate.org/"
 "projects/rufin/app/zh_Hans/>\n"
@@ -652,7 +652,7 @@ msgid "Back"
 msgstr "返回"
 
 msgid "Background"
-msgstr "背景"
+msgstr "后台服务"
 
 msgid "Backup Folder"
 msgstr "备份文件夹"
@@ -1376,7 +1376,7 @@ msgid "Direct"
 msgstr ""
 
 msgid "Disable battery optimization"
-msgstr ""
+msgstr "禁用电池优化"
 
 msgid "Disable private mode"
 msgstr "禁用无痕模式"
@@ -2182,10 +2182,8 @@ msgstr "关闭窗口后使应用在后台运行"
 msgid "Keep music available offline. Folder changes only affect new downloads"
 msgstr "供离线收听。更改文件夹仅对后续下载生效"
 
-#, fuzzy
-#| msgid "Keep Rufin running after closing the window"
 msgid "Keep running in the background"
-msgstr "关闭窗口后使应用在后台运行"
+msgstr "允许后台运行"
 
 msgid "Keyboard Shortcuts"
 msgstr "键盘快捷键"
@@ -2676,7 +2674,7 @@ msgid "Nearby discovery"
 msgstr "自动发现"
 
 msgid "Needed to keep running in the background"
-msgstr ""
+msgstr "用于保持后台运行"
 
 msgid "Needs attention"
 msgstr "需要处理"
@@ -3700,7 +3698,7 @@ msgstr "列表"
 
 msgid ""
 "Rufin Connect stays reachable while the screen is off or Rufin is closed"
-msgstr ""
+msgstr "关屏或退出 Rufin 后，Rufin Connect 仍可连接"
 
 msgid "Rufin Connect"
 msgstr "Rufin Connect"
@@ -3720,10 +3718,8 @@ msgstr ""
 msgid "Rule actions"
 msgstr "规则操作"
 
-#, fuzzy
-#| msgid "Dynamic background"
 msgid "Running in the background"
-msgstr "动态背景"
+msgstr "后台运行中"
 
 msgid "SMB / Samba"
 msgstr "SMB / Samba"
@@ -4401,7 +4397,7 @@ msgid "Switch between layouts"
 msgstr "切换布局"
 
 msgid "Switch pane"
-msgstr ""
+msgstr "切换面板"
 
 msgid "Switching library..."
 msgstr "媒体库切换中…"
