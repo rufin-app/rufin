@@ -1142,13 +1142,15 @@ fn general_page(
         }
     }
 
-    let intervals = [1, 6, 12, 24];
+    let intervals = [0, 1, 6, 12, 24];
     release_check_interval_row.set_selected(
         intervals
             .iter()
             .position(|hours| *hours == settings.application.release_check_interval_hours)
-            .unwrap_or(1) as u32,
+            .unwrap_or(2) as u32,
     );
+    // Automatic updates install what a startup check finds; "Off" makes no such check.
+    automatic_updates_row.set_sensitive(settings.application.release_check_interval_hours != 0);
     let interval_shell = Rc::downgrade(shell);
     release_check_interval_row.connect_selected_notify(move |row| {
         let Some(shell) = interval_shell.upgrade() else {
@@ -1157,6 +1159,7 @@ fn general_page(
         let Some(&hours) = intervals.get(row.selected() as usize) else {
             return;
         };
+        automatic_updates_row.set_sensitive(hours != 0);
         shell
             .settings
             .set_app_setting("release check interval", hours, |settings| {

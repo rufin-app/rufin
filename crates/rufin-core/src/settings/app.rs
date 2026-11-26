@@ -537,7 +537,7 @@ impl Settings {
 
     pub fn sanitize(&mut self) {
         self.recent_search_results.truncate(20);
-        if ![1, 6, 12, 24].contains(&self.application.release_check_interval_hours) {
+        if ![0, 1, 6, 12, 24].contains(&self.application.release_check_interval_hours) {
             self.application.release_check_interval_hours = default_release_check_interval_hours();
         }
         self.rich_presence.sanitize();
@@ -961,7 +961,7 @@ mod tests {
             assert_eq!(restored.application.starting_page, page);
         }
 
-        for hours in [1, 6, 12, 24] {
+        for hours in [0, 1, 6, 12, 24] {
             let mut settings = Settings {
                 application: ApplicationPreferences {
                     release_check_interval_hours: hours,

@@ -131,7 +131,12 @@ impl ReleaseUpdateOwner {
         feedback: Option<Sender<bool>>,
     ) {
         self.publish_previous_update_result();
-        if !release_check_allowed(&self.settings.load().ui) {
+        let settings = self.settings.load();
+        // Only a manual check reports back; "Off" stops the startup and periodic ones.
+        let manual = feedback.is_some();
+        if !release_check_allowed(&settings.ui)
+            || (!manual && settings.ui.application.release_check_interval_hours == 0)
+        {
             if let Some(feedback) = feedback {
                 let _ = feedback.try_send(false);
             }
@@ -1073,7 +1078,8 @@ impl ReleaseUpdateOwner {
         self.check_with_automatic_update(false, None);
     }
 
-    /// Checks once per configured interval. Changing the interval starts a new wait.
+    /// Checks once per configured interval, never while it is "Off". Changing the interval
+    /// starts a new wait.
     pub fn check_periodically(self: Arc<Self>) -> Arc<PeriodicReleaseChecks> {
         fn interval(settings: &crate::settings::Settings) -> Duration {
             Duration::from_secs(
@@ -1087,7 +1093,7 @@ impl ReleaseUpdateOwner {
             tokio::pin!(wait);
             loop {
                 tokio::select! {
-                    () = &mut wait => {
+                    () = &mut wait, if !period.is_zero() => {
                         self.check();
                         wait.as_mut().reset(tokio::time::Instant::now() + period);
                     }

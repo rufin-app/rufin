@@ -79,6 +79,7 @@
             <property name="model">
               <object class="GtkStringList">
                 <items>
+                  <item translatable="yes">Off</item>
                   <item translatable="yes">1 hour</item>
                   <item translatable="yes">6 hours</item>
                   <item translatable="yes">12 hours</item>

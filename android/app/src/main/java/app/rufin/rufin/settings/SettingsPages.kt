@@ -178,7 +178,7 @@ internal fun AppSettingsPage(destination: MoreDestination, model: RufinConnectio
                     // A TV has no battery to spare and no prompt for it.
                     if (state.keepRunningInBackground && LocalConfiguration.current.uiMode and Configuration.UI_MODE_TYPE_MASK != Configuration.UI_MODE_TYPE_TELEVISION) BatteryOptimizationRow()
                     PreferenceChoice(translate("Update check interval"), state.releaseCheckIntervalHours.toString(),
-                        listOf("1" to translate("1 hour"), "6" to translate("6 hours"), "12" to translate("12 hours"), "24" to translate("24 hours")),
+                        listOf("0" to translate("Off"), "1" to translate("1 hour"), "6" to translate("6 hours"), "12" to translate("12 hours"), "24" to translate("24 hours")),
                         select = { preferences.changePreference { setReleaseCheckIntervalHours(it.toUInt()) } })
                     SettingsLink(null, translate("Listening overview")) { navigate(MoreDestination.OverviewSettings) }
                 }
