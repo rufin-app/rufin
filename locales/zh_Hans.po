@@ -820,6 +820,9 @@ msgstr "重启 Rufin 后生效"
 msgid "Channels"
 msgstr "声道"
 
+msgid "Chat on Matrix"
+msgstr ""
+
 msgid "Check for updates"
 msgstr "检查更新"
 
@@ -1208,6 +1211,9 @@ msgid ""
 "Credit the artists a tag names after feat. or ft. as artists of their own"
 msgstr "将 feat. 或 ft. 后的艺人视为单独的艺人"
 
+msgid "Credits"
+msgstr ""
+
 msgid "Crossfade duration"
 msgstr "淡入淡出时长"
 
@@ -1356,6 +1362,9 @@ msgstr ""
 
 msgid "Details"
 msgstr "详情"
+
+msgid "Developers"
+msgstr ""
 
 msgid "Device invitation"
 msgstr "设备邀请"
@@ -1652,6 +1661,9 @@ msgstr "均衡器受接收端控制"
 
 msgid "Equalizer"
 msgstr "均衡器"
+
+msgid "Errors"
+msgstr ""
 
 msgid "Ever played"
 msgstr "曾经播放"
@@ -2260,6 +2272,11 @@ msgstr ""
 msgid "Legacy"
 msgstr "旧版"
 
+#, fuzzy
+#| msgid "Legacy"
+msgid "Legal"
+msgstr "旧版"
+
 msgid "Less"
 msgstr ""
 
@@ -2389,6 +2406,9 @@ msgid "Logarithmic"
 msgstr "对数"
 
 msgid "Logs are copied"
+msgstr ""
+
+msgid "Logs"
 msgstr ""
 
 msgid "Look up the artists that listeners play alongside the current one"
@@ -3615,6 +3635,9 @@ msgstr "回放增益标签"
 msgid "ReplayGain"
 msgstr "回放增益"
 
+msgid "Report an Issue"
+msgstr ""
+
 msgid "Request failed ({status})"
 msgstr ""
 
@@ -4594,17 +4617,24 @@ msgstr ""
 msgid "Transition mode"
 msgstr "过渡模式"
 
+#, fuzzy
+#| msgid "Translation language"
+msgid "Translate"
+msgstr "翻译语言"
+
 msgid "Translation language"
 msgstr "翻译语言"
+
+#, fuzzy
+#| msgid "Prefer translations"
+msgid "Translators"
+msgstr "优先使用翻译"
 
 msgid "Tray icon"
 msgstr "托盘图标"
 
 msgid "Treble"
 msgstr "高音"
-
-msgid "Troubleshooting"
-msgstr "故障排除"
 
 msgid "Trust self-signed certificate"
 msgstr "信任自签名证书"
@@ -4812,6 +4842,9 @@ msgstr "正在等待设备"
 msgid "Waiting for the other device to approve"
 msgstr "等待另一台设备授权"
 
+msgid "Warnings"
+msgstr ""
+
 msgid "Waveform seekbar"
 msgstr "波形进度条"
 
@@ -4823,6 +4856,9 @@ msgstr "WebDAV / Nextcloud"
 
 msgid "WebDAV"
 msgstr "WebDAV"
+
+msgid "Website"
+msgstr ""
 
 msgid "Wednesday"
 msgstr "星期三"
@@ -5151,6 +5187,9 @@ msgstr ""
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "欢迎使用 Rufin 安装程序"
+
+#~ msgid "Troubleshooting"
+#~ msgstr "故障排除"
 
 #~ msgid "Save action saves the lyrics directly to your source"
 #~ msgstr "保存时会将歌词存入数据源"

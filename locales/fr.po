@@ -903,6 +903,9 @@ msgstr "Les changements prendront effet au redémarrage de Rufin"
 msgid "Channels"
 msgstr "Canaux"
 
+msgid "Chat on Matrix"
+msgstr ""
+
 msgid "Check for updates"
 msgstr "Rechercher les mises à jour"
 
@@ -1303,6 +1306,9 @@ msgstr ""
 "Créditer comme artistes distincts les artistes cités après « feat. » ou "
 "« ft. »"
 
+msgid "Credits"
+msgstr ""
+
 msgid "Crossfade duration"
 msgstr "Durée du fondu enchaîné"
 
@@ -1455,6 +1461,9 @@ msgstr "Détail"
 
 msgid "Details"
 msgstr "Détails"
+
+msgid "Developers"
+msgstr ""
 
 msgid "Device invitation"
 msgstr "Invitation de l'appareil"
@@ -1755,6 +1764,9 @@ msgstr "L'égaliseur est contrôlé par le récepteur"
 
 msgid "Equalizer"
 msgstr "Égaliseur"
+
+msgid "Errors"
+msgstr ""
 
 msgid "Ever played"
 msgstr "Déjà écouté"
@@ -2381,6 +2393,11 @@ msgstr "Mot de passe hérité"
 msgid "Legacy"
 msgstr "Hérité"
 
+#, fuzzy
+#| msgid "Legacy"
+msgid "Legal"
+msgstr "Hérité"
+
 msgid "Less"
 msgstr "Moins"
 
@@ -2518,6 +2535,9 @@ msgstr "Logarithmique"
 
 msgid "Logs are copied"
 msgstr "Les journaux sont copiés"
+
+msgid "Logs"
+msgstr ""
 
 msgid "Look up the artists that listeners play alongside the current one"
 msgstr ""
@@ -3762,6 +3782,9 @@ msgstr "Balises ReplayGain"
 msgid "ReplayGain"
 msgstr "ReplayGain"
 
+msgid "Report an Issue"
+msgstr ""
+
 msgid "Request failed ({status})"
 msgstr "Échec de la requête ({status})"
 
@@ -4769,17 +4792,24 @@ msgstr "Transcodé"
 msgid "Transition mode"
 msgstr "Mode de transition"
 
+#, fuzzy
+#| msgid "Transcoded"
+msgid "Translate"
+msgstr "Transcodé"
+
 msgid "Translation language"
 msgstr "Langue de traduction"
+
+#, fuzzy
+#| msgid "Prefer translations"
+msgid "Translators"
+msgstr "Préférer les traductions"
 
 msgid "Tray icon"
 msgstr "Icône dans la zone de notification"
 
 msgid "Treble"
 msgstr "Aigus"
-
-msgid "Troubleshooting"
-msgstr "Dépannage"
 
 msgid "Trust self-signed certificate"
 msgstr "Certificat auto-signé de confiance"
@@ -4995,6 +5025,9 @@ msgstr "En attente de l’appareil"
 msgid "Waiting for the other device to approve"
 msgstr "En attente de l’approbation de l’autre appareil"
 
+msgid "Warnings"
+msgstr ""
+
 msgid "Waveform seekbar"
 msgstr "Barre de recherche de forme d’onde"
 
@@ -5006,6 +5039,9 @@ msgstr "WebDAV / Nextcloud"
 
 msgid "WebDAV"
 msgstr "WebDAV"
+
+msgid "Website"
+msgstr ""
 
 msgid "Wednesday"
 msgstr "Mercredi"
@@ -5361,6 +5397,9 @@ msgstr "L'option de mise à jour automatique de {app_name} est invalide."
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Bienvenue dans l’installation de Rufin"
+
+#~ msgid "Troubleshooting"
+#~ msgstr "Dépannage"
 
 #~ msgid "Save action saves the lyrics directly to your source"
 #~ msgstr ""

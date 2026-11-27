@@ -888,6 +888,9 @@ msgstr "Muudatused jõustuvad Rufini uuesti käivitamisel"
 msgid "Channels"
 msgstr "Kanaleid"
 
+msgid "Chat on Matrix"
+msgstr ""
+
 msgid "Check for updates"
 msgstr "Kontrolli uuendusi"
 
@@ -1284,6 +1287,9 @@ msgid ""
 "Credit the artists a tag names after feat. or ft. as artists of their own"
 msgstr ""
 
+msgid "Credits"
+msgstr ""
+
 msgid "Crossfade duration"
 msgstr "Risthajumise kestus"
 
@@ -1436,6 +1442,9 @@ msgstr "Üksikasjad"
 
 msgid "Details"
 msgstr "Üksikasjad"
+
+msgid "Developers"
+msgstr ""
 
 msgid "Device invitation"
 msgstr "Seadme kutse"
@@ -1734,6 +1743,9 @@ msgstr "Vastuvõtja kontrollib ekvalaiserit"
 
 msgid "Equalizer"
 msgstr "Ekvalaiser"
+
+msgid "Errors"
+msgstr ""
 
 msgid "Ever played"
 msgstr "Esitatud"
@@ -2376,6 +2388,11 @@ msgstr "Vana tüüpi salasõna"
 msgid "Legacy"
 msgstr "Vanem versioon"
 
+#, fuzzy
+#| msgid "Legacy"
+msgid "Legal"
+msgstr "Vanem versioon"
+
 msgid "Less"
 msgstr ""
 
@@ -2518,6 +2535,9 @@ msgstr "Logaritmiline"
 
 msgid "Logs are copied"
 msgstr "Logid on kopeeritud"
+
+msgid "Logs"
+msgstr ""
 
 msgid "Look up the artists that listeners play alongside the current one"
 msgstr ""
@@ -3824,6 +3844,9 @@ msgstr "Esitusvaljuse tundlikkuse sildid"
 msgid "ReplayGain"
 msgstr "Esitusvaljuse tundlikkus"
 
+msgid "Report an Issue"
+msgstr ""
+
 msgid "Request failed ({status})"
 msgstr "Päring ei õnnestunud ({status})"
 
@@ -4893,8 +4916,18 @@ msgstr "Kodeeritud"
 msgid "Transition mode"
 msgstr "Lugudevahetuse viis"
 
+#, fuzzy
+#| msgid "Transcoded"
+msgid "Translate"
+msgstr "Kodeeritud"
+
 msgid "Translation language"
 msgstr "Tõlke keel"
+
+#, fuzzy
+#| msgid "Prefer translations"
+msgid "Translators"
+msgstr "Eelista tõlkeid"
 
 #, fuzzy
 #| msgid "Show tray icon"
@@ -4903,9 +4936,6 @@ msgstr "Näita süsteemisalve ikooni"
 
 msgid "Treble"
 msgstr "Kõrged"
-
-msgid "Troubleshooting"
-msgstr "Veaotsing"
 
 msgid "Trust self-signed certificate"
 msgstr "Usalda enda allkirjastatud sertifikaati"
@@ -5125,6 +5155,9 @@ msgstr "Ootan seadme järel"
 msgid "Waiting for the other device to approve"
 msgstr "Ootan teise seadme kinnitust"
 
+msgid "Warnings"
+msgstr ""
+
 msgid "Waveform seekbar"
 msgstr "Helilainega kerimisriba"
 
@@ -5136,6 +5169,9 @@ msgstr "WebDAV / Nextcloud"
 
 msgid "WebDAV"
 msgstr "WebDAV"
+
+msgid "Website"
+msgstr "Veebisait"
 
 msgid "Wednesday"
 msgstr "Kolmapäev"
@@ -5509,6 +5545,9 @@ msgstr "Rakenduse automaatse uuenduse seadistus on vigane: {app_name}."
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Tere tulemast, see on Rufini paigaldusprogramm"
+
+#~ msgid "Troubleshooting"
+#~ msgstr "Veaotsing"
 
 #~ msgid "Save action saves the lyrics directly to your source"
 #~ msgstr "Salvestamine talletab laulusõnad sinu andmeallikasse"
@@ -6504,9 +6543,6 @@ msgstr "Tere tulemast, see on Rufini paigaldusprogramm"
 
 #~ msgid "Use server streams only"
 #~ msgstr "Kasuta vaid voogedastust serverist"
-
-#~ msgid "Website"
-#~ msgstr "Veebisait"
 
 #~ msgid "appears on"
 #~ msgstr "esineb"

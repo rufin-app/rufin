@@ -897,6 +897,9 @@ msgstr "As alterações entram em vigor após reiniciar o Rufin"
 msgid "Channels"
 msgstr "Canais"
 
+msgid "Chat on Matrix"
+msgstr ""
+
 msgid "Check for updates"
 msgstr "Verificar atualizações"
 
@@ -1293,6 +1296,9 @@ msgstr ""
 "Considerar como artistas independentes os artistas indicados nas tags após "
 "“feat.” ou “ft.”"
 
+msgid "Credits"
+msgstr ""
+
 msgid "Crossfade duration"
 msgstr "Duração do crossfade"
 
@@ -1445,6 +1451,9 @@ msgstr "Detalhe"
 
 msgid "Details"
 msgstr "Detalhes"
+
+msgid "Developers"
+msgstr ""
 
 msgid "Device invitation"
 msgstr "Convite do dispositivo"
@@ -1741,6 +1750,9 @@ msgstr "O equalizador é controlado pelo receptor"
 
 msgid "Equalizer"
 msgstr "Equalizador"
+
+msgid "Errors"
+msgstr ""
 
 msgid "Ever played"
 msgstr "Já reproduzido"
@@ -2367,6 +2379,11 @@ msgstr "Senha legada"
 msgid "Legacy"
 msgstr "Legado"
 
+#, fuzzy
+#| msgid "Legacy"
+msgid "Legal"
+msgstr "Legado"
+
 msgid "Less"
 msgstr "Menos"
 
@@ -2503,6 +2520,9 @@ msgstr "Logarítmico"
 
 msgid "Logs are copied"
 msgstr "Os registros foram copiados"
+
+msgid "Logs"
+msgstr ""
 
 msgid "Look up the artists that listeners play alongside the current one"
 msgstr ""
@@ -3739,6 +3759,9 @@ msgstr "Tags ReplayGain"
 msgid "ReplayGain"
 msgstr "Normalização do volume"
 
+msgid "Report an Issue"
+msgstr ""
+
 msgid "Request failed ({status})"
 msgstr "Falha na solicitação ({status})"
 
@@ -4727,17 +4750,24 @@ msgstr "Transcodificado"
 msgid "Transition mode"
 msgstr "Modo de transição"
 
+#, fuzzy
+#| msgid "Transcoded"
+msgid "Translate"
+msgstr "Transcodificado"
+
 msgid "Translation language"
 msgstr "Idioma de tradução"
+
+#, fuzzy
+#| msgid "Prefer translations"
+msgid "Translators"
+msgstr "Preferir traduções"
 
 msgid "Tray icon"
 msgstr "Ícone na bandeja"
 
 msgid "Treble"
 msgstr "Agudos"
-
-msgid "Troubleshooting"
-msgstr "Solução de problemas"
 
 msgid "Trust self-signed certificate"
 msgstr "Confiar em certificado autoassinado"
@@ -4948,6 +4978,9 @@ msgstr "Aguardando dispositivo"
 msgid "Waiting for the other device to approve"
 msgstr "Aguardando o outro dispositivo aprovar"
 
+msgid "Warnings"
+msgstr ""
+
 msgid "Waveform seekbar"
 msgstr "Barra de busca em forma de onda"
 
@@ -4959,6 +4992,9 @@ msgstr "WebDAV / Nextcloud"
 
 msgid "WebDAV"
 msgstr "WebDAV"
+
+msgid "Website"
+msgstr ""
 
 msgid "Wednesday"
 msgstr "Quarta-feira"
@@ -5305,6 +5341,9 @@ msgstr "A opção de atualização automática do {app_name} é inválida."
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Bem-vindo à configuração do Rufin"
+
+#~ msgid "Troubleshooting"
+#~ msgstr "Solução de problemas"
 
 #~ msgid "Save action saves the lyrics directly to your source"
 #~ msgstr "A ação de salvar grava as letras diretamente na sua fonte"
