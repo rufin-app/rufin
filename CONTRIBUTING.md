@@ -85,8 +85,7 @@ and reuses it afterward. To use an existing SDK, set `GSTREAMER_ROOT_ANDROID` or
 `gstreamer.dir` in `android/local.properties`.
 That file also accepts `sdk.dir` for the Android SDK.
 
-Run `just test android` for JVM unit tests, Android lint and Clippy, without an emulator;
-`just lint` runs it when a change touches `android/` or `crates/rufin-android/`.
+Run `just test android` for JVM unit tests, Android lint and Clippy, without an emulator.
 Run `just build apk-dev` to build the development APK.
 
 ## Project structure

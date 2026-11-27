@@ -418,11 +418,9 @@ _generate:
     @cargo run --locked -p xtask -- generate i18n-template
     @cargo run --locked -p xtask -- generate flatpak-sources
 
-# Check the commits since BASE: whitespace, dependency policy, formatting and Clippy for the crates
-# they touch, and the Android check when they touch the Android app.
+# Check the commits since BASE: whitespace, dependency policy, formatting and Clippy for the crates they touch.
 lint base="origin/master":
     @scripts/container run default none cargo run --locked -p xtask -- lint {{ base }}
-    @if ! git diff --quiet {{ base }}...HEAD -- android crates/rufin-android; then just test android; fi
 
 # Regenerate the shared desktop and web translation template, or pass --check.
 i18n *args:
