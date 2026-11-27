@@ -14,7 +14,7 @@
             <property name="spacing">12</property>
             <child>
               <object class="GtkImage" id="glyph">
-                <property name="pixel-size">24</property>
+                <property name="pixel-size">20</property>
                 <property name="valign">center</property>
                 <style><class name="home-quick-mix-glyph"/></style>
               </object>
@@ -27,7 +27,7 @@
                 <property name="max-width-chars">1</property>
                 <property name="ellipsize">end</property>
                 <property name="single-line-mode">true</property>
-                <style><class name="home-row-title"/></style>
+                <style><class name="track-title"/><class name="home-row-title"/></style>
               </object>
             </child>
           </object>
