@@ -92,7 +92,6 @@ internal fun PinsContent(model: RufinConnection, browse: BrowseConnection, playe
                     ListItem(headlineContent = { BrowseTitle(page.shown(item), player = player) },
                         supportingContent = { app.rufin.rufin.ui.DownloadedLine(item) { PinFacts(item, model) } },
                         leadingContent = { PinCover(item, player, 50.dp) },
-                        trailingContent = { PlayerIconButton("rufin-view-more-symbolic", "More", { action = item }) },
                         modifier = Modifier.combinedClickable(onClick = { browse.open(item) }, onLongClick = { action = item }))
                 }
             }

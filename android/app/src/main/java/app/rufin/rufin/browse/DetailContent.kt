@@ -674,10 +674,11 @@ internal fun FieldRow(
                 LibraryField.IMAGE -> if (showImage) DetailCover(detailArtwork(item.row.artworkIdentity, player, imageSize), Modifier.size(imageSize))
                 // Compact actions, so the title keeps the width.
                 LibraryField.TOOLS -> PlayerIconButton("rufin-view-more-symbolic", "More", { menu(projected) }, detailColumn(field.id).height(36.dp), iconSize = 20.dp)
-                LibraryField.FAVORITE -> {
+                // Only a favorite shows its heart; a row is made one by its swipe or menu.
+                LibraryField.FAVORITE -> if (!projected.row.favorite) Spacer(detailColumn(field.id)) else {
                     val motion = rememberFavoriteMotion()
-                    IconButton({ motion.clicked(projected.row.favorite); favorite(projected) }, detailColumn(field.id).height(36.dp)) {
-                        FavoriteHeart(projected.row.favorite, motion, translate("Favorite"), Modifier.size(20.dp))
+                    IconButton({ motion.clicked(true); favorite(projected) }, detailColumn(field.id).height(36.dp)) {
+                        FavoriteHeart(true, motion, translate("Favorite"), Modifier.size(20.dp))
                     }
                 }
                 // One line whatever the count: four digits fit, longer ones run into the gap beside them.

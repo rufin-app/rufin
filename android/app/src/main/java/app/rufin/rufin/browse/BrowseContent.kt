@@ -999,11 +999,8 @@ private fun BrowseTrackRow(item: BrowseItem, player: PlayerConnection,
             }
             item.row.lyricsSnippet?.let { LyricsSnippetText(it) }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-                if (item.row.isTrack && item.row.durationMillis > 0UL) Text(item.row.durationText,
-                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                PlayerIconButton("rufin-view-more-symbolic", "More", { onMenu(item) }, Modifier.size(36.dp), iconSize = 20.dp)
-        }
+        if (item.row.isTrack && item.row.durationMillis > 0UL) Text(item.row.durationText,
+            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     }
 }

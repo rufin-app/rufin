@@ -222,9 +222,8 @@ private fun SearchResults(
                     else Text(line, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 },
                 leadingContent = { Artwork(artwork, Modifier.size(50.dp).clip(CoverShape)) },
-                trailingContent = {
-                    if (item != null) PlayerIconButton("rufin-view-more-symbolic", "More", { selected = recent })
-                    else PlayerIconButton("rufin-user-trash-symbolic", "Remove", { browse.removeRecentSearch(result) })
+                trailingContent = if (item != null) null else {
+                    { PlayerIconButton("rufin-user-trash-symbolic", "Remove", { browse.removeRecentSearch(result) }) }
                 },
                 modifier = Modifier.combinedClickable(onClick = { browse.openRecent(recent) }, onLongClick = { selected = recent }),
             )
