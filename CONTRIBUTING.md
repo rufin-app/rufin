@@ -80,7 +80,7 @@ sdkmanager "platforms;android-37.2" "build-tools;36.1.0" "ndk;29.0.14206865" "pl
 rustup toolchain install stable --target aarch64-linux-android
 ```
 
-The first build downloads GStreamer 1.28.7 into `android/.toolchains/gstreamer-1.28.7`
+The first build downloads GStreamer 1.28.9 into `android/.toolchains/gstreamer-1.28.9`
 and reuses it afterward. To use an existing SDK, set `GSTREAMER_ROOT_ANDROID` or
 `gstreamer.dir` in `android/local.properties`.
 That file also accepts `sdk.dir` for the Android SDK.

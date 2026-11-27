@@ -7,8 +7,8 @@ use std::process::Command;
 use crate::Result;
 use crate::process::{command_stdout, read_to_string, repo_root, write_string};
 
-const GSTREAMER_VERSION: &str = "1.28.7";
-const GSTREAMER_SHA256: &str = "fa914bcf8695af1c6fa1f81db2e8da019a0306a89c2c3e48659438e1654023da";
+const GSTREAMER_VERSION: &str = "1.28.9";
+const GSTREAMER_SHA256: &str = "04ca3f41c8fc7359c4f92f3705ffee0533890b1f5ea94a49509f1ede0d241a53";
 // Every download unpacks all ABIs, so a cached SDK serves arm64 checks and releases alike.
 const GSTREAMER_ARCHITECTURES: [&str; 3] = ["arm64", "armv7", "x86_64"];
 // An APK's versionCode is the release's version-code * 10 + its position here, so devices that

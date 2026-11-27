@@ -9,8 +9,8 @@ FetchContent_Declare(rufin_libbs2b
     DOWNLOAD_DIR "${rufin_downloads}"
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 FetchContent_Declare(rufin_gst_bad
-    URL https://gstreamer.freedesktop.org/src/gst-plugins-bad/gst-plugins-bad-1.28.7.tar.xz
-    URL_HASH SHA256=dc525383c18b2c265bbe6a43d498656cd918aaa130aa4e3abeabcdaa741c3ffe
+    URL https://gstreamer.freedesktop.org/src/gst-plugins-bad/gst-plugins-bad-1.28.9.tar.xz
+    URL_HASH SHA256=4a4e0b7bf84f868378c48f143a7ac3a98923b488a5b74f1a35ba46bc3c43f6b1
     DOWNLOAD_DIR "${rufin_downloads}"
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 FetchContent_MakeAvailable(rufin_libbs2b rufin_gst_bad)
@@ -52,7 +52,7 @@ foreach(plugin RufinBs2b RufinChromaprint)
     set_target_properties(${plugin} PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
     target_compile_definitions(${plugin} PRIVATE
         GST_PLUGIN_BUILD_STATIC
-        VERSION="1.28.7"
+        VERSION="1.28.9"
         PACKAGE="gst-plugins-bad"
         GST_PACKAGE_NAME="GStreamer Bad Plug-ins"
         GST_PACKAGE_ORIGIN="https://gstreamer.freedesktop.org/")
@@ -67,6 +67,6 @@ set(GStreamer_chromaprint_FOUND TRUE)
 configure_file("${rufin_libbs2b_SOURCE_DIR}/COPYING"
     "${GSTREAMER_ASSETS_DIR}/licenses/libbs2b-3.1.0.txt" COPYONLY)
 configure_file("${rufin_gst_bad_SOURCE_DIR}/COPYING"
-    "${GSTREAMER_ASSETS_DIR}/licenses/gst-plugins-bad-1.28.7.txt" COPYONLY)
+    "${GSTREAMER_ASSETS_DIR}/licenses/gst-plugins-bad-1.28.9.txt" COPYONLY)
 configure_file("${rufin_chromaprint_SOURCE_DIR}/LICENSE.md"
     "${GSTREAMER_ASSETS_DIR}/licenses/chromaprint-1.6.0.txt" COPYONLY)
