@@ -263,7 +263,10 @@ internal fun BrowseMenuSheet(
         MediaDetailsDialog(model, browse, item, player) { details = false }
         return
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.Transparent,
+    // The sheet stays below the status bar: Material pads a sheet under it by the sheet's own offset, and that
+    // padding moves the sheet's expanded anchor, so a menu that nearly fills the screen chases its own top.
+    ModalBottomSheet(onDismissRequest = onDismiss, Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)),
+        containerColor = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface, contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
         // Short screens (a phone on its side) open the menu at full height.
         dragHandle = null, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = LocalConfiguration.current.screenHeightDp < 600)) {

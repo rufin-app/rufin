@@ -137,7 +137,9 @@ private fun QueueMode(icon: String, label: String, text: String?, modifier: Modi
 @Composable
 internal fun SleepTimerSheet(player: PlayerConnection, onDismiss: () -> Unit) {
     val (timer, text) = rememberSleepTimer(player)
-    ModalBottomSheet(onDismiss, containerColor = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface,
+    // Below the status bar, as the More sheet.
+    ModalBottomSheet(onDismiss, Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)),
+        containerColor = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface,
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) }, dragHandle = null,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         MediaMenuBackdrop(player.currentItem?.artworkBinding, player) {
