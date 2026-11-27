@@ -34,7 +34,7 @@
         </child>
         <child>
           <object class="AdwShortcutsItem" id="shortcut_troubleshooting">
-            <property name="title" translatable="yes">Troubleshooting</property>
+            <property name="title" translatable="yes">Logs</property>
             <property name="action-name">win.troubleshooting</property>
           </object>
         </child>

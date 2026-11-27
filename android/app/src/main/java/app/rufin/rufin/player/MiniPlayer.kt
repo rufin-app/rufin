@@ -262,7 +262,7 @@ private fun BarPlay(player: PlayerConnection, playing: Boolean) {
     }
 }
 
-/** The player at the foot of a phone's landscape sidebar, as Spotify places it: the track, then
+/** The player a phone's landscape sidebar docks over its last row, from edge to edge: the track, then
  *  output, play and next under it, and the progress line. */
 @Composable
 internal fun SidebarPlayer(player: PlayerConnection, onOpen: () -> Unit, onOutput: () -> Unit, modifier: Modifier = Modifier) {
@@ -271,12 +271,12 @@ internal fun SidebarPlayer(player: PlayerConnection, onOpen: () -> Unit, onOutpu
     val artwork = rememberArtwork(player.currentItem?.artworkBinding, player, with(LocalDensity.current) { 44.dp.roundToPx() }, animated = true)
     // Only Next shows; a swipe goes either way, as the mini player's does.
     val (swipe, offset) = rememberTrackSwipe(player)
-    Surface(modifier.fillMaxWidth().then(swipe).clickable(interactionSource = null, indication = null, onClick = onOpen), shape = RoundedCornerShape(12.dp),
+    Surface(modifier.fillMaxWidth().then(swipe).clickable(interactionSource = null, indication = null, onClick = onOpen),
         color = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface) {
-        Column(Modifier.padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 4.dp)) {
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Column(Modifier.padding(top = 8.dp)) {
+            Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 CoverCrossfade(artwork, Modifier.size(44.dp))
-                Column(Modifier.weight(1f).padding(start = 10.dp).trackSlide(offset.value)) {
+                Column(Modifier.weight(1f).padding(start = 12.dp).trackSlide(offset.value)) {
                     Text(player.currentItem?.metadata?.title.orEmpty(), Modifier.basicMarquee(), maxLines = 1, fontWeight = FontWeight.SemiBold,
                         style = MaterialTheme.typography.bodyMedium)
                     BarSubtitle(player.currentItem?.metadata?.artist.orEmpty(), player.live, MaterialTheme.typography.bodySmall)
@@ -285,12 +285,12 @@ internal fun SidebarPlayer(player: PlayerConnection, onOpen: () -> Unit, onOutpu
                 PlayerIconButton("rufin-heart-outline-symbolic", "Favorite current track", player::favorite,
                     enabled = !player.live, favorite = favorite)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 PlayerIconButton("rufin-speaker-front-symbolic", "Audio output", onOutput)
                 BarPlay(player, playing)
                 PlayerIconButton("rufin-media-skip-forward-symbolic", "Next Track", player::next, enabled = !player.live)
             }
-            if (duration > 0UL) Box(Modifier.padding(end = 4.dp, bottom = 2.dp)) {
+            if (duration > 0UL) Box(Modifier.padding(top = 4.dp)) {
                 MiniProgress(player, duration, player.playback?.transport?.state == app.rufin.rufin.shared.playback.TransportStatus.PLAYING)
             }
         }

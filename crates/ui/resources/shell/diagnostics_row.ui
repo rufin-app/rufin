@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface domain="rufin">
+  <template class="RufinLogRow" parent="GtkBox">
+    <property name="spacing">12</property>
+    <style><class name="log-row"/></style>
+    <child><object class="GtkBox">
+      <property name="orientation">vertical</property>
+      <property name="spacing">2</property>
+      <property name="width-request">68</property>
+      <child><object class="GtkLabel" id="time">
+        <property name="xalign">0</property>
+        <style><class name="dim-label"/><class name="log-code"/></style>
+      </object></child>
+      <child><object class="GtkLabel" id="level">
+        <property name="xalign">0</property>
+        <style><class name="caption-heading"/><class name="log-level"/></style>
+      </object></child>
+    </object></child>
+    <child><object class="GtkBox">
+      <property name="orientation">vertical</property>
+      <property name="spacing">2</property>
+      <property name="hexpand">true</property>
+      <child><object class="GtkLabel" id="origin">
+        <property name="xalign">0</property>
+        <property name="ellipsize">middle</property>
+        <style><class name="caption"/><class name="dim-label"/></style>
+      </object></child>
+      <child><object class="GtkLabel" id="message">
+        <property name="xalign">0</property>
+        <property name="wrap">true</property>
+        <property name="wrap-mode">word-char</property>
+        <property name="ellipsize">end</property>
+        <property name="lines">6</property>
+        <style><class name="log-message"/></style>
+      </object></child>
+      <child><object class="GtkLabel" id="fields">
+        <property name="xalign">0</property>
+        <property name="wrap">true</property>
+        <property name="wrap-mode">word-char</property>
+        <property name="ellipsize">end</property>
+        <property name="lines">3</property>
+        <style><class name="dim-label"/><class name="log-code"/></style>
+      </object></child>
+    </object></child>
+  </template>
+</interface>

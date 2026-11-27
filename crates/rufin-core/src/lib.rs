@@ -2,6 +2,7 @@
 #[cfg(feature = "bindings")]
 uniffi::setup_scaffolding!();
 
+pub mod about;
 pub mod activity;
 mod album_release;
 pub mod app;

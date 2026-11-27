@@ -25,6 +25,8 @@ import app.rufin.rufin.settings.IntegrationsPage
 import app.rufin.rufin.settings.SettingsPage
 import app.rufin.rufin.settings.SettingsGroup
 import app.rufin.rufin.settings.SettingsRow
+import app.rufin.rufin.settings.SettingsIcon
+import app.rufin.rufin.settings.SettingsLeads
 import app.rufin.rufin.settings.SettingsHighlight
 import app.rufin.rufin.settings.SettingsSearchItem
 import app.rufin.rufin.settings.SettingsSearchResults
@@ -44,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import app.rufin.rufin.settings.LocalReduceMotion
 import app.rufin.rufin.downloads.DownloadsPage
 import app.rufin.rufin.downloads.DownloadSettingsPage
-import app.rufin.rufin.diagnostics.TroubleshootingPage
+import app.rufin.rufin.diagnostics.LogsPage
 import app.rufin.rufin.releases.VersionHistoryPage
 
 import androidx.compose.foundation.layout.*
@@ -54,17 +56,18 @@ import androidx.compose.ui.Modifier
 import app.rufin.rufin.core.translate
 
 internal enum class MoreDestination(val title: String) {
-    Root("Settings"), Overview("Listening overview"), OverviewSettings("Listening overview"),
-    Versions("Version History"), Troubleshooting("Troubleshooting"),
+    Root("Settings"), About("About Rufin"), Overview("Listening overview"), OverviewSettings("Listening overview"),
+    Versions("Version History"), Logs("Logs"),
     General("General"), Customization("Customization"), Theme("Theme"), Integrations("Integrations"), Integration("Integrations"),
     Playback("Playback"), Equalizer("Equalizer"), Library("Library"), Downloads("Downloads"),
     Connect("Connect"), Controller("Controller"), Storage("Storage"), Privacy("Privacy & Security"),
     DownloadSettings("Downloads"),
     BackupSettings("Backup Settings");
 
-    // The sidebar's rail opens Settings and these three pages directly.
+    // The sidebar opens Settings and About; About lists the three pages about the app itself.
     val parent get() = when (this) {
-        Root, Overview, Versions, Troubleshooting -> null
+        Root, About -> null
+        Overview, Versions, Logs -> About
         Integration -> Integrations
         BackupSettings -> Privacy
         OverviewSettings -> General
@@ -72,10 +75,15 @@ internal enum class MoreDestination(val title: String) {
         else -> Root
     }
     val depth: Int get() = parent?.let { it.depth + 1 } ?: 0
+    /** Which of the sidebar's two this page is under: About or Settings. */
+    val section: MoreDestination get() = parent?.section ?: this
     /** The page Settings' root lists that this one is under, or this one. */
     val category: MoreDestination get() = parent?.takeIf { it != Root }?.category ?: this
-    /** The icon of a page on Settings' root. */
+    /** The icon of a page on Settings' root or on About. */
     val icon: String? get() = when (this) {
+        Overview -> "rufin-activity-overview-symbolic"
+        Versions -> "rufin-appointment-new-symbolic"
+        Logs -> "rufin-rich-text-symbolic"
         General -> "rufin-preferences-system-symbolic"
         Customization -> "rufin-sliders-2-symbolic"
         Theme -> "rufin-preferences-desktop-appearance-symbolic"
@@ -97,7 +105,7 @@ internal fun MoreContent(model: RufinConnection, preferences: PreferencesConnect
     destination: MoreDestination, navigate: (MoreDestination) -> Unit,
     /** The integration page Integration shows, and how one opens. */
     integration: IntegrationPage?, openIntegration: (IntegrationPage) -> Unit, back: () -> Unit,
-    onAddSource: () -> Unit, onEditSource: (String) -> Unit, onOpen: () -> Unit, onSaveLog: () -> Unit, onOutput: () -> Unit,
+    onAddSource: () -> Unit, onEditSource: (String) -> Unit, onOpen: () -> Unit, onOutput: () -> Unit,
     navigationDepth: Int,
     /** What Search on Settings' root looks for, while it is open there. */
     settingsQuery: String?,
@@ -192,21 +200,18 @@ internal fun MoreContent(model: RufinConnection, preferences: PreferencesConnect
         MoreDestination.Connect -> ConnectPage(model)
         MoreDestination.Overview -> ListeningOverviewPage(model, more, player)
         MoreDestination.Versions -> VersionHistoryPage(more)
-        MoreDestination.Troubleshooting -> TroubleshootingPage(model, onSaveLog)
+        MoreDestination.About -> AboutPage(navigate)
+        MoreDestination.Logs -> LogsPage(model)
     }
     }
     }
     }
 }
 
-/** A page of Settings on its root: its icon on a tonal tile, its name, and what is set there. */
+/** A page of Settings on its root: its icon, its name, and what is set there. */
 @Composable
 private fun SettingsCategory(page: MoreDestination, navigate: (MoreDestination) -> Unit, facts: List<String> = emptyList(),
     separator: String = " · ") {
-    SettingsRow(translate(page.title), summary = facts.joinToString(separator).takeIf { it.isNotEmpty() }, leading = {
-        Box(Modifier.size(36.dp).background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center) {
-            RufinIcon(checkNotNull(page.icon), null, Modifier.size(20.dp), MaterialTheme.colorScheme.primary)
-        }
-    }, modifier = Modifier.clickable { navigate(page) })
+    SettingsRow(translate(page.title), summary = facts.joinToString(separator).takeIf { it.isNotEmpty() },
+        leading = { SettingsIcon(checkNotNull(page.icon)) }, trailing = { SettingsLeads() }, modifier = Modifier.clickable { navigate(page) })
 }

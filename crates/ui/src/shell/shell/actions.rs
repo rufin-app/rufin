@@ -610,7 +610,7 @@ fn macos_menu_model() -> gio::Menu {
     let help = gio::Menu::new();
     help.append(Some(&tr("Keyboard Shortcuts")), Some("app.show-shortcuts"));
     help.append(Some(&tr("Version History")), Some("win.show-release-notes"));
-    help.append(Some(&tr("Troubleshooting")), Some("win.troubleshooting"));
+    help.append(Some(&tr("Logs")), Some("win.troubleshooting"));
     menu.append_submenu(Some(&tr("Help")), &help);
 
     menu
@@ -831,18 +831,26 @@ fn replace_pointer_keycaps(container: &gtk::Widget) {
 }
 
 fn show_about_dialog(shell: &Shell) {
+    use rufin_core::about;
+
     let resource = "application/about.ui";
     let builder = crate::ui_resource::builder(resource);
     let dialog: adw::AboutDialog = crate::ui_resource::object(&builder, resource, "dialog");
-    let sponsor: gtk::LinkButton = crate::ui_resource::object(&builder, resource, "sponsor");
-    let sponsor_uri = sponsor.uri();
-    dialog.set_support_url(&sponsor_uri);
+    dialog.set_developers(about::DEVELOPERS);
+    dialog.set_website(about::WEBSITE);
+    dialog.set_issue_url(about::ISSUES);
+    dialog.set_copyright(about::COPYRIGHT);
+    dialog.set_license_type(gtk::License::Custom);
+    dialog.set_license(about::LICENSE);
+    dialog.add_link(&tr("Translate"), about::TRANSLATE);
+    dialog.add_link(&tr("Chat on Matrix"), about::CHAT);
+    dialog.set_support_url(about::DONATE);
     // AboutDialog exposes the URL but not the label of its main-page support action.
     let mut pending = vec![dialog.child().expect("AboutDialog content")];
     let mut support = None;
     while let Some(widget) = pending.pop() {
         if let Some(row) = widget.downcast_ref::<adw::ActionRow>()
-            && row.tooltip_text().as_deref() == Some(sponsor_uri.as_str())
+            && row.tooltip_text().as_deref() == Some(about::DONATE)
         {
             support = Some(row.clone());
             break;
@@ -855,7 +863,7 @@ fn show_about_dialog(shell: &Shell) {
     }
     support
         .expect("AboutDialog support action")
-        .set_title(&sponsor.label().expect("sponsor link label"));
+        .set_title(&tr("Donate"));
     dialog.set_application_name(DISPLAY_NAME);
     dialog.set_application_icon(APP_ID);
     dialog.set_translator_credits(TRANSLATOR_CREDITS);
