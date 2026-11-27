@@ -981,6 +981,9 @@ msgstr "Izmaiņas stāsies spēkā pēc Rufin restartēšanas"
 msgid "Channels"
 msgstr "Mainīt"
 
+msgid "Chat on Matrix"
+msgstr ""
+
 msgid "Check for updates"
 msgstr "Pārbaudīt jaunumus"
 
@@ -1475,6 +1478,9 @@ msgid ""
 "Credit the artists a tag names after feat. or ft. as artists of their own"
 msgstr ""
 
+msgid "Credits"
+msgstr ""
+
 msgid "Crossfade duration"
 msgstr "Sajaukšanas ilgums"
 
@@ -1654,6 +1660,9 @@ msgstr "Sīkāka informācija"
 #| msgid "Detail"
 msgid "Details"
 msgstr "Sīkāka informācija"
+
+msgid "Developers"
+msgstr ""
 
 msgid "Device invitation"
 msgstr ""
@@ -2005,6 +2014,9 @@ msgstr ""
 
 msgid "Equalizer"
 msgstr "Ekvalaizers"
+
+msgid "Errors"
+msgstr ""
 
 #, fuzzy
 #| msgid "Never Played"
@@ -2470,6 +2482,9 @@ msgstr "Pārvelciet, lai mainītu secību"
 msgid "Home Profile"
 msgstr "Sākums Profils"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Sākums"
 
@@ -2732,6 +2747,11 @@ msgstr "Vecās versijas parole"
 msgid "Legacy"
 msgstr "Vecā versija"
 
+#, fuzzy
+#| msgid "Legacy"
+msgid "Legal"
+msgstr "Vecā versija"
+
 msgid "Less"
 msgstr ""
 
@@ -2888,6 +2908,9 @@ msgstr ""
 
 msgid "Logs are copied"
 msgstr "Žurnāls ir kopēts"
+
+msgid "Logs"
+msgstr ""
 
 msgid "Look up the artists that listeners play alongside the current one"
 msgstr ""
@@ -4321,6 +4344,9 @@ msgstr "ReplayGain"
 msgid "ReplayGain"
 msgstr "ReplayGain"
 
+msgid "Report an Issue"
+msgstr ""
+
 msgid "Request failed ({status})"
 msgstr "Pieprasījums neizdevās ({status})"
 
@@ -4472,9 +4498,6 @@ msgstr "Saglabāt tekstus"
 msgid "Save Server Settings"
 msgstr "Saglabāt servera iestatījumus"
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr "Saglabāšanas darbība saglabā tekstus tieši jūsu avotā"
-
 msgid "Save changes automatically"
 msgstr "Automātiski saglabāt izmaiņas"
 
@@ -4522,9 +4545,6 @@ msgstr "Saglabāts"
 #| msgid "Saved"
 msgid "Saved..."
 msgstr "Saglabāts"
-
-msgid "Saves lyrics to your source"
-msgstr "Saglabāt tekstus avotā"
 
 msgid "Saving..."
 msgstr "Saglabāšana..."
@@ -5512,8 +5532,18 @@ msgstr "Pārejas režīms"
 msgid "Transition mode"
 msgstr "Pārejas režīms"
 
+#, fuzzy
+#| msgid "Transition mode"
+msgid "Translate"
+msgstr "Pārejas režīms"
+
 msgid "Translation language"
 msgstr "Tulkošanas valoda"
+
+#, fuzzy
+#| msgid "Prefer translations"
+msgid "Translators"
+msgstr "Izmantot tulkojumus"
 
 #, fuzzy
 #| msgid "Show tray icon"
@@ -5524,9 +5554,6 @@ msgstr "Rādīt sistēmas joslas ikonu"
 #| msgid "Full Treble"
 msgid "Treble"
 msgstr "Pilns augšējais"
-
-msgid "Troubleshooting"
-msgstr "Problēmu novēršana"
 
 msgid "Trust self-signed certificate"
 msgstr "Uzticēties pašparakstītam sertifikātam"
@@ -5764,6 +5791,9 @@ msgstr "Tiek meklētas ierīces..."
 msgid "Waiting for the other device to approve"
 msgstr ""
 
+msgid "Warnings"
+msgstr ""
+
 msgid "Waveform seekbar"
 msgstr "Viļņa formas meklēšanas josla"
 
@@ -5777,6 +5807,9 @@ msgstr ""
 
 msgid "WebDAV"
 msgstr "WebDAV"
+
+msgid "Website"
+msgstr "Tīmekļa vietne"
 
 msgid "Wednesday"
 msgstr "Trešdiena"
@@ -6188,6 +6221,15 @@ msgstr "Lietotnes {app_name} automātiskās atjaunināšanas opcija ir nederīga
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Laipni lūdzam Rufin instalācijas programmā"
+
+#~ msgid "Troubleshooting"
+#~ msgstr "Problēmu novēršana"
+
+#~ msgid "Save action saves the lyrics directly to your source"
+#~ msgstr "Saglabāšanas darbība saglabā tekstus tieši jūsu avotā"
+
+#~ msgid "Saves lyrics to your source"
+#~ msgstr "Saglabāt tekstus avotā"
 
 #~ msgid "Favorite tracks, plus tracks from favorite albums and artists"
 #~ msgstr ""
@@ -7183,9 +7225,6 @@ msgstr "Laipni lūdzam Rufin instalācijas programmā"
 
 #~ msgid "Use server streams only"
 #~ msgstr "Izmantot tikai servera straumes"
-
-#~ msgid "Website"
-#~ msgstr "Tīmekļa vietne"
 
 #~ msgid "appears on"
 #~ msgstr "parādās ierakstos"

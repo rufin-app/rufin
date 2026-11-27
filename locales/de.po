@@ -907,6 +907,9 @@ msgstr "Änderungen werden nach einem Neustart von Rufin wirksam"
 msgid "Channels"
 msgstr "Kanäle"
 
+msgid "Chat on Matrix"
+msgstr ""
+
 msgid "Check for updates"
 msgstr "Nach Updates suchen"
 
@@ -1303,6 +1306,9 @@ msgstr ""
 "Künstler, die in einem Tag nach „feat.“ oder „ft.“ stehen, als eigenständige "
 "Künstler aufführen"
 
+msgid "Credits"
+msgstr ""
+
 msgid "Crossfade duration"
 msgstr "Überblendungsdauer"
 
@@ -1455,6 +1461,9 @@ msgstr "Detail"
 
 msgid "Details"
 msgstr "Details"
+
+msgid "Developers"
+msgstr ""
 
 msgid "Device invitation"
 msgstr "Geräteeinladung"
@@ -1755,6 +1764,9 @@ msgstr "Der Equalizer wird vom Empfänger gesteuert"
 
 msgid "Equalizer"
 msgstr "Equalizer"
+
+msgid "Errors"
+msgstr ""
 
 msgid "Ever played"
 msgstr "Jemals gespielt"
@@ -2158,6 +2170,9 @@ msgstr "Zum Sortieren gedrückt halten"
 msgid "Home Profile"
 msgstr "Home-Profil"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Übersicht"
 
@@ -2381,6 +2396,11 @@ msgstr "Legacy-Passwort"
 msgid "Legacy"
 msgstr "Legacy"
 
+#, fuzzy
+#| msgid "Legacy"
+msgid "Legal"
+msgstr "Legacy"
+
 msgid "Less"
 msgstr "Weniger"
 
@@ -2517,6 +2537,9 @@ msgstr "Logarithmisch"
 
 msgid "Logs are copied"
 msgstr "Protokolle wurden kopiert"
+
+msgid "Logs"
+msgstr ""
 
 msgid "Look up the artists that listeners play alongside the current one"
 msgstr ""
@@ -3758,6 +3781,9 @@ msgstr "ReplayGain-Tags"
 msgid "ReplayGain"
 msgstr "ReplayGain"
 
+msgid "Report an Issue"
+msgstr ""
+
 msgid "Request failed ({status})"
 msgstr "Anfrage fehlgeschlagen ({status})"
 
@@ -3894,9 +3920,6 @@ msgstr "Liedtexte speichern"
 msgid "Save Server Settings"
 msgstr "Servereinstellungen speichern"
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr "Die Speicheraktion speichert die Liedtexte direkt in deiner Quelle"
-
 msgid "Save changes automatically"
 msgstr "Änderungen automatisch speichern"
 
@@ -3938,9 +3961,6 @@ msgstr "Gespeichert"
 
 msgid "Saved..."
 msgstr "Gespeichert …"
-
-msgid "Saves lyrics to your source"
-msgstr "Speichert Liedtexte in deiner Quelle"
 
 msgid "Saving..."
 msgstr "Wird gespeichert …"
@@ -4755,17 +4775,24 @@ msgstr "Transkodiert"
 msgid "Transition mode"
 msgstr "Übergangsmodus"
 
+#, fuzzy
+#| msgid "Transcoded"
+msgid "Translate"
+msgstr "Transkodiert"
+
 msgid "Translation language"
 msgstr "Übersetzungssprache"
+
+#, fuzzy
+#| msgid "Prefer translations"
+msgid "Translators"
+msgstr "Übersetzungen bevorzugen"
 
 msgid "Tray icon"
 msgstr "Symbol im Infobereich"
 
 msgid "Treble"
 msgstr "Höhen"
-
-msgid "Troubleshooting"
-msgstr "Fehlerbehebung"
 
 msgid "Trust self-signed certificate"
 msgstr "Selbstsigniertem Zertifikat vertrauen"
@@ -4977,6 +5004,9 @@ msgstr "Warten auf Gerät"
 msgid "Waiting for the other device to approve"
 msgstr "Warten auf die Bestätigung des anderen Geräts"
 
+msgid "Warnings"
+msgstr ""
+
 msgid "Waveform seekbar"
 msgstr "Wellenform-Fortschrittsbalken"
 
@@ -4988,6 +5018,9 @@ msgstr "WebDAV / Nextcloud"
 
 msgid "WebDAV"
 msgstr "WebDAV"
+
+msgid "Website"
+msgstr ""
 
 msgid "Wednesday"
 msgstr "Mittwoch"
@@ -5337,6 +5370,15 @@ msgstr "Die Option für automatische Updates von {app_name} ist ungültig."
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Willkommen beim Rufin-Setup"
+
+#~ msgid "Troubleshooting"
+#~ msgstr "Fehlerbehebung"
+
+#~ msgid "Save action saves the lyrics directly to your source"
+#~ msgstr "Die Speicheraktion speichert die Liedtexte direkt in deiner Quelle"
+
+#~ msgid "Saves lyrics to your source"
+#~ msgstr "Speichert Liedtexte in deiner Quelle"
 
 #~ msgid "Favorite tracks, plus tracks from favorite albums and artists"
 #~ msgstr ""
