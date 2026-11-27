@@ -288,8 +288,9 @@ private val Route.sectionTitle get() = when (this) {
 /** A detail page's header, starting under the bar, which carries the page's links (`DetailLinks`). On a
  *  fold or tablet Rufin's band holds the cover over its lower edge and beside it the title, an album's
  *  artist and one line of the facts and genres, with only the buttons under the band, beside the cover.
- *  On a phone the band holds a small cover and beside it the title, whole, and the artist; the facts and
- *  genres, then the buttons, take the page's width under it. An artist's sub-pages show a plain band. */
+ *  On a phone the band holds a small cover and beside it the title, whole, and the artist; an album's facts
+ *  and genres, then the buttons, take the page's width under it, while an artist's counts and a playlist's
+ *  facts stay on the band, under the name. An artist's sub-pages show a plain band. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DetailHeader(
@@ -401,7 +402,8 @@ private fun DetailHeader(
     }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val phone = maxWidth < 560.dp
-        val counts = route is Route.ArtistDetail || route is Route.AlbumArtistDetail
+        // An artist's counts and a playlist's facts stay on the band, under the name.
+        val metaOnBand = route is Route.ArtistDetail || route is Route.AlbumArtistDetail || playlist
         val cover = if (phone) 122.dp else ((maxWidth - 32.dp) * .3f).coerceIn(164.dp, 224.dp)
         // A tap shows the artwork whole, as a click on GTK's cover does; a long press opens the menu, a Quick mix
         // entry's its own.
@@ -431,12 +433,11 @@ private fun DetailHeader(
                 coverBox()
                 Column(Modifier.weight(1f).heightIn(min = cover), verticalArrangement = Arrangement.Center) {
                     names(true)
-                    // An artist's counts stay on the band, under the name.
-                    if (counts) meta(true, Modifier.padding(top = 8.dp))
+                    if (metaOnBand) meta(true, Modifier.padding(top = 8.dp))
                 }
             }
             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (!counts) meta(false, Modifier)
+                if (!metaOnBand) meta(false, Modifier)
                 ButtonRow(buttons)
             }
         } else {
