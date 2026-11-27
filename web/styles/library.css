@@ -904,14 +904,14 @@ html.grid-favorite-badges .cover-corner[aria-pressed="true"] {
   flex: none;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   color: var(--accent);
 }
 
 .quick-mix-glyph > .icon {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 .quick-mix-title {
@@ -919,8 +919,6 @@ html.grid-favorite-badges .cover-corner[aria-pressed="true"] {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
-  font-weight: 600;
 }
 
 .quick-mix-tile .pin-controls {
@@ -1418,7 +1416,8 @@ button.detail-genre-chip:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.column-row b {
+.column-row b,
+.quick-mix-title {
   font-size: 14px;
   font-weight: 600;
 }
