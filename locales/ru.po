@@ -922,6 +922,9 @@ msgstr "Изменения применяются после перезагру�
 msgid "Channels"
 msgstr "Каналы"
 
+msgid "Chat on Matrix"
+msgstr ""
+
 msgid "Check for updates"
 msgstr "Проверить обновления"
 
@@ -1330,6 +1333,9 @@ msgid ""
 "Credit the artists a tag names after feat. or ft. as artists of their own"
 msgstr "Сортировать исполнителей и альбомы по тегам сортировки, а не по именам"
 
+msgid "Credits"
+msgstr ""
+
 msgid "Crossfade duration"
 msgstr "Длительность кроссфейда"
 
@@ -1487,6 +1493,9 @@ msgstr "Подробности"
 
 msgid "Details"
 msgstr "Подробности"
+
+msgid "Developers"
+msgstr ""
 
 msgid "Device invitation"
 msgstr "Приглашение устройства"
@@ -1794,6 +1803,9 @@ msgstr "Эквалайзер управляется приемником"
 
 msgid "Equalizer"
 msgstr "Эквалайзер"
+
+msgid "Errors"
+msgstr ""
 
 msgid "Ever played"
 msgstr "Когда-либо воспроизводили"
@@ -2213,6 +2225,9 @@ msgstr "Удерживайте, чтобы изменить порядок"
 msgid "Home Profile"
 msgstr "Главный профиль"
 
+msgid "Home shows the first six that have tracks"
+msgstr ""
+
 msgid "Home"
 msgstr "Главная"
 
@@ -2454,6 +2469,11 @@ msgstr "Устаревшая версия пароля"
 msgid "Legacy"
 msgstr "Устаревшая версия"
 
+#, fuzzy
+#| msgid "Legacy"
+msgid "Legal"
+msgstr "Устаревшая версия"
+
 msgid "Less"
 msgstr "Меньше"
 
@@ -2599,6 +2619,9 @@ msgstr "Логарифмический"
 
 msgid "Logs are copied"
 msgstr "Журналы скопированы"
+
+msgid "Logs"
+msgstr ""
 
 msgid "Look up the artists that listeners play alongside the current one"
 msgstr ""
@@ -3905,6 +3928,9 @@ msgstr "Теги ReplayGain"
 msgid "ReplayGain"
 msgstr "Нормализация громкости"
 
+msgid "Report an Issue"
+msgstr ""
+
 msgid "Request failed ({status})"
 msgstr "Запрос не удался ({status})"
 
@@ -4046,10 +4072,6 @@ msgstr "Сохранить текст песни"
 msgid "Save Server Settings"
 msgstr "Сохранить Настройки Сервера"
 
-msgid "Save action saves the lyrics directly to your source"
-msgstr ""
-"Действие «Сохранить» сохраняет текст песни непосредственно в исходный файл"
-
 msgid "Save changes automatically"
 msgstr "Автоматически сохранять изменения"
 
@@ -4094,9 +4116,6 @@ msgstr "Сохранено"
 
 msgid "Saved..."
 msgstr "Сохранено..."
-
-msgid "Saves lyrics to your source"
-msgstr "Сохраняет текст песни в источнике"
 
 msgid "Saving..."
 msgstr "Сохранение..."
@@ -4976,17 +4995,24 @@ msgstr "Транскодирован"
 msgid "Transition mode"
 msgstr "Режим перехода"
 
+#, fuzzy
+#| msgid "Transcoded"
+msgid "Translate"
+msgstr "Транскодирован"
+
 msgid "Translation language"
 msgstr "Язык перевода"
+
+#, fuzzy
+#| msgid "Prefer translations"
+msgid "Translators"
+msgstr "Предпочитать переводы"
 
 msgid "Tray icon"
 msgstr "Иконка в трее"
 
 msgid "Treble"
 msgstr "Высокие частоты"
-
-msgid "Troubleshooting"
-msgstr "Устранение неполадок"
 
 msgid "Trust self-signed certificate"
 msgstr "Доверять самоподписанному сертификату"
@@ -5204,6 +5230,9 @@ msgstr "Ожидание подключения устройства"
 msgid "Waiting for the other device to approve"
 msgstr "Ожидание подтверждения от другого устройства"
 
+msgid "Warnings"
+msgstr ""
+
 msgid "Waveform seekbar"
 msgstr "Индикатор прогресса воспроизведения в виде волновой формы"
 
@@ -5215,6 +5244,9 @@ msgstr "WebDAV / Nextcloud"
 
 msgid "WebDAV"
 msgstr "WebDAV"
+
+msgid "Website"
+msgstr "Веб-сайт"
 
 msgid "Wednesday"
 msgstr "Среда"
@@ -5605,6 +5637,16 @@ msgstr "Параметр автоматического обновления {ap
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Добро пожаловать в программу установки Rufin"
+
+#~ msgid "Troubleshooting"
+#~ msgstr "Устранение неполадок"
+
+#~ msgid "Save action saves the lyrics directly to your source"
+#~ msgstr ""
+#~ "Действие «Сохранить» сохраняет текст песни непосредственно в исходный файл"
+
+#~ msgid "Saves lyrics to your source"
+#~ msgstr "Сохраняет текст песни в источнике"
 
 #~ msgid "Favorite tracks, plus tracks from favorite albums and artists"
 #~ msgstr ""
@@ -6638,9 +6680,6 @@ msgstr "Добро пожаловать в программу установки
 
 #~ msgid "Use server streams only"
 #~ msgstr "Использовать только потоковое вещание с сервера"
-
-#~ msgid "Website"
-#~ msgstr "Веб-сайт"
 
 #~ msgid "appears on"
 #~ msgstr "появляется в"
