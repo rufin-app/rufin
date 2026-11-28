@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: Rufin\n"
 "Report-Msgid-Bugs-To: https://github.com/rufin-app/rufin/issues\n"
 "POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"PO-Revision-Date: 2026-11-27 13:24+0000\n"
+"PO-Revision-Date: 2026-11-28 13:03+0000\n"
 "Last-Translator: US <uma@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Turkish <https://hosted.weblate.org/projects/rufin/app/tr/>\n"
 "Language: tr\n"
@@ -23,6 +23,15 @@ msgid ""
 msgstr ""
 "Furigana ve romaji okuma işaretleri için bir Japonca sözlük indirilir. Bu "
 "ayar aynı zamanda kaynak kullanımını da artırır."
+
+msgid ""
+"A relay helps your devices and rooms reach each other when they cannot "
+"connect directly."
+msgstr ""
+
+msgid ""
+"A relay locked with a token takes it at the end of its address: ?token=..."
+msgstr ""
 
 msgid ""
 "Approving gives this device access to your profile and saved source logins."
@@ -109,6 +118,10 @@ msgid ""
 msgstr ""
 "Günlüklerde gizli bilgiler ve mutlak klasör yolları gizlenir, ancak "
 "paylaşmadan önce yine de günlükleri gözden geçirmek isteyebilirsiniz"
+
+msgid ""
+"Music never passes through a public relay. A relay of your own may carry it."
+msgstr ""
 
 msgid "No results ¯\\_(°╭╮°)_/¯"
 msgstr "Sonuç yok ¯\\_(°╭╮°)_/¯"
@@ -234,6 +247,10 @@ msgstr ""
 "uzun süre önemli miktarda CPU, pil ve ağ bant genişliği kullanabilir."
 
 msgid ""
+"Run by the Iroh project. They see who connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Some changes were saved. Close this editor and reopen it to review the "
 "result."
 msgstr ""
@@ -317,6 +334,10 @@ msgstr ""
 "Yeni API anahtarıyla kullandığınız istemciler üzerinden yeniden bağlanmanız "
 "gerekecek."
 
+msgid ""
+"{room} shares songs: members who have a song play it for listeners who don't"
+msgstr ""
+
 msgid "(hold to shuffle)"
 msgstr "(karıştırmak için basılı tutun)"
 
@@ -379,6 +400,11 @@ msgstr "API anahtarı"
 
 msgid "About Rufin"
 msgstr "Rufin Hakkında"
+
+#, fuzzy
+#| msgid "Use a public relay"
+msgid "About the public relays"
+msgstr "Herkese açık bir aktarma kullan"
 
 msgid "Absolute"
 msgstr "Mutlak"
@@ -487,6 +513,11 @@ msgstr "Kalan parça bu sayıdan azaldığında parça ekle"
 
 msgid "Add"
 msgstr "Ekle"
+
+#, fuzzy
+#| msgid "Find in {name}"
+msgid "Added by {name}"
+msgstr "{name} içinde bul"
 
 msgid "Added to"
 msgstr "Şuraya eklendi"
@@ -719,6 +750,9 @@ msgstr "Otomatik"
 
 msgid "BPM"
 msgstr "BPM"
+
+msgid "Back in the room"
+msgstr ""
 
 msgid "Back"
 msgstr "Geri"
@@ -1181,10 +1215,18 @@ msgstr "Denetleyici durumu"
 msgid "Controller"
 msgstr "Denetleyici"
 
+msgid "Copied"
+msgstr ""
+
 msgid "Copy access token"
 msgstr "Erişim token'ını kopyala"
 
 msgid "Copy invitation"
+msgstr "Daveti kopyala"
+
+#, fuzzy
+#| msgid "Copy invitation"
+msgid "Copy invite"
 msgstr "Daveti kopyala"
 
 msgid "Copy link"
@@ -1285,18 +1327,22 @@ msgstr "Çalma listesi oluştur"
 msgid "Create playlist"
 msgstr "Çalma listesi oluştur"
 
+#, fuzzy
+#| msgid "Create"
+msgid "Create room"
+msgstr "Oluştur"
+
 msgid "Create"
 msgstr "Oluştur"
 
-#, fuzzy
-#| msgid "Sort artists and albums by their sort tags instead of their names"
 msgid ""
 "Credit the artists a tag names after feat. or ft. as artists of their own"
 msgstr ""
-"Sanatçıları ve albümleri adları yerine sıralama etiketlerine göre sırala"
+"Etiket adlarında feat. veya ft. sonrasında geçen sanatçıları ayrı sanatçılar "
+"olarak kredilendirin"
 
 msgid "Credits"
-msgstr ""
+msgstr "Krediler"
 
 msgid "Crossfade duration"
 msgstr "Çapraz geçiş süresi"
@@ -1316,10 +1362,8 @@ msgstr "Mevcut kapak görseli"
 msgid "Custom HTTP headers"
 msgstr "Özel HTTP başlıkları"
 
-#, fuzzy
-#| msgid "Custom"
 msgid "Custom URL"
-msgstr "Özel"
+msgstr "Özel URL"
 
 msgid "Custom bands"
 msgstr "Özel bantlar"
@@ -1355,10 +1399,8 @@ msgstr ""
 msgid "Date added"
 msgstr "Eklenme tarihi"
 
-#, fuzzy
-#| msgid "Date added"
 msgid "Date modified"
-msgstr "Eklenme tarihi"
+msgstr "Değiştirilme tarihi"
 
 msgid "Date"
 msgstr "Tarih"
@@ -1451,7 +1493,7 @@ msgid "Details"
 msgstr "Ayrıntılar"
 
 msgid "Developers"
-msgstr ""
+msgstr "Geliştiriciler"
 
 msgid "Device invitation"
 msgstr "Cihaz daveti"
@@ -1472,7 +1514,7 @@ msgid "Direct"
 msgstr "Doğrudan"
 
 msgid "Disable battery optimization"
-msgstr ""
+msgstr "Pil optimizasyonunu devre dışı bırak"
 
 msgid "Disable private mode"
 msgstr "Gizli modu devre dışı bırak"
@@ -1588,7 +1630,7 @@ msgid "Downloads"
 msgstr "İndirmeler"
 
 msgid "Drag the ruler, or pick a line as it starts"
-msgstr ""
+msgstr "Cetveli sürükleyin ya da çizginin başlangıç noktasını seçin"
 
 msgid "Drag to a folder"
 msgstr "Bir klasöre sürükleyin"
@@ -1634,9 +1676,11 @@ msgstr "Her biri tamamını oynatır"
 
 msgid "Each rating you change is also written to its file's tags"
 msgstr ""
+"Değiştirdiğiniz her derecelendirme, ilgili dosyanın etiketlerine de "
+"kaydedilir"
 
 msgid "Earlier"
-msgstr ""
+msgstr "Önceden"
 
 msgid "Edit Lyrics"
 msgstr "Şarkı Sözlerini Düzenle"
@@ -1716,6 +1760,14 @@ msgstr "Yedekleri şifrele"
 msgid "End of this track"
 msgstr "Bu parçanın sonu"
 
+msgid "End room"
+msgstr ""
+
+#, fuzzy
+#| msgid "Edit theme"
+msgid "End the room?"
+msgstr "Temayı düzenle"
+
 msgid "Ends around {time}"
 msgstr "Yaklaşık {time} civarında biter"
 
@@ -1751,20 +1803,19 @@ msgid "Equalizer"
 msgstr "Ekolayzer"
 
 msgid "Errors"
-msgstr ""
+msgstr "Hatalar"
 
 msgid "Ever played"
 msgstr "Hiç çalındı"
 
-#, fuzzy
-#| msgid "Tracks from your five latest albums"
 msgid "Every track of your favorite albums"
-msgstr "En son beş albümünüzden parçalar"
+msgstr "En sevdiğiniz albümlerin her bir parçası"
 
-#, fuzzy
-#| msgid "No favorite artists yet"
 msgid "Every track of your favorite artists"
-msgstr "Henüz favori sanatçı yok"
+msgstr "En sevdiğiniz sanatçıların tüm şarkıları"
+
+msgid "Everyone stops listening together"
+msgstr ""
 
 msgid "Everything, including new tracks"
 msgstr "Yeni parçalar dahil her şey"
@@ -1832,20 +1883,14 @@ msgstr "Oynatma duraklatıldığında veya devam ettiğinde sesi geçişle"
 msgid "Fall speed (%)"
 msgstr "Düşme hızı (%)"
 
-#, fuzzy
-#| msgid "Favorites"
 msgid "Favorite Albums"
-msgstr "Favoriler"
+msgstr "Gözde Albümler"
 
-#, fuzzy
-#| msgid "Favorites"
 msgid "Favorite Artists"
-msgstr "Favoriler"
+msgstr "Gözde Sanatçılar"
 
-#, fuzzy
-#| msgid "Favorite tracks"
 msgid "Favorite Tracks"
-msgstr "Favori parçalar"
+msgstr "Gözde Parçalar"
 
 msgid "Favorite current track"
 msgstr "Mevcut parçayı favorile"
@@ -1859,10 +1904,8 @@ msgstr "Favori"
 msgid "Favorites and ratings"
 msgstr "Favoriler ve puanlamalar"
 
-#, fuzzy
-#| msgid "Favorites"
 msgid "Favorites only"
-msgstr "Favoriler"
+msgstr "Sadee Gözdeler"
 
 msgid "Favorites"
 msgstr "Favoriler"
@@ -1874,7 +1917,7 @@ msgid "February {year}"
 msgstr "Şubat {year}"
 
 msgid "Fetches the next tracks before they play and keeps played ones"
-msgstr ""
+msgstr "Çalınmadan önce sonraki parçaları alır ve çalınan parçaları saklar"
 
 msgid "Fetching Home"
 msgstr "Ana Sayfa getiriliyor"
@@ -1954,7 +1997,7 @@ msgid "Fit to height"
 msgstr "Yüksekliğe sığdır"
 
 msgid "Fit wide and tall covers inside their frames instead of cropping them"
-msgstr ""
+msgstr "Geniş ve uzun kapakları kırpmak yerine çerçevelerin içine sığdırın"
 
 msgid "Fixed position"
 msgstr "Sabit konum"
@@ -1990,10 +2033,8 @@ msgstr ""
 msgid "Forget Source"
 msgstr "Kaynağı Unut"
 
-#, fuzzy
-#| msgid "Could not update favorites"
 msgid "Forgotten favorites"
-msgstr "Favoriler güncellenemedi"
+msgstr "Unutulmuş gözdeler"
 
 msgid "Format not supported"
 msgstr "Format desteklenmiyor"
@@ -2115,15 +2156,11 @@ msgstr "Izgara aralığı"
 msgid "Grid"
 msgstr "Izgara"
 
-#, fuzzy
-#| msgid "Grid"
 msgid "Grids"
-msgstr "Izgara"
+msgstr "Izgaralar"
 
-#, fuzzy
-#| msgid "Local music folder"
 msgid "Group albums by folder"
-msgstr "Yerel müzik klasörü"
+msgstr "Albümleri klasörlere göre gruplandır"
 
 msgid "Grouping"
 msgstr "Gruplama"
@@ -2168,13 +2205,16 @@ msgid "Home Profile"
 msgstr "Ana Profil"
 
 msgid "Home shows the first six that have tracks"
-msgstr ""
+msgstr "\"Ana Sayfa\", parçaları olan ilk altı tanesini gösterir"
 
 msgid "Home"
 msgstr "Ana Sayfa"
 
 msgid "Homepage"
 msgstr "Ana sayfa"
+
+msgid "Host"
+msgstr ""
 
 msgid "Hour"
 msgstr "Saat"
@@ -2249,6 +2289,11 @@ msgstr "Enstrümantal"
 msgid "Integrations"
 msgstr "Entegrasyonlar"
 
+#, fuzzy
+#| msgid "Invite"
+msgid "Invite link"
+msgstr "Davet et"
+
 msgid "Invite"
 msgstr "Davet et"
 
@@ -2266,10 +2311,8 @@ msgstr "Öğe artık kullanılamıyor"
 msgid "Item menus"
 msgstr "Öğe menüleri"
 
-#, fuzzy
-#| msgid "Item ID"
 msgid "Items"
-msgstr "Öğe kimliği"
+msgstr "Ürünler"
 
 msgid "January {year}"
 msgstr "Ocak {year}"
@@ -2280,11 +2323,19 @@ msgstr "Japonca sözlük"
 msgid "Jellyfin"
 msgstr "Jellyfin"
 
+#, fuzzy
+#| msgid "Join profile"
+msgid "Join a room"
+msgstr "Profile katıl"
+
 msgid "Join profile"
 msgstr "Profile katıl"
 
 msgid "Join to copy its sources and sign-ins"
 msgstr "Kaynaklarını ve oturum açmalarını kopyalamak için katıl"
+
+msgid "Join {room}?"
+msgstr ""
 
 msgid "Join"
 msgstr "Katıl"
@@ -2312,10 +2363,8 @@ msgstr ""
 "Müziği çevrimdışı kullanılabilir tut. Klasör değişiklikleri yalnızca yeni "
 "indirmeleri etkiler"
 
-#, fuzzy
-#| msgid "Keep Rufin running after closing the window"
 msgid "Keep running in the background"
-msgstr "Pencereyi kapattıktan sonra Rufin'i çalışır durumda tut"
+msgstr "Arka planda çalışmaya devam et"
 
 msgid "Keyboard Shortcuts"
 msgstr "Klavye Kısayolları"
@@ -2362,10 +2411,8 @@ msgstr "Son çalınan"
 msgid "Last.fm"
 msgstr "Last.fm"
 
-#, fuzzy
-#| msgid "Play Later"
 msgid "Later"
-msgstr "Sonra Çal"
+msgstr "Daha sonra"
 
 msgid "Layout"
 msgstr "Düzen"
@@ -2376,8 +2423,14 @@ msgstr "Şifrelenmemiş arşiv için boş bırakın."
 msgid "Leave out tracks rated two stars or lower"
 msgstr "İki yıldız veya daha düşük puan alan parçaları hariç tutun"
 
+msgid "Leave room"
+msgstr ""
+
 msgid "Leave the password empty to keep the saved credential"
 msgstr "Kaydedilmiş kimlik bilgisini korumak için parolayı boş bırakın"
+
+msgid "Leave this room first"
+msgstr ""
 
 msgid "Left sidebar"
 msgstr "Sol kenar çubuğu"
@@ -2394,10 +2447,8 @@ msgstr "Eski parola"
 msgid "Legacy"
 msgstr "Eski"
 
-#, fuzzy
-#| msgid "Legacy"
 msgid "Legal"
-msgstr "Eski"
+msgstr "Yasal Bilgiler"
 
 msgid "Less"
 msgstr "Daha az"
@@ -2440,6 +2491,11 @@ msgstr "ListenBrainz API"
 
 msgid "ListenBrainz or Audioscrobbler API"
 msgstr "ListenBrainz veya Audioscrobbler API"
+
+#, fuzzy
+#| msgid "Listening"
+msgid "Listener"
+msgstr "Dinleme"
 
 msgid "Listening overview"
 msgstr "Dinleme özeti"
@@ -2533,7 +2589,7 @@ msgid "Logs are copied"
 msgstr "Günlükler kopyalandı"
 
 msgid "Logs"
-msgstr ""
+msgstr "Günlükler"
 
 msgid "Look up the artists that listeners play alongside the current one"
 msgstr ""
@@ -2544,6 +2600,11 @@ msgstr "Arama"
 
 msgid "Lookups"
 msgstr "Aramalar"
+
+#, fuzzy
+#| msgid "Connection lost. Reconnecting..."
+msgid "Lost the room. Reconnecting..."
+msgstr "Bağlantı kesildi. Yeniden bağlanılıyor..."
 
 msgid "Loudness normalization"
 msgstr "Ses yüksekliği normalleştirme"
@@ -2615,6 +2676,9 @@ msgstr "Maksimum"
 msgid "May {year}"
 msgstr "Mayıs {year}"
 
+msgid "Members who have a song play it for listeners who don't"
+msgstr ""
+
 msgid "Menu"
 msgstr "Menü"
 
@@ -2677,10 +2741,8 @@ msgstr "Karışım (sıradaki çal)"
 msgid "Mix"
 msgstr "Karışım"
 
-#, fuzzy
-#| msgid "Remixes"
 msgid "Mixes"
-msgstr "Remiksler"
+msgstr "Karışımlar"
 
 msgid "Mode"
 msgstr "Mod"
@@ -2721,10 +2783,8 @@ msgstr "En Çok Atlanan"
 msgid "Most played"
 msgstr "En çok çalınan"
 
-#, fuzzy
-#| msgid "Most Skipped"
 msgid "Most skipped"
-msgstr "En Çok Atlanan"
+msgstr "En çok atlananlar"
 
 msgid "Motion"
 msgstr "Hareket"
@@ -2744,10 +2804,8 @@ msgstr "Müzik Klasörü"
 msgid "Music access permission was denied"
 msgstr "Müzik erişim izni reddedildi"
 
-#, fuzzy
-#| msgid "Local music folder is unavailable"
 msgid "Music folder is unavailable: {folder}"
-msgstr "Yerel müzik klasörü kullanılamıyor"
+msgstr "Müzik klasörü kullanılamıyor: {klasör}"
 
 msgid "Music folder"
 msgstr "Müzik klasörü"
@@ -2828,7 +2886,7 @@ msgid "Nearby discovery"
 msgstr "Yakındaki keşif"
 
 msgid "Needed to keep running in the background"
-msgstr ""
+msgstr "Arka planda çalışmaya devam etmesi gerekiyor"
 
 msgid "Needs attention"
 msgstr "Dikkat gerekiyor"
@@ -3002,14 +3060,28 @@ msgstr "Burada henüz parça yok"
 msgid "No"
 msgstr "Hayır"
 
+msgid "Nobody in the room can send this song"
+msgstr ""
+
 msgid "None"
 msgstr "Yok"
 
 msgid "Normalization scope"
 msgstr "Normalleştirme kapsamı"
 
+msgid "Not available while listening together"
+msgstr ""
+
 msgid "Not connected"
 msgstr "Bağlı değil"
+
+#, fuzzy
+#| msgid "While your library loads"
+msgid "Not in your library"
+msgstr "Kitaplığınız yüklenirken"
+
+msgid "Not in your library. Sitting this one out."
+msgstr ""
 
 msgid "Not needed for most servers"
 msgstr "Çoğu sunucu için gerekli değil"
@@ -3079,6 +3151,11 @@ msgstr "Çevrimdışı"
 msgid "On repeat"
 msgstr "Tekrarla"
 
+#, fuzzy
+#| msgid "Search this network"
+msgid "On this network only"
+msgstr "Bu ağda ara"
+
 msgid "On"
 msgstr "Açık"
 
@@ -3105,6 +3182,9 @@ msgstr "Çevrimiçi Aramalar"
 
 msgid "Only fill missing information"
 msgstr "Yalnızca eksik bilgileri doldur"
+
+msgid "Only the host turns Auto DJ on or off"
+msgstr ""
 
 msgid "Opacity (%)"
 msgstr "Opaklık (%)"
@@ -3477,6 +3557,11 @@ msgstr "Önceki"
 msgid "Privacy & Security"
 msgstr "Gizlilik ve Güvenlik"
 
+#, fuzzy
+#| msgid "Privacy & Security"
+msgid "Privacy policy"
+msgstr "Gizlilik ve Güvenlik"
+
 msgid "Private mode is off"
 msgstr "Gizli mod kapalı"
 
@@ -3503,6 +3588,11 @@ msgstr "Sağlayıcılar"
 
 msgid "Proxy casting through Rufin"
 msgstr "Rufin üzerinden vekil yayınlama"
+
+#, fuzzy
+#| msgid "Use a public relay"
+msgid "Public relays"
+msgstr "Herkese açık bir aktarma kullan"
 
 msgid "Public"
 msgstr "Herkese açık"
@@ -3729,6 +3819,11 @@ msgstr "Kaydedilenlerden Kaldır"
 msgid "Remove from folder"
 msgstr "Klasörden kaldır"
 
+#, fuzzy
+#| msgid "Removed from"
+msgid "Remove from room"
+msgstr "Şuradan kaldırıldı"
+
 msgid "Remove group"
 msgstr "Grubu kaldır"
 
@@ -3860,6 +3955,12 @@ msgstr "Rock"
 
 msgid "Romaji"
 msgstr "Roma"
+
+msgid "Room"
+msgstr ""
+
+msgid "Rooms"
+msgstr ""
 
 msgid "Rounded bars"
 msgstr "Yuvarlatılmış çubuklar"
@@ -4211,6 +4312,16 @@ msgstr "Ayarlar"
 msgid "Shadow"
 msgstr "Gölge"
 
+#, fuzzy
+#| msgid "Shared file size"
+msgid "Share invite"
+msgstr "Paylaşılan dosya boyutu"
+
+#, fuzzy
+#| msgid "Share"
+msgid "Share songs"
+msgstr "Paylaş"
+
 msgid "Share"
 msgstr "Paylaş"
 
@@ -4219,6 +4330,9 @@ msgstr "Paylaşılan dosya boyutu"
 
 msgid "Shared secret"
 msgstr "Paylaşılan gizli anahtar"
+
+msgid "Shares your queue. Your music keeps playing."
+msgstr ""
 
 msgid "Show Rufin in headline"
 msgstr "Başlıkta Rufin'i göster"
@@ -4364,6 +4478,11 @@ msgstr "Tekli"
 
 msgid "Singles"
 msgstr "Single'lar"
+
+#, fuzzy
+#| msgid "Settings and sources"
+msgid "Sitting this one out"
+msgstr "Ayarlar ve kaynaklar"
 
 msgid "Size in gigabytes"
 msgstr ""
@@ -4534,6 +4653,9 @@ msgstr "Kayıplı formatlar için stereo"
 msgid "Stereo"
 msgstr "Stereo"
 
+msgid "Stop casting to listen together"
+msgstr ""
+
 msgid "Stop"
 msgstr "Durdur"
 
@@ -4663,6 +4785,20 @@ msgstr "Bağlantı artık mevcut değil"
 msgid "The files are deleted where they are stored. This cannot be undone."
 msgstr "Dosyalar depolandıkları yerden silinir. Bu geri alınamaz."
 
+msgid "The room ended"
+msgstr ""
+
+msgid "The room is full"
+msgstr ""
+
+msgid "The room is not playing this song"
+msgstr ""
+
+#, fuzzy
+#| msgid "Server is unreachable"
+msgid "The room is unreachable"
+msgstr "Sunucuya ulaşılamıyor"
+
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr ""
 "Uzun basmanın açtığı sayfa. Göstermek veya gizlemek için bir girişe dokunun."
@@ -4688,6 +4824,16 @@ msgstr "Bu cihaz profilden kaldırıldı"
 msgid "This device"
 msgstr "Bu cihaz"
 
+#, fuzzy
+#| msgid "Item is no longer available"
+msgid "This invite is no longer valid"
+msgstr "Öğe artık kullanılamıyor"
+
+#, fuzzy
+#| msgid "This isn't available"
+msgid "This is not a room invite"
+msgstr "Bu kullanılamıyor"
+
 msgid "This is owned by {source} and synced to it."
 msgstr "Bu {source} kaynağına aittir ve onunla eşitlenir."
 
@@ -4700,6 +4846,30 @@ msgstr "Bu öğenin paylaşılacak bağlantısı yok"
 msgid "This playlist only accepts {source} tracks"
 msgstr "Bu çalma listesi yalnızca {source} parçalarını kabul eder"
 
+#, fuzzy
+#| msgid "This item has no link to share"
+msgid "This room does not share songs"
+msgstr "Bu öğenin paylaşılacak bağlantısı yok"
+
+#, fuzzy
+#| msgid "The connection no longer exists"
+msgid "This room no longer shares songs"
+msgstr "Bağlantı artık mevcut değil"
+
+msgid "This room shares songs with listeners who don't have them"
+msgstr ""
+
+msgid "This room uses another version of Rufin. Please update Rufin."
+msgstr ""
+
+msgid "This room uses no relay"
+msgstr ""
+
+#, fuzzy
+#| msgid "Playing on this device"
+msgid "This song is not on this device"
+msgstr "Bu cihazda çalınıyor"
+
 msgid "This source cannot edit this field"
 msgstr "Bu kaynak bu alanı düzenleyemez"
 
@@ -4710,6 +4880,16 @@ msgstr "Son parçayı bitir"
 
 msgid "This will remove all configured state. Do you want to continue?"
 msgstr "Bu, yapılandırılmış tüm durumu kaldırır. Devam etmek istiyor musunuz?"
+
+#, fuzzy
+#| msgid "Use a public relay"
+msgid "Through public relays"
+msgstr "Herkese açık bir aktarma kullan"
+
+#, fuzzy
+#| msgid "Via relay"
+msgid "Through {relay}"
+msgstr "Aktarma yoluyla"
 
 msgid "Thursday"
 msgstr "Perşembe"
@@ -4921,9 +5101,6 @@ msgstr "Bu Kaynağı Kullan"
 msgid "Use a number above zero"
 msgstr "Sıfırdan büyük bir sayı kullanın"
 
-msgid "Use a public relay"
-msgstr "Herkese açık bir aktarma kullan"
-
 msgid "Use accent color"
 msgstr "Vurgu rengini kullan"
 
@@ -4944,6 +5121,9 @@ msgstr "Mevcut olduğunda her parçanın kendi kapağını kullan"
 
 msgid "Use existing"
 msgstr "Mevcut olanı kullan"
+
+msgid "Use for my rooms"
+msgstr ""
 
 msgid "Use for this output"
 msgstr "Bu çıkış için kullan"
@@ -5120,10 +5300,16 @@ msgstr "Sarı"
 msgid "Yes"
 msgstr "Evet"
 
+msgid "You have {have} of {songs} songs"
+msgstr ""
+
 #, fuzzy
 #| msgid "Add a source to configure downloads."
 msgid "You need to configure a local address"
 msgstr "İndirmeleri yapılandırmak için bir kaynak ekleyin."
+
+msgid "You"
+msgstr ""
 
 msgid "Your library is ready"
 msgstr "Kitaplığınız hazır"
@@ -5131,7 +5317,17 @@ msgstr "Kitaplığınız hazır"
 msgid "Your music belongs here"
 msgstr "Müziğiniz buraya ait"
 
+#, fuzzy
+#| msgid "Sort name"
+msgid "Your name"
+msgstr "Sıralama adı"
+
 msgid "Your own API key"
+msgstr "Kendi API anahtarınız"
+
+#, fuzzy
+#| msgid "Your own API key"
+msgid "Your own relay"
 msgstr "Kendi API anahtarınız"
 
 msgid "Your queue is empty."
@@ -5264,10 +5460,19 @@ msgid_plural "{count} listens were already in Rufin."
 msgstr[0] "{count} dinleme zaten Rufin'deydi."
 msgstr[1] "{count} dinlemeler zaten Rufin'deydi."
 
+#, fuzzy
+#| msgid "Imported {count} listen."
+#| msgid_plural "Imported {count} listens."
+msgid "{count} listening"
+msgstr "{count} dinleme içe aktarıldı."
+
 msgid "{count} month ago"
 msgid_plural "{count} months ago"
 msgstr[0] "{count} ay önce"
 msgstr[1] "{count} aylar önce"
+
+msgid "{count} of {members} can play this"
+msgstr ""
 
 msgid "{count} play"
 msgid_plural "{count} plays"
@@ -5276,8 +5481,8 @@ msgstr[1] "{count} çalmalar"
 
 msgid "{count} rating is waiting to be written"
 msgid_plural "{count} ratings are waiting to be written"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} adet değerlendirme yazılmayı bekliyor"
+msgstr[1] "{count} adet değerlendirmeler yazılmayı bekliyor"
 
 msgid "{count} result"
 msgid_plural "{count} results"
@@ -5309,6 +5514,20 @@ msgstr[1] "{field} · parça {count} boyunca farklılıklar gösteriyor"
 
 msgid "{minutes} min"
 msgstr "{minutes} dk"
+
+msgid "{name} added {count} songs"
+msgstr ""
+
+msgid "{name} added {title}"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select {title}"
+msgid "{name} played {title}"
+msgstr "{title} seç"
+
+msgid "{name}'s room"
+msgstr ""
 
 msgid "{stage} ({completed} of {total}, {cached} cached)"
 msgstr "{stage} ({total} içinden {completed}, {cached} önbellekte)"
