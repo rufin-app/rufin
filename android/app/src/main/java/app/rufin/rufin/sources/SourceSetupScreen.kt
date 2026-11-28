@@ -38,8 +38,10 @@ internal fun SourceSetupScreen(model: RufinConnection, onClose: () -> Unit, sour
     LaunchedEffect(setup) {
         if (connection != null && sourceId == null) { setup.selectProvider(connection); setup.form.integration = true }
     }
-    // The first source ends on the loading page instead of closing.
+    // The first source ends on the first run's pages instead of closing.
     var loading by rememberSaveable { mutableStateOf(false) }
+    // However the first run is left, its setup ends there.
+    if (welcome != null) DisposableEffect(model) { onDispose { model.finishSetup() } }
     val autofillManager = LocalAutofillManager.current
     var mapping by remember { mutableStateOf(false) }
     var saved by remember(setup) { mutableStateOf(false) }
@@ -55,7 +57,7 @@ internal fun SourceSetupScreen(model: RufinConnection, onClose: () -> Unit, sour
     val back: () -> Unit = { if (sourceId == null && connection == null && form.kind != null) { setup.cancelAuthorization(); form.kind = null } else close() }
     BackHandler(onBack = back)
     if (loading && welcome != null) {
-        SourceLoadingPage(model, welcome, close)
+        SourceWizard(model, welcome, close)
         return
     }
     val chooseFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->

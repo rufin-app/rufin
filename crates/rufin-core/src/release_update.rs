@@ -574,7 +574,7 @@ fn release_note_from_github_json(value: &serde_json::Value) -> Option<ReleaseNot
 }
 
 fn release_check_allowed(settings: &crate::settings::Settings) -> bool {
-    !settings.application.private_mode
+    !settings.private()
 }
 
 fn release_notification_due(
@@ -1088,6 +1088,7 @@ impl ReleaseUpdateOwner {
         }
         let mut changes = self.settings.changes();
         let task = self.runtime.clone().spawn(async move {
+            let mut setup_pending = changes.borrow().ui.setup_pending;
             let mut period = interval(&changes.borrow_and_update().ui);
             let wait = tokio::time::sleep(period);
             tokio::pin!(wait);
@@ -1101,7 +1102,14 @@ impl ReleaseUpdateOwner {
                         if changed.is_err() {
                             return;
                         }
-                        let next = interval(&changes.borrow_and_update().ui);
+                        let (next, pending) = {
+                            let settings = changes.borrow_and_update();
+                            (interval(&settings.ui), settings.ui.setup_pending)
+                        };
+                        // The first run's setup held the startup check back.
+                        if std::mem::replace(&mut setup_pending, pending) && !pending {
+                            self.check_and_update();
+                        }
                         if next != period {
                             period = next;
                             wait.as_mut().reset(tokio::time::Instant::now() + period);

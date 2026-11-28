@@ -1,8 +1,7 @@
 // Rooms: the top bar's button and popover, the room's notices, and the room's part of the queue.
 import { api, state } from "./connection.js";
 import { showModes } from "./player.js";
-import { openIntegration } from "./integrations.js";
-import { openPreferences } from "./preferences.js";
+import { openIntegrationPage } from "./integrations.js";
 import { $, el, icon, notice, run, tr } from "./ui.js";
 
 let status = { room: null, notice: null, your_name: "", reach: "", joining: false };
@@ -151,8 +150,7 @@ function init() {
   $("rooms-join").addEventListener("click", join);
   $("rooms-reach-change").addEventListener("click", () => {
     $("rooms-popover").hidePopover();
-    openPreferences("integrations");
-    openIntegration("iroh_relay");
+    openIntegrationPage("iroh_relay");
   });
   $("rooms-use-relay").addEventListener("click", () => asked({ action: "use_relay" }));
   $("rooms-share").addEventListener("change", (event) => asked({ action: "share", songs: event.target.checked }));

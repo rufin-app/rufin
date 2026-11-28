@@ -171,7 +171,8 @@ impl Shell {
         {
             self.refresh_mounted_home();
         }
-        if previous.application.private_mode != current.application.private_mode {
+        // Private mode, or the first run's setup ending.
+        if previous.private() != current.private() {
             self.refresh_tray();
             self.reconcile_mounted_route();
             self.update_media_controls();

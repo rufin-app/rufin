@@ -18,24 +18,46 @@
           <property name="spacing">12</property>
           <property name="margin-start">8</property><property name="margin-end">8</property>
           <property name="margin-top">8</property><property name="margin-bottom">8</property>
+          <child><object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <property name="spacing">6</property>
+            <property name="margin-top">8</property><property name="margin-bottom">4</property>
+            <child><object class="GtkImage">
+              <property name="icon-name">rufin-people-symbolic</property>
+              <property name="pixel-size">32</property>
+              <property name="accessible-role">presentation</property>
+              <style><class name="accent"/></style>
+            </object></child>
+            <child><object class="GtkLabel">
+              <property name="label" translatable="yes">Rooms</property>
+              <style><class name="title-2"/></style>
+            </object></child>
+          </object></child>
           <child><object class="AdwPreferencesGroup">
-            <property name="description" translatable="yes">Shares your queue. Your music keeps playing.</property>
-            <child><object class="AdwEntryRow" id="name">
-              <property name="title" translatable="yes">Your name</property>
-              <child type="suffix"><object class="GtkButton" id="create">
-                <property name="label" translatable="yes">Create room</property>
-                <property name="valign">center</property>
-                <style><class name="suggested-action"/></style>
-              </object></child>
+            <child><object class="AdwActionRow">
+              <property name="title" translatable="yes">Shares your queue</property>
+              <property name="subtitle" translatable="yes">Your music keeps playing</property>
+              <child type="prefix"><object class="GtkImage"><property name="icon-name">rufin-music-queue-symbolic</property><property name="accessible-role">presentation</property></object></child>
             </object></child>
             <child><object class="AdwActionRow" id="reach">
               <property name="use-markup">false</property>
+              <child type="prefix"><object class="GtkImage"><property name="icon-name">rufin-globe-symbolic</property><property name="accessible-role">presentation</property></object></child>
               <child type="suffix"><object class="GtkButton" id="reach_change">
                 <property name="icon-name">rufin-applications-system-symbolic</property>
                 <property name="tooltip-text" translatable="yes">Change</property>
                 <property name="valign">center</property>
                 <accessibility><property name="label" translatable="yes">Change</property></accessibility>
                 <style><class name="flat"/></style>
+              </object></child>
+            </object></child>
+          </object></child>
+          <child><object class="AdwPreferencesGroup">
+            <child><object class="AdwEntryRow" id="name">
+              <property name="title" translatable="yes">Your name</property>
+              <child type="suffix"><object class="GtkButton" id="create">
+                <property name="label" translatable="yes">Create room</property>
+                <property name="valign">center</property>
+                <style><class name="suggested-action"/></style>
               </object></child>
             </object></child>
           </object></child>

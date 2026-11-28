@@ -219,7 +219,7 @@ impl DeliveryState {
     /// What sends now, or None in private mode.
     fn sending(&self) -> Option<Settings> {
         let stored = self.settings.load();
-        (!stored.ui.application.private_mode).then(|| self.current(&stored))
+        (!stored.ui.private()).then(|| self.current(&stored))
     }
 }
 

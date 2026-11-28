@@ -375,6 +375,9 @@ pub struct Settings {
     pub application: ApplicationPreferences,
     #[serde(flatten)]
     pub player_display: PlayerDisplayPreferences,
+    /// The first run's setup is still open: nothing goes online until it ends.
+    #[serde(skip)]
+    pub setup_pending: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub recent_search_results: Vec<RecentSearchResult>,
     #[serde(default)]
@@ -412,7 +415,7 @@ pub struct Settings {
     pub rich_presence: RichPresenceSettings,
     #[serde(default)]
     pub lastfm_api_key: String,
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub auto_dj_enabled: bool,
     #[serde(default)]
     pub shuffle_enabled: bool,
@@ -446,6 +449,7 @@ impl Default for Settings {
             appearance: AppearancePreferences::default(),
             application: ApplicationPreferences::default(),
             player_display: PlayerDisplayPreferences::default(),
+            setup_pending: false,
             recent_search_results: Vec::new(),
             web_controller: crate::settings::ControllerSettings::default(),
             layout: LayoutSettings::default(),
@@ -464,7 +468,7 @@ impl Default for Settings {
             type_to_search_enabled: true,
             rich_presence: RichPresenceSettings::default(),
             lastfm_api_key: String::new(),
-            auto_dj_enabled: false,
+            auto_dj_enabled: true,
             shuffle_enabled: false,
             repeat_mode: QueueRepeatMode::Off,
             playback: PlaybackSettings::default(),
@@ -509,8 +513,13 @@ impl Settings {
         self.application.override_server_recommendations != Some(false)
     }
 
+    /// Whether nothing may go online: private mode is on, or the first run's setup is open.
+    pub fn private(&self) -> bool {
+        self.application.private_mode || self.setup_pending
+    }
+
     pub fn allows_external_metadata_lookup(&self) -> bool {
-        self.application.external_metadata_enabled && !self.application.private_mode
+        self.application.external_metadata_enabled && !self.private()
     }
 
     /// What artwork reads may use beyond the source: cached and online covers as these

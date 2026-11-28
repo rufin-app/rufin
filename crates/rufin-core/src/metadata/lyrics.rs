@@ -74,7 +74,7 @@ impl MetadataEditor {
                 can_search: settings
                     .lyrics
                     .preferences
-                    .external_lyrics_network_allowed(settings.application.private_mode),
+                    .external_lyrics_network_allowed(settings.private()),
                 storages,
                 storage,
                 artist: state.values.get("artist").cloned().unwrap_or_default(),
@@ -97,7 +97,7 @@ impl MetadataEditor {
             if !settings
                 .lyrics
                 .preferences
-                .external_lyrics_network_allowed(settings.application.private_mode)
+                .external_lyrics_network_allowed(settings.private())
             {
                 return Ok(Vec::new());
             }
@@ -133,7 +133,7 @@ impl MetadataEditor {
             if !settings
                 .lyrics
                 .preferences
-                .external_lyrics_network_allowed(settings.application.private_mode)
+                .external_lyrics_network_allowed(settings.private())
                 || !settings
                     .lyrics
                     .preferences

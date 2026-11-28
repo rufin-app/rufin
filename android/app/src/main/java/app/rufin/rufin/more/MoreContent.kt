@@ -22,6 +22,7 @@ import app.rufin.rufin.settings.AppSettingsPage
 import app.rufin.rufin.settings.IntegrationDetailPage
 import app.rufin.rufin.settings.IntegrationPage
 import app.rufin.rufin.settings.IntegrationsPage
+import app.rufin.rufin.settings.relayPage
 import app.rufin.rufin.settings.SettingsPage
 import app.rufin.rufin.settings.SettingsGroup
 import app.rufin.rufin.settings.SettingsRow
@@ -197,7 +198,7 @@ internal fun MoreContent(model: RufinConnection, preferences: PreferencesConnect
         MoreDestination.Storage -> StorageSettingsPage(model, preferences)
         MoreDestination.Equalizer -> PlayerSettingsContent(player, PlayerSettingsPage.EQUALIZER)
         MoreDestination.Controller -> ControllerPage(model)
-        MoreDestination.Connect -> ConnectPage(model)
+        MoreDestination.Connect -> ConnectPage(model, preferences, { openIntegration(relayPage()) })
         MoreDestination.Overview -> ListeningOverviewPage(model, more, player)
         MoreDestination.Versions -> VersionHistoryPage(more)
         MoreDestination.About -> AboutPage(navigate)

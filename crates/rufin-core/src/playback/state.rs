@@ -413,6 +413,8 @@ pub(super) struct Player {
     auto_dj_refill_threshold: usize,
     auto_dj_in_flight: Option<AutoDjRequest>,
     auto_dj_waiting_for_continuation: bool,
+    /// The song a Clear queue kept. Auto DJ fills the queue once it ends or another plays.
+    auto_dj_held: Option<OccurrenceId>,
     buffering_percent: Option<u8>,
     last_error: Option<String>,
     consecutive_skips: usize,
@@ -481,6 +483,7 @@ impl Player {
             auto_dj_refill_threshold: auto_dj_refill_threshold.max(1),
             auto_dj_in_flight: None,
             auto_dj_waiting_for_continuation: false,
+            auto_dj_held: None,
             buffering_percent: None,
             last_error: None,
             consecutive_skips: 0,
@@ -2035,6 +2038,10 @@ impl Player {
             self.sleep_timer = None;
         }
         self.edit_queue(|sequence| sequence.clear(removing_current));
+        if !removing_current {
+            self.auto_dj_in_flight = None;
+            self.auto_dj_held = self.selected_occurrence();
+        }
         self.changed_queue(removing_current && previous.is_some(), true, sample);
     }
 
@@ -2333,6 +2340,7 @@ impl Player {
         if !enabled {
             self.auto_dj_in_flight = None;
             self.auto_dj_waiting_for_continuation = false;
+            self.auto_dj_held = None;
         }
         self.dirty = true;
         self.maybe_request_auto_dj();
@@ -3168,7 +3176,19 @@ impl Player {
         format!("{}:{}", self.play_id_prefix, run.get())
     }
 
+    fn selected_occurrence(&self) -> Option<OccurrenceId> {
+        self.sequence
+            .selected_index()
+            .and_then(|index| self.sequence.id_at(index))
+    }
+
     fn maybe_request_auto_dj(&mut self) {
+        if let Some(held) = self.auto_dj_held {
+            if self.selected_occurrence() == Some(held) && !self.auto_dj_waiting_for_continuation {
+                return;
+            }
+            self.auto_dj_held = None;
+        }
         if matches!(&self.playback_output, PlaybackOutput::Remote(output) if output.protocol == playback::RemoteOutputProtocol::RufinConnect)
         {
             return;

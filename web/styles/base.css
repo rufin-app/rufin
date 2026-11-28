@@ -295,6 +295,15 @@ dialog::backdrop {
 .connect-inline > label { margin: 0; }
 .connect-inline .connect-check { flex: 1; }
 .connect-invitation-copy { flex: 1 1 200px; }
+.connect-reach { flex: 1; min-width: 0; }
+.connect-card > p:last-child { margin-bottom: 0; }
+/* Turning Connect on: what it does, then where the devices are. */
+#connect-intro-dialog { width: min(480px, calc(100% - 24px)); }
+#connect-intro-dialog h4 { margin: 24px 0 8px; font-size: 14px; }
+#connect-intro-dialog .pref-row > .icon { width: 16px; height: 16px; }
+#connect-intro-dialog .pref-row > input[type="radio"] { flex: none; width: auto; margin: 0; accent-color: var(--blue); }
+#connect-intro-dialog .pref-row > input[type="url"] { width: 60%; }
+#connect-intro-dialog .dialog-actions { justify-content: center; }
 .connect-invitation-copy p { margin: 4px 0 0; }
 .connect-check { display: flex; align-items: center; gap: 10px; margin: 0; }
 .connect-check input { width: 18px; height: 18px; accent-color: var(--blue); }

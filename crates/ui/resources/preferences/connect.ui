@@ -26,13 +26,13 @@
               </object>
             </child>
             <child>
-              <object class="GtkScrolledWindow">
+              <object class="GtkScrolledWindow" id="scroller">
                 <property name="vexpand">true</property>
                 <property name="hscrollbar-policy">never</property>
                 <property name="child">
-                  <object class="AdwClamp">
+                  <object class="AdwClamp" id="clamp">
                     <property name="child">
-                      <object class="GtkBox">
+                      <object class="GtkBox" id="sections">
                         <property name="orientation">vertical</property>
                         <property name="vexpand">true</property>
                         <property name="spacing">24</property>
@@ -104,6 +104,26 @@
                                     </child>
                                   </object>
                                 </child>
+                                <child>
+                                  <object class="AdwActionRow" id="reach">
+                                    <property name="use-markup">false</property>
+                                    <child type="prefix">
+                                      <object class="GtkImage">
+                                        <property name="icon-name">rufin-globe-symbolic</property>
+                                        <property name="accessible-role">presentation</property>
+                                      </object>
+                                    </child>
+                                    <child type="suffix">
+                                      <object class="GtkButton" id="reach_change">
+                                        <property name="icon-name">rufin-applications-system-symbolic</property>
+                                        <property name="tooltip-text" translatable="yes">Change</property>
+                                        <property name="valign">center</property>
+                                        <accessibility><property name="label" translatable="yes">Change</property></accessibility>
+                                        <style><class name="flat"/></style>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
                               </object>
                             </child>
                           </object>
@@ -121,6 +141,7 @@
                             <child>
                               <object class="AdwActionRow" id="no_nearby_devices">
                                 <property name="title" translatable="yes">No network devices found</property>
+                                <property name="subtitle" translatable="yes">A device on another network needs a relay and an invitation</property>
                               </object>
                             </child>
                           </object>

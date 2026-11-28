@@ -2,22 +2,15 @@
 <interface domain="rufin">
   <requires lib="gtk" version="4.20"/>
   <requires lib="libadwaita" version="1.9"/>
-  <object class="GtkScrolledWindow" id="page">
-    <property name="hscrollbar-policy">never</property>
-    <property name="vexpand">true</property>
-    <property name="child"><object class="AdwClamp">
-      <property name="maximum-size">480</property><property name="tightening-threshold">360</property>
-      <property name="margin-start">24</property><property name="margin-end">24</property>
-      <property name="margin-top">4</property><property name="margin-bottom">24</property>
-      <property name="child"><object class="GtkBox">
-        <property name="orientation">vertical</property><property name="spacing">22</property>
-        <child><object class="GtkBox">
-          <property name="orientation">vertical</property><property name="spacing">10</property>
-          <child><object class="GtkImage" id="ready"><property name="visible">false</property><property name="icon-name">rufin-object-select-symbolic</property><property name="pixel-size">32</property><style><class name="success"/></style></object></child>
-          <child><object class="GtkLabel" id="title"><property name="label" translatable="yes">While your library loads</property><property name="justify">center</property><property name="wrap">true</property><style><class name="title-1"/></style></object></child>
-          <child><object class="GtkProgressBar" id="bar"><property name="halign">center</property><property name="width-request">300</property><property name="margin-top">4</property></object></child>
-          <child><object class="GtkLabel" id="status"><property name="justify">center</property><property name="wrap">true</property><style><class name="dim-label"/><class name="caption"/><class name="numeric"/></style></object></child>
-        </object></child>
+  <object class="GtkBox" id="page">
+    <property name="orientation">vertical</property>
+    <child><object class="AdwCarousel" id="pages">
+      <property name="vexpand">true</property>
+      <property name="allow-scroll-wheel">false</property>
+      <property name="allow-long-swipes">false</property>
+      <style><class name="onboarding-pages"/></style>
+      <child><object class="AdwPreferencesPage">
+        <property name="hexpand">true</property>
         <child><object class="AdwPreferencesGroup">
           <property name="title" translatable="yes">Online Lookups</property>
           <property name="description" translatable="yes">Rufin asks these services about the music you play. All of this can be changed later in Preferences.</property>
@@ -29,6 +22,21 @@
             <property name="title" translatable="yes">External lyrics lookup</property>
             <property name="subtitle" translatable="yes">Lyrics from LRCLIB, NetEase, Genius and SimpMusic when a track has none</property>
           </object></child>
+          <child><object class="AdwSwitchRow" id="karaoke">
+            <property name="title" translatable="yes">Karaoke mode</property>
+            <property name="subtitle" translatable="yes">Uses available karaoke lyrics or fetches them from the internet</property>
+          </object></child>
+          <child><object class="AdwComboRow" id="release_check_interval">
+            <property name="title" translatable="yes">Update check interval</property>
+            <property name="subtitle" translatable="yes">New Rufin releases from GitHub</property>
+            <property name="model"><object class="GtkStringList"><items>
+              <item translatable="yes">Off</item>
+              <item translatable="yes">1 hour</item>
+              <item translatable="yes">6 hours</item>
+              <item translatable="yes">12 hours</item>
+              <item translatable="yes">24 hours</item>
+            </items></object></property>
+          </object></child>
           <child><object class="AdwSwitchRow" id="discord_presence">
             <property name="title" translatable="yes">Discord Rich Presence</property>
             <property name="subtitle" translatable="yes">Shows what you are playing on your Discord profile</property>
@@ -38,8 +46,64 @@
             <property name="subtitle" translatable="yes">Turns off lookups, scrobbling, play reporting and update checks</property>
           </object></child>
         </object></child>
-        <child><object class="GtkButton" id="start"><property name="label" translatable="yes">Start Listening</property><property name="halign">center</property><style><class name="pill"/><class name="suggested-action"/></style></object></child>
-      </object></property>
-    </object></property>
+        <child><object class="AdwPreferencesGroup">
+          <property name="title" translatable="yes">Scrobbling</property>
+          <child><object class="AdwActionRow" id="lastfm">
+            <property name="title">Last.fm</property>
+            <property name="activatable">true</property>
+            <child type="suffix"><object class="GtkImage"><property name="icon-name">rufin-go-next-symbolic</property><property name="accessible-role">presentation</property><style><class name="dim-label"/></style></object></child>
+          </object></child>
+          <child><object class="AdwActionRow" id="listenbrainz">
+            <property name="title">ListenBrainz</property>
+            <property name="activatable">true</property>
+            <child type="suffix"><object class="GtkImage"><property name="icon-name">rufin-go-next-symbolic</property><property name="accessible-role">presentation</property><style><class name="dim-label"/></style></object></child>
+          </object></child>
+          <child><object class="AdwActionRow" id="librefm">
+            <property name="title">Libre.fm</property>
+            <property name="activatable">true</property>
+            <child type="suffix"><object class="GtkImage"><property name="icon-name">rufin-go-next-symbolic</property><property name="accessible-role">presentation</property><style><class name="dim-label"/></style></object></child>
+          </object></child>
+        </object></child>
+      </object></child>
+      <child><object class="AdwPreferencesPage">
+        <property name="hexpand">true</property>
+        <child><object class="AdwPreferencesGroup" id="playback">
+          <property name="title" translatable="yes">Playback</property>
+          <child><object class="AdwSwitchRow" id="auto_dj">
+            <property name="title" translatable="yes">Auto DJ</property>
+          </object></child>
+          <child><object class="AdwSwitchRow" id="similar_artists">
+            <property name="title" translatable="yes">Similar artists from ListenBrainz</property>
+            <property name="subtitle" translatable="yes">Look up the artists that listeners play alongside the current one</property>
+          </object></child>
+        </object></child>
+        <child><object class="AdwPreferencesGroup" id="connect">
+          <property name="title" translatable="yes">Rufin Connect</property>
+        </object></child>
+      </object></child>
+    </object></child>
+    <child><object class="GtkBox">
+      <property name="orientation">vertical</property><property name="spacing">10</property>
+      <property name="margin-start">18</property><property name="margin-end">18</property>
+      <property name="margin-top">6</property><property name="margin-bottom">14</property>
+      <child><object class="AdwClamp">
+        <property name="maximum-size">600</property>
+        <property name="child"><object class="GtkBox">
+          <property name="orientation">vertical</property><property name="spacing">6</property>
+          <child><object class="GtkLabel" id="status"><property name="justify">center</property><property name="wrap">true</property><style><class name="dim-label"/><class name="caption"/><class name="numeric"/></style></object></child>
+          <child><object class="GtkProgressBar" id="bar"/></child>
+          <child><object class="GtkBox" id="ready">
+            <property name="visible">false</property><property name="spacing">6</property><property name="halign">center</property>
+            <child><object class="GtkImage"><property name="icon-name">rufin-object-select-symbolic</property><property name="accessible-role">presentation</property><style><class name="success"/></style></object></child>
+            <child><object class="GtkLabel"><property name="label" translatable="yes">Your library is ready</property><style><class name="dim-label"/><class name="caption"/></style></object></child>
+          </object></child>
+        </object></property>
+      </object></child>
+      <child><object class="GtkCenterBox">
+        <property name="start-widget"><object class="GtkButton" id="back"><property name="label" translatable="yes">Back</property><property name="visible">false</property></object></property>
+        <property name="center-widget"><object class="AdwCarouselIndicatorDots"><property name="carousel">pages</property></object></property>
+        <property name="end-widget"><object class="GtkButton" id="next"><property name="label" translatable="yes">Next</property><style><class name="suggested-action"/></style></object></property>
+      </object></child>
+    </object></child>
   </object>
 </interface>

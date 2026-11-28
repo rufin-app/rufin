@@ -156,6 +156,14 @@ private fun PlayerPlaybackSettings(player: PlayerConnection) {
     }
 }
 
+@Composable
+internal fun TransitionMode(player: PlayerConnection) {
+    val playback = player.settings?.playback ?: return
+    PreferenceChoice(translate("Transition mode"), playback.transitionMode.name,
+        listOf(PlaybackTransitionMode.GAPLESS.name to translate("Gapless"), PlaybackTransitionMode.CROSSFADE.name to translate("Crossfade")),
+        select = { player.editPreferences { setTransitionMode(PlaybackTransitionMode.valueOf(it)) } })
+}
+
 /** Transition and crossfade: the first rows of both GTK's playback page and its player settings. */
 @Composable
 private fun Transition(player: PlayerConnection) {
@@ -163,9 +171,7 @@ private fun Transition(player: PlayerConnection) {
     val options = player.preferenceOptions ?: return
     val transitionDuration = if (LocalReduceMotion.current) 0 else 180
     fun change(edit: SettingsOwner.() -> Unit) { player.editPreferences(edit) }
-    PreferenceChoice(translate("Transition mode"), playback.transitionMode.name,
-        listOf(PlaybackTransitionMode.GAPLESS.name to translate("Gapless"), PlaybackTransitionMode.CROSSFADE.name to translate("Crossfade")),
-        select = { change { setTransitionMode(PlaybackTransitionMode.valueOf(it)) } })
+    TransitionMode(player)
     AnimatedVisibility(playback.transitionMode == PlaybackTransitionMode.CROSSFADE,
         enter = expandVertically(tween(transitionDuration)) + fadeIn(tween(transitionDuration)),
         exit = shrinkVertically(tween(transitionDuration)) + fadeOut(tween(transitionDuration))) {
@@ -198,7 +204,6 @@ internal fun PlaybackPreferences(player: PlayerConnection, preferences: Preferen
     val state = player.settings ?: return
     val options = player.preferenceOptions ?: return
     val playback = state.playback
-    var confirmEbu by remember { mutableStateOf(false) }
     var tab by rememberSaveable { mutableStateOf(PlaybackTab.Queue) }
     SearchedTab<PlaybackTab> { tab = it }
     fun change(edit: SettingsOwner.() -> Unit) { player.editPreferences(edit) }
@@ -253,8 +258,7 @@ internal fun PlaybackPreferences(player: PlayerConnection, preferences: Preferen
                             // The choice shows where a configured server recommends; unset reads as on.
                             if (showsServerRecommendations(sources)) SettingsSwitch(translate("Override server recommendations"), application.overrideServerRecommendations != false,
                                 summary = translate("Play Rufin's picks instead of the server's own")) { preferences.changePreference { setOverrideServerRecommendations(it) } }
-                            SettingsSwitch(translate("Similar artists from ListenBrainz"), application.autoDjSimilarArtists,
-                                summary = translate("Look up the artists that listeners play alongside the current one")) { preferences.changePreference { setAutoDjSimilarArtists(it) } }
+                            SimilarArtistsSwitch(preferences)
                             SettingsNumber(translate("Auto DJ refill threshold"), application.autoDjRefillThreshold.toDouble(),
                                 options.minAutoDjRefillThreshold.toDouble()..options.maxAutoDjRefillThreshold.toDouble()) {
                                 preferences.changePreference { setAutoDjRefillThreshold((it as Number).toInt().toUByte()) }
@@ -274,12 +278,7 @@ internal fun PlaybackPreferences(player: PlayerConnection, preferences: Preferen
                 PlaybackTab.Audio -> {
                     SettingsGroup {
                         SettingsRow(translate("Audio output"), modifier = Modifier.clickable(onClick = output))
-                        PreferenceChoice(translate("Loudness normalization"), playback.loudnessNormalization.name,
-                            listOf(LoudnessNormalization.OFF.name to translate("Off"), LoudnessNormalization.REPLAY_GAIN.name to "ReplayGain", LoudnessNormalization.EBU_R128.name to "EBU R128"), select = {
-                                val mode = LoudnessNormalization.valueOf(it)
-                                if (mode == LoudnessNormalization.EBU_R128 && playback.loudnessNormalization != mode) confirmEbu = true
-                                else change { setLoudnessNormalization(mode) }
-                            })
+                        LoudnessNormalizationChoice(player)
                         PreferenceChoice(translate("Normalization scope"), playback.loudnessNormalizationScope.name,
                             listOf(LoudnessNormalizationScope.TRACK.name to translate("Track"), LoudnessNormalizationScope.ALBUM.name to translate("Album")),
                             select = { change { setLoudnessNormalizationScope(LoudnessNormalizationScope.valueOf(it)) } })
@@ -297,11 +296,37 @@ internal fun PlaybackPreferences(player: PlayerConnection, preferences: Preferen
             }
         }
     }
+}
+
+@Composable
+internal fun SimilarArtistsSwitch(preferences: PreferencesConnection) {
+    val application = preferences.applicationSettings ?: return
+    SettingsSwitch(translate("Similar artists from ListenBrainz"), application.autoDjSimilarArtists,
+        summary = translate("Look up the artists that listeners play alongside the current one")) { preferences.changePreference { setAutoDjSimilarArtists(it) } }
+}
+
+/** Loudness normalization; EBU R128 analyses the whole library, so it asks first. */
+@Composable
+internal fun LoudnessNormalizationChoice(player: PlayerConnection) {
+    val playback = player.settings?.playback ?: return
+    var confirmEbu by remember { mutableStateOf(false) }
+    PreferenceChoice(translate("Loudness normalization"), playback.loudnessNormalization.name,
+        listOf(LoudnessNormalization.OFF.name to translate("Off"), LoudnessNormalization.REPLAY_GAIN.name to "ReplayGain", LoudnessNormalization.EBU_R128.name to "EBU R128"), select = {
+            val mode = LoudnessNormalization.valueOf(it)
+            if (mode == LoudnessNormalization.EBU_R128 && playback.loudnessNormalization != mode) confirmEbu = true
+            else player.editPreferences { setLoudnessNormalization(mode) }
+        })
     if (confirmEbu) AlertDialog(onDismissRequest = { confirmEbu = false },
         title = { Text(translate("Enable EBU R128 Analysis?")) },
         text = { Text(translate("Rufin will calculate the missing EBU R128 metadata for the whole library. This can use significant CPU, battery, and network bandwidth for a long time.")) },
-        confirmButton = { TextButton({ confirmEbu = false; change { setLoudnessNormalization(LoudnessNormalization.EBU_R128) } }) { Text(translate("Enable")) } },
+        confirmButton = { TextButton({ confirmEbu = false; player.editPreferences { setLoudnessNormalization(LoudnessNormalization.EBU_R128) } }) { Text(translate("Enable")) } },
         dismissButton = { TextButton({ confirmEbu = false }) { Text(translate("Cancel")) } })
+}
+
+@Composable
+internal fun KaraokeModeSwitch(player: PlayerConnection, summary: String? = null) {
+    val lyrics = player.settings?.lyrics ?: return
+    SettingsSwitch(translate("Karaoke mode"), lyrics.karaokeMode, summary) { player.lyricsPreference { setKaraokeMode(it) } }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -326,7 +351,7 @@ private fun LyricsSettings(player: PlayerConnection) {
         }
     }
     SettingsGroup(translate("Karaoke Playback")) {
-    PreferenceSwitch("Karaoke mode", lyrics.karaokeMode) { change { setKaraokeMode(it) } }
+    KaraokeModeSwitch(player)
     val highlightColor = lyrics.lyricsHighlightColor?.let(::playerLyricsColor) ?: accent
     ColorSetting("Karaoke highlight color", highlightColor) { highlightEdit = true }
     }

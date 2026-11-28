@@ -861,7 +861,7 @@ fn protocol_title(protocol: ScrobblingProtocol) -> String {
     }
 }
 
-fn account_status(connected: bool, username: &str) -> String {
+pub(super) fn account_status(connected: bool, username: &str) -> String {
     match (connected, username.trim()) {
         (false, _) => tr("Not connected"),
         (true, "") => tr("Connected"),

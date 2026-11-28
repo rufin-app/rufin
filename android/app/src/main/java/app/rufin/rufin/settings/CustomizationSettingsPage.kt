@@ -392,11 +392,13 @@ private fun MenuEntryLabel(label: String, shown: Boolean, style: androidx.compos
 }
 
 /** A setting that takes one of `options`. A few short ones are a pill select in the row; more, or longer
- *  ones, open a sheet of rows with the picked one highlighted, as GTK marks it. */
+ *  ones, open a sheet of rows with the picked one highlighted, as GTK marks it. Such a row names the picked
+ *  one under its title, or at its end where `summary` says what the setting does. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun <T> PreferenceChoice(title: String, selected: T, options: List<Pair<T, String>>,
-    preview: (@Composable (T) -> Unit)? = null, rowPreview: Boolean = true, enabled: (T) -> Boolean = { true }, select: (T) -> Unit,
+    preview: (@Composable (T) -> Unit)? = null, rowPreview: Boolean = true, enabled: (T) -> Boolean = { true },
+    summary: String? = null, select: (T) -> Unit,
 ) {
     val active = options.any { enabled(it.first) }
     if (preview == null && options.size in 2..3 && options.all { it.second.length <= 12 && enabled(it.first) == active }) {
@@ -413,9 +415,15 @@ internal fun <T> PreferenceChoice(title: String, selected: T, options: List<Pair
         return
     }
     var open by remember { mutableStateOf(false) }
-    SettingsRow(title, summary = options.find { it.first == selected }?.second ?: selected.toString(),
+    val value = options.find { it.first == selected }?.second ?: selected.toString()
+    SettingsRow(title, summary = summary ?: value,
         leading = preview?.takeIf { rowPreview }?.let { { it(selected) } },
-        trailing = { RufinIcon("rufin-go-next-symbolic", null, Modifier.size(20.dp)) },
+        trailing = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (summary != null) Text(value, style = MaterialTheme.typography.bodyMedium)
+                RufinIcon("rufin-go-next-symbolic", null, Modifier.size(20.dp))
+            }
+        },
         modifier = Modifier.clickable(enabled = active) { open = true })
     if (open) ModalBottomSheet({ open = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 24.dp)) {

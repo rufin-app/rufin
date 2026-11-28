@@ -135,7 +135,36 @@
 {% macro switch(path, label, subtitle) %}<label class="pref-row"><span class="pref-label"><span>{{ label }}</span>{% if subtitle != "" %}<small>{{ subtitle }}</small>{% endif %}</span><input type="checkbox" role="switch" data-setting="{{ path }}" /></label>{% endmacro %}
 {% macro pref_page(id, label, icon_name) %}<button type="button" role="tab" class="pref-tab" data-page="{{ id }}" aria-controls="pref-{{ id }}">{% call icon(icon_name) %}{% endcall %}<span>{{ label }}</span></button>{% endmacro %}
 {% macro sidebar_mode(path, label, left) %}<div class="pref-row"><span class="pref-label"><span>{{ label }}</span></span><div class="segmented" role="radiogroup" aria-label="{{ label }}">{% if left %}{% for (value, title) in [("Full", "Full"), ("Compact", "Compact"), ("Hidden", "Hidden")] %}<label><input type="radio" name="{{ path }}" value='"{{ value }}"' data-setting="{{ path }}" />{{ localization::tr(title) }}</label>{% endfor %}{% else %}{% for (value, title) in [("Visible", "Visible"), ("Hidden", "Hidden")] %}<label><input type="radio" name="{{ path }}" value='"{{ value }}"' data-setting="{{ path }}" />{{ localization::tr(title) }}</label>{% endfor %}{% endif %}</div></div>{% endmacro %}
-{% macro integration_row(id, name) %}<button type="button" class="integration-row" data-integration="{{ id }}"><span class="pref-label"><span>{{ name }}</span><small data-integration-status></small></span><span class="integration-active" title="{{ localization::tr("Active") }}" hidden></span>{% call icon("rufin-go-next-symbolic") %}{% endcall %}</button>{% endmacro %}
+{% macro integration_row(id, name, class) %}<button type="button" class="{{ class }}" data-integration="{{ id }}"><span class="pref-label"><span>{{ name }}</span><small data-integration-status></small></span><span class="integration-active" title="{{ localization::tr("Active") }}" hidden></span>{% call icon("rufin-go-next-symbolic") %}{% endcall %}</button>{% endmacro %}
 {% macro integration_hero(name, status, action) %}<div class="integration-hero"><span class="pref-label"><strong data-hero-name>{{ name }}</strong><small data-hero-status>{{ status }}</small></span>{% if action != "" %}<button type="button" class="primary" data-hero-action>{{ action }}</button>{% endif %}</div>{% endmacro %}
 {% macro scrobbling_switches() %}<label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Scrobble plays") }}</span></span><input type="checkbox" role="switch" data-scrobbling-switch="enabled" /></label><label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Now playing updates") }}</span></span><input type="checkbox" role="switch" data-scrobbling-switch="now_playing" /></label>{% endmacro %}
 {% macro link_row(href, title, subtitle) %}<a class="pref-row pref-link" href="{{ href }}" target="_blank" rel="noopener noreferrer"><span class="pref-label"><span>{{ title }}</span>{% if subtitle != "" %}<small>{{ subtitle }}</small>{% endif %}</span>{% call icon("rufin-external-link-symbolic") %}{% endcall %}</a>{% endmacro %}
+{% macro update_interval(subtitle) %}<label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Update check interval") }}</span>{% if subtitle != "" %}<small>{{ subtitle }}</small>{% endif %}</span><select data-setting="/release_check_interval_hours"><option value="0">{{ localization::tr("Off") }}</option><option value="1">{{ localization::tr("1 hour") }}</option><option value="6">{{ localization::tr("6 hours") }}</option><option value="12">{{ localization::tr("12 hours") }}</option><option value="24">{{ localization::tr("24 hours") }}</option></select></label>{% endmacro %}
+{% macro transition_mode(name) %}<div class="segmented" role="radiogroup" aria-label="{{ localization::tr("Transition mode") }}">
+  <label><input type="radio" name="{{ name }}" value='"Gapless"' data-setting="/playback/transition_mode" />{{ localization::tr("Gapless") }}</label>
+  <label><input type="radio" name="{{ name }}" value='"Crossfade"' data-setting="/playback/transition_mode" />{{ localization::tr("Crossfade") }}</label>
+</div>{% endmacro %}
+{% macro loudness_normalization() %}<label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Loudness normalization") }}</span></span><select data-setting="/playback/loudness_normalization"><option value='"Off"'>{{ localization::tr("Off") }}</option><option value='"ReplayGain"'>ReplayGain</option><option value='"EbuR128"'>EBU R128</option></select></label>{% endmacro %}
+{% macro theme_picker() %}<div class="theme-options">
+  <div class="theme-grid" role="radiogroup" aria-label="{{ localization::tr("Theme") }}"></div>
+  <p class="theme-errors" hidden></p>
+</div>{% endmacro %}
+{# The start of Rufin Connect: this device's name with Join or Invite, how to connect a device, how far it reaches, and the devices nearby. `scope` names the page that shows it. #}
+{% macro connect_start(scope) %}
+<section data-connect-section="start">
+  <div class="connect-inline"><label for="{{ scope }}-name">{{ localization::tr("Device name") }}</label><input id="{{ scope }}-name" data-connect="name" /><button data-connect="rename">{{ localization::tr("Save") }}</button><div data-connect="choices" class="connect-role" role="group" aria-label="{{ localization::tr("Connect a device") }}"><button data-connect-mode="join" aria-pressed="false">{{ localization::tr("Join") }}</button><button data-connect-mode="invite" aria-pressed="true">{{ localization::tr("Invite") }}</button></div><button data-connect="leave" class="icon-button" title="{{ localization::tr("Disconnect this device") }}" aria-label="{{ localization::tr("Disconnect this device") }}">{% call icon("rufin-application-exit-symbolic") %}{% endcall %}</button></div>
+  <div data-connect-section="invite" hidden>
+    <div class="connect-inline"><div class="connect-invitation-copy"><strong>{{ localization::tr("Connect a device") }}</strong><p>{{ localization::tr("Open Rufin Connect on another device, connect via Join button or by copying invitation code") }}</p></div><button data-connect="copy" class="icon-button" title="{{ localization::tr("Copy invitation") }}" aria-label="{{ localization::tr("Copy invitation") }}">{% call icon("rufin-edit-copy-symbolic") %}{% endcall %}</button></div>
+    <input data-connect="invitation" aria-label="{{ localization::tr("Device invitation") }}" readonly hidden />
+  </div>
+  <div class="connect-inline">{% call icon("rufin-globe-symbolic") %}{% endcall %}<span class="connect-reach" data-connect="reach"></span><button data-connect="reach-change" class="text-button">{{ localization::tr("Change") }}</button></div>
+</section>
+<section data-connect-section="nearby" hidden>
+  <h3>{{ localization::tr("Nearby devices") }}</h3>
+  <div data-connect="nearby-devices" class="connect-card-list"></div>
+  <article class="connect-card" data-connect="nearby-empty"><h4>{{ localization::tr("No network devices found") }}</h4><p>{{ localization::tr("A device on another network needs a relay and an invitation") }}</p></article>
+</section>
+<section data-connect-section="join" hidden>
+  <div class="connect-inline"><input data-connect="peer" placeholder="{{ localization::tr("Device invitation") }}" aria-label="{{ localization::tr("Device invitation") }}" /><button data-connect="join">{{ localization::tr("Join profile") }}</button></div>
+</section>
+{% endmacro %}

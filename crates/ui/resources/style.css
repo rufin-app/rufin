@@ -715,8 +715,10 @@ headerbar.shared-topbar .topbar-search > entry.search {
   box-shadow: inset 0 0 0 2px var(--accent-color);
 }
 
-.topbar-search .search-shortcut { opacity: 0; }
-.topbar-search:hover .search-shortcut { opacity: 0.65; }
+.topbar-search .search-shortcut { opacity: 0.65; }
+
+/* Each first-run page is filled, so turning the page repaints all of it. */
+.onboarding-pages > preferencespage { background-color: var(--dialog-bg-color); }
 .topbar-search:focus-within .search-shortcut,
 .topbar-search.has-query .search-shortcut { opacity: 0; }
 .topbar-search .search-enter { opacity: 0; }

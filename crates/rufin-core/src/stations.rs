@@ -1039,7 +1039,7 @@ pub async fn search(owner: &SourceOwner, query: String) -> Result<Vec<StationFou
     if query.is_empty() {
         return Ok(Vec::new());
     }
-    if owner.shared.settings.load().ui.application.private_mode {
+    if owner.shared.settings.load().ui.private() {
         return Err("Private mode is on, so Rufin does not search radio-browser.info".into());
     }
     let url = url::Url::parse_with_params(

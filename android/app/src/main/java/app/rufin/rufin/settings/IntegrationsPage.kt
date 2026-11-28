@@ -175,13 +175,7 @@ private fun IntegrationList(state: ScrobblingPreferences?, application: app.rufi
     lyrics: app.rufin.rufin.shared.lyrics.UserPreferences, folders: List<FileIntegration>, relay: IrohRelay, open: (IntegrationPage) -> Unit) {
     SettingsGroup(translate("Scrobbling")) {
         state?.let { current ->
-            IntegrationRow(IntegrationPage("lastfm", "Last.fm"),
-                accountStatus(current.lastfm.connected, current.lastfm.username), current.lastfm.connected && current.lastfm.enabled, open)
-            val listenbrainz = current.listenbrainz.connected
-            IntegrationRow(IntegrationPage("listenbrainz", "ListenBrainz"),
-                accountStatus(listenbrainz, current.listenbrainz.username), listenbrainz && current.listenbrainz.enabled, open)
-            IntegrationRow(IntegrationPage("librefm", "Libre.fm"),
-                accountStatus(current.librefm.connected, current.librefm.username), current.librefm.connected && current.librefm.enabled, open)
+            ScrobblingAccountRows(current, open)
             current.servers.forEach { server -> key(server.id) {
                 IntegrationRow(IntegrationPage(SERVER + server.id, server.name),
                     "${accountStatus(server.connected, server.username)} · ${protocolTitle(server.protocol)}", server.connected && server.enabled, open)
@@ -211,8 +205,19 @@ private fun IntegrationList(state: ScrobblingPreferences?, application: app.rufi
         }
     }
     SettingsGroup(translate("Connection settings")) {
-        IntegrationRow(IntegrationPage("iroh_relay", translate("Iroh relay")), relayLabel(relay), relay != IrohRelay.Off, open)
+        IntegrationRow(relayPage(), relayLabel(relay), relay != IrohRelay.Off, open)
     }
+}
+
+/** The scrobbling services' rows: how each account stands, and the way to its page. */
+@Composable
+internal fun ScrobblingAccountRows(state: ScrobblingPreferences, open: (IntegrationPage) -> Unit) {
+    IntegrationRow(IntegrationPage("lastfm", "Last.fm"),
+        accountStatus(state.lastfm.connected, state.lastfm.username), state.lastfm.connected && state.lastfm.enabled, open)
+    IntegrationRow(IntegrationPage("listenbrainz", "ListenBrainz"),
+        accountStatus(state.listenbrainz.connected, state.listenbrainz.username), state.listenbrainz.connected && state.listenbrainz.enabled, open)
+    IntegrationRow(IntegrationPage("librefm", "Libre.fm"),
+        accountStatus(state.librefm.connected, state.librefm.username), state.librefm.connected && state.librefm.enabled, open)
 }
 
 @Composable
@@ -298,6 +303,16 @@ internal fun IntegrationDetailPage(model: RufinConnection, preferences: Preferen
             } } ?: Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         }
     }
+}
+
+/** The relay's page, as the Integrations list and every Change beside a reach open it. */
+internal fun relayPage() = IntegrationPage("iroh_relay", translate("Iroh relay"))
+
+/** How far rooms and Rufin Connect reach, with the way to the relay that decides it. */
+@Composable
+internal fun ReachRow(reach: String, change: () -> Unit) {
+    SettingsRow(reach, leading = { RufinIcon("rufin-globe-symbolic", null) },
+        trailing = { TextButton(change) { Text(translate("Change")) } })
 }
 
 private fun relayLabel(relay: IrohRelay): String = when (relay) {
@@ -488,14 +503,28 @@ private fun lookup(preferences: PreferencesConnection, player: PlayerConnection,
 }
 
 @Composable
+internal fun ExternalMetadataSwitch(preferences: PreferencesConnection, player: PlayerConnection, summary: String) {
+    val application = preferences.applicationSettings ?: return
+    SettingsSwitch(translate("External metadata lookup"), application.externalMetadataEnabled, summary) {
+        lookup(preferences, player) { setExternalMetadataEnabled(it) }
+    }
+}
+
+@Composable
+internal fun ExternalLyricsSwitch(player: PlayerConnection, summary: String? = null) {
+    val lyrics = player.settings?.lyrics ?: return
+    SettingsSwitch(translate("External lyrics lookup"), lyrics.externalLyricsEnabled, summary) {
+        player.lyricsPreference { setExternalLyricsEnabled(it) }
+    }
+}
+
+@Composable
 private fun MetadataPage(preferences: PreferencesConnection, player: PlayerConnection) {
     val application = preferences.applicationSettings ?: return
     val enabled = application.externalMetadataEnabled
     IntegrationHero(translate("Covers and artist images your library doesn't have"))
     SettingsGroup {
-        SettingsSwitch(translate("External metadata lookup"), enabled, translate("Also album types and tag suggestions")) {
-            lookup(preferences, player) { setExternalMetadataEnabled(it) }
-        }
+        ExternalMetadataSwitch(preferences, player, translate("Also album types and tag suggestions"))
     }
     SettingsGroup(translate("Album covers"), translate("Asked in this order.")) {
         ProviderRows(CoverProvider.entries, application.coverProviders, enabled, { provider -> when (provider) {
@@ -523,7 +552,7 @@ private fun LyricsPage(player: PlayerConnection) {
     val enabled = lyrics.externalLyricsEnabled
     IntegrationHero(translate("Lyrics your library doesn't have"))
     SettingsGroup {
-        SettingsSwitch(translate("External lyrics lookup"), enabled) { player.lyricsPreference { setExternalLyricsEnabled(it) } }
+        ExternalLyricsSwitch(player)
         SettingsSwitch(translate("Prefer server lyrics"), lyrics.preferServerLyrics, enabled = enabled) { player.lyricsPreference { setPreferServerLyrics(it) } }
     }
     SettingsGroup(translate("Providers"), translate("The closest match wins; on a tie, the higher one.")) {

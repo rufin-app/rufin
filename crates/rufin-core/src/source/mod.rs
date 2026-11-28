@@ -1811,6 +1811,17 @@ impl SourceOwner {
         self.shared
             .configured_sources(self.shared.selected().as_ref())
     }
+
+    /// Ends the first run's setup: what it kept from going online starts now.
+    pub fn finish_setup(&self) {
+        let ended = self
+            .shared
+            .settings
+            .edit(|stored| Ok(std::mem::take(&mut stored.ui.setup_pending)));
+        if ended == Ok(true) {
+            self.fill_release_types();
+        }
+    }
 }
 
 impl SourceOwner {

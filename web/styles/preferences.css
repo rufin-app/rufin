@@ -317,7 +317,7 @@ button.pref-row:hover {
   height: 16px;
   flex: none;
 }
-.pref-link > .pref-label + .icon {
+.pref-link > :is(.pref-label, .integration-active) + .icon {
   opacity: 0.6;
 }
 .pref-action {

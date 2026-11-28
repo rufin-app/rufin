@@ -1,8 +1,12 @@
+import { openIntegrationPage, saveRelay } from "./integrations.js";
 import { chooseFileIntegration } from "./sources.js";
 import { api } from "./connection.js";
 import { icon, setIcon, tr, notice } from "./ui.js";
 
 const element = (id) => document.getElementById(`connect-${id}`);
+// The start of the page shows in the dialog and in the first run's: its controls, wherever
+// they are, by their data-connect name.
+const parts = (name) => document.querySelectorAll(`[data-connect="${name}"]`);
 const progressInteger = new Intl.NumberFormat();
 const confirmation = () =>
   window.confirm(
@@ -17,6 +21,8 @@ let previousDevices;
 let mode = "invite";
 let storageConnection = null;
 let storageKind = "";
+// The relay setting the first-enable dialog opened with.
+let relay;
 
 function updateView() {
   if (!state) return;
@@ -33,7 +39,7 @@ function updateView() {
     verify: !!state.pairing,
     connecting: progressVisible,
     devices: !busy && state.devices.some(device => device.enrolled),
-    nearby: !busy && state.devices.some(device => !device.enrolled),
+    nearby: !busy,
     network: !busy && (profileControls || joining),
     folder: profileControls,
   };
@@ -45,9 +51,10 @@ function updateView() {
     button.setAttribute("aria-pressed", String(button.dataset.connectMode === mode));
   element("dialog").classList.toggle("connect-working", progressVisible);
   element("cancel-pairing").hidden = !state.connecting;
-  element("choices").hidden = hasProfile || busy;
+  for (const choices of parts("choices")) choices.hidden = hasProfile || busy;
+  for (const empty of parts("nearby-empty")) empty.hidden = state.devices.some((device) => !device.enrolled);
   element("retry").hidden = !state.error || !state.settings.profile || state.connecting || !!state.pairing;
-  element("leave").hidden = !profileControls || !state.devices.some((device) => device.enrolled);
+  for (const leave of parts("leave")) leave.hidden = !profileControls || !state.devices.some((device) => device.enrolled);
   element("approve").hidden = !!state.pairing?.approved;
   element("approval-status").hidden = !state.pairing?.approved;
   element("approval-status").textContent = state.pairing?.verified
@@ -108,6 +115,10 @@ function run(callback) {
 function click(id, callback) {
   element(id).addEventListener("click", () => run(callback));
 }
+// A control of the start page, pressed in either place: `callback` takes the one pressed.
+function press(name, callback) {
+  for (const node of parts(name)) node.addEventListener("click", () => run(() => callback(node)));
+}
 function button(title, callback, className = "") {
   const node = document.createElement("button");
   node.textContent = title;
@@ -131,6 +142,9 @@ function show(value) {
   const nearbyChanged = state && state.settings.nearby !== value.settings.nearby;
   const completed = state && state.completed_pairings !== value.completed_pairings;
   const folderChanged = JSON.stringify(state?.settings.folder) !== JSON.stringify(value.settings.folder);
+  // A saved name shows wherever the name is; one being typed stays.
+  if (state?.settings.name !== value.settings.name)
+    for (const name of parts("name")) name.value = value.settings.name;
   state = value;
   if (folderChanged) run(() => showFolder(value.settings.folder));
   const counter = showCollectionProgress(value);
@@ -153,10 +167,12 @@ function show(value) {
   element("enabled").checked = value.settings.enabled;
   element("error").textContent = value.error || "";
   element("error").hidden = !value.error;
-  element("invitation").value = value.invitation || "";
-  element("share-invitation").hidden = !value.invitation;
-  element("copy").hidden = !value.invitation;
-  element("leave").hidden = !value.settings.profile;
+  for (const field of parts("invitation")) {
+    field.value = value.invitation || "";
+    if (!value.invitation) field.hidden = true;
+  }
+  for (const copy of parts("copy")) copy.hidden = !value.invitation;
+  for (const reach of parts("reach")) reach.textContent = value.settings.reach;
   if (value.pairing && pairingChanged) {
     element("verification-name").textContent = value.pairing.name;
     element("emoji").replaceChildren(
@@ -166,7 +182,7 @@ function show(value) {
   updateView();
   if (value.pairing && pairingChanged && !element("dialog").open) present(value);
   const signature = JSON.stringify(value.devices.map(device => [device.id, device.enrolled]));
-  for (const card of element("dialog").querySelectorAll("[data-device-id]")) {
+  for (const card of document.querySelectorAll("[data-device-id]")) {
     const device = value.devices.find(device => device.id === card.dataset.deviceId);
     if (!device) continue;
     card.querySelector("h4").textContent = device.name;
@@ -179,9 +195,8 @@ function show(value) {
   if (signature === previousDevices) return;
   previousDevices = signature;
   const devices = element("devices");
-  const nearby = element("nearby-devices");
   devices.replaceChildren();
-  nearby.replaceChildren();
+  for (const nearby of parts("nearby-devices")) nearby.replaceChildren();
   for (const device of value.devices) {
     const card = document.createElement("article");
     card.className = "connect-card";
@@ -191,14 +206,17 @@ function show(value) {
     heading.append(textNode("h4", device.name));
     card.append(heading);
     if (!device.enrolled) {
-      const actions = document.createElement("div");
-      actions.className = "connect-device-controls";
-      actions.append(
-        button(tr("Join"), () => join(device.id)),
-        button(tr("Invite"), () => action({ action: "invite", peer: device.id })),
-      );
-      heading.append(actions);
-      nearby.append(card);
+      for (const nearby of parts("nearby-devices")) {
+        const shown = card.cloneNode(true);
+        const actions = document.createElement("div");
+        actions.className = "connect-device-controls";
+        actions.append(
+          button(tr("Join"), () => join(device.id)),
+          button(tr("Invite"), () => action({ action: "invite", peer: device.id })),
+        );
+        shown.firstElementChild.append(actions);
+        nearby.append(shown);
+      }
       continue;
     }
     const route = textNode("p", tr(device.connection), "connect-device-status");
@@ -242,6 +260,8 @@ function show(value) {
 async function join(invitation) {
   if (!confirmation()) return;
   await action({ action: "join", invitation, replace: true });
+  // A join started in the first run's dialog goes on in this one.
+  if (!element("dialog").open) present(state);
 }
 
 async function showStorageConnection(connections = null) {
@@ -270,13 +290,30 @@ async function showFolder(folder) {
   await showStorageConnection(connections);
 }
 
+// Turning Connect on says what it does and asks where the devices are: the relay setting,
+// as Integrations shows it.
+async function introduce() {
+  relay = await api("/integrations/iroh-relay");
+  element("intro-form").elements.relay.value = relay.mode;
+  element("intro-address").value = relay.url || "";
+  showIntroduction();
+  element("intro-dialog").showModal();
+}
+
+// A relay of one's own needs its address before Connect can be enabled.
+function showIntroduction() {
+  const custom = element("intro-form").elements.relay.value === "custom";
+  element("intro-address-row").hidden = !custom;
+  element("intro-enable").disabled = custom && !element("intro-address").value.trim();
+}
+
 function showDisableConfirmation() {
   element("disable-dialog").returnValue = "cancel";
   element("disable-dialog").showModal();
 }
 
 function present(value) {
-  element("name").value = value.settings.name;
+  for (const name of parts("name")) name.value = value.settings.name;
   element("nearby").checked = value.settings.nearby;
   updateView();
   element("dialog").showModal();
@@ -302,9 +339,21 @@ export function init() {
       mode = button.dataset.connectMode;
       updateView();
       if (mode === "join") run(() => action({ action: "discover" }));
-      else if (!state.settings.enabled) run(() => action({ action: "enable", enabled: true }));
+      else if (!state.settings.enabled) run(introduce);
     });
   }
+  element("intro-form").addEventListener("input", showIntroduction);
+  element("intro-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    run(async () => {
+      const mode = element("intro-form").elements.relay.value;
+      const choice = mode === "custom" ? { mode, url: element("intro-address").value.trim() } : { mode };
+      if (choice.mode !== relay.mode || choice.url !== relay.url) await saveRelay(choice);
+      await action({ action: "enable", enabled: true });
+      element("intro-dialog").close();
+    });
+  });
+  press("reach-change", () => openIntegrationPage("iroh_relay"));
   element("storage").addEventListener("change", () => {
     const kind = element("storage").value;
     if (kind) {
@@ -335,39 +384,32 @@ export function init() {
     show(value);
     present(value);
   }));
-  element("enabled").addEventListener("change", () => run(async () => {
-    const enabled = element("enabled").checked;
-    if (!enabled) {
-      element("enabled").checked = state.settings.enabled;
-      showDisableConfirmation();
-      return;
-    }
-    try {
-      await action({ action: "enable", enabled });
-    } catch (error) {
-      element("enabled").checked = state.settings.enabled;
-      throw error;
-    }
-  }));
+  // The switch shows what is saved until the dialog it opens answers.
+  element("enabled").addEventListener("change", () => {
+    const enable = element("enabled").checked;
+    element("enabled").checked = state.settings.enabled;
+    if (enable) run(introduce);
+    else showDisableConfirmation();
+  });
   element("disable-dialog").addEventListener("close", () => {
     if (element("disable-dialog").returnValue === "disable") {
       run(() => action({ action: "enable", enabled: false }));
     }
   });
   click("refresh", () => action({ action: "refresh" }));
-  click("copy", async () => {
-    const field = element("invitation");
+  press("copy", async (copy) => {
     if (navigator.clipboard) {
-      await navigator.clipboard.writeText(field.value);
-      flashSuccess(element("copy"), "rufin-edit-copy-symbolic");
+      await navigator.clipboard.writeText(state.invitation);
+      flashSuccess(copy, "rufin-edit-copy-symbolic");
     } else {
+      const field = copy.closest("[data-connect-section]").querySelector('[data-connect="invitation"]');
       field.hidden = false;
       field.focus();
       field.select();
     }
   });
-  click("rename", () => action({ action: "rename", name: element("name").value }));
-  click("join", () => join(element("peer").value));
+  press("rename", (rename) => action({ action: "rename", name: rename.parentElement.querySelector('[data-connect="name"]').value }));
+  press("join", (button) => join(button.parentElement.querySelector('[data-connect="peer"]').value));
   click("cancel-pairing", () => action({ action: "cancel_pairing" }));
   click("retry", async () => {
     element("retry").disabled = true;
@@ -386,7 +428,7 @@ export function init() {
     return action({ action: "folder", folder });
   });
   click("folder-clear", () => action({ action: "folder", folder: null }));
-  click("leave", async () => {
+  press("leave", async () => {
     if (!window.confirm(tr("Disconnect this device?"))) return;
     await action({ action: "leave" });
     updateView();

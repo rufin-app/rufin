@@ -183,7 +183,7 @@ impl Discord {
     fn committed(&self) -> Committed {
         let stored = self.settings.load();
         let mut settings = stored.ui.rich_presence.clone();
-        settings.enabled &= !stored.ui.application.private_mode;
+        settings.enabled &= !stored.ui.private();
         Committed {
             settings,
             lookups: stored.ui.lookup_policy(),

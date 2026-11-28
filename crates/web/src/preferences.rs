@@ -47,6 +47,7 @@ const SETTINGS: &[&str] = &[
     "/fanart_api_key",
     "/external_lyrics_enabled",
     "/prefer_server_lyrics",
+    "/karaoke_mode",
     "/external_lyrics_providers",
     "/reduce_motion",
     "/home/size",

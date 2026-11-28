@@ -803,6 +803,13 @@ function init() {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(order, 200);
   });
+  // Ctrl+K goes to the search, as in GTK; under a dialog the search takes no keys.
+  document.addEventListener("keydown", (event) => {
+    if (!event.ctrlKey || event.altKey || event.shiftKey || event.key.toLowerCase() !== "k" || document.querySelector("dialog[open]")) return;
+    event.preventDefault();
+    $("search").focus();
+    $("search").select();
+  });
   $("sort").addEventListener("change", order);
   $("descending").addEventListener("click", () => {
     showOrder($("sort").value, $("descending").getAttribute("aria-pressed") !== "true");

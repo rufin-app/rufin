@@ -6,11 +6,18 @@ use rufin_core::settings::{AccentPreference, ThemePreference};
 use rufin_core::themes::{Accent, PreviewColor};
 use std::rc::Rc;
 
-pub(super) fn page(shell: &Rc<Shell>) -> adw::PreferencesPage {
+/// The theme picker. `titled` names its group where no header does, as on the first run.
+pub(super) fn page(shell: &Rc<Shell>, titled: bool) -> adw::PreferencesPage {
     let resource = "preferences/theme.ui";
     let builder = crate::ui_resource::builder(resource);
     bind(shell, &builder, resource);
-    crate::ui_resource::object(&builder, resource, "theme_page")
+    crate::objects!(builder, resource, {
+        theme_page: adw::PreferencesPage, theme_group: adw::PreferencesGroup,
+    });
+    if titled {
+        theme_group.set_title(&theme_page.title());
+    }
+    theme_page
 }
 
 pub(super) fn bind(shell: &Rc<Shell>, builder: &gtk::Builder, resource: &str) {

@@ -29,7 +29,9 @@ import app.rufin.rufin.ui.LocalPlayerBottomPadding
 import app.rufin.rufin.ui.RufinIcon
 
 @Composable
-internal fun ThemeSettingsPage(preferences: PreferencesConnection) {
+internal fun ThemeSettingsPage(preferences: PreferencesConnection,
+    /** The picker's heading where it is one section among a page's others. */
+    heading: String? = null) {
     val settings = preferences.state
     if (settings == null) {
         PageLoading()
@@ -42,6 +44,9 @@ internal fun ThemeSettingsPage(preferences: PreferencesConnection) {
     LazyVerticalGrid(GridCells.Adaptive(100.dp), Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp + LocalPlayerBottomPadding.current),
         horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        heading?.let { item(span = { GridItemSpan(maxLineSpan) }) {
+            Text(it, Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        } }
         items(themes, key = { it.second + it.first.toString() }) { (choice, title) ->
             val themeId = when (choice) {
                 is ThemePreference.System -> if (systemDark) "builtin:dark" else "builtin:light"

@@ -2,28 +2,55 @@ package app.rufin.rufin.sources
 
 import android.net.Uri
 import android.provider.DocumentsContract
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import app.rufin.rufin.R
 import app.rufin.rufin.app.RufinConnection
+import app.rufin.rufin.connect.ConnectPage
 import app.rufin.rufin.core.*
+import app.rufin.rufin.player.KaraokeModeSwitch
+import app.rufin.rufin.player.LoudnessNormalizationChoice
 import app.rufin.rufin.player.PlayerConnection
+import app.rufin.rufin.player.SimilarArtistsSwitch
+import app.rufin.rufin.player.TransitionMode
+import app.rufin.rufin.settings.ExternalLyricsSwitch
+import app.rufin.rufin.settings.ExternalMetadataSwitch
+import app.rufin.rufin.settings.IntegrationDetailPage
+import app.rufin.rufin.settings.IntegrationPage
+import app.rufin.rufin.settings.KeepRunningInBackground
+import app.rufin.rufin.settings.LocalReduceMotion
 import app.rufin.rufin.settings.PreferencesConnection
+import app.rufin.rufin.settings.PrivateModeSwitch
+import app.rufin.rufin.settings.ScrobblingAccountRows
 import app.rufin.rufin.settings.SettingsGroup
+import app.rufin.rufin.settings.SettingsPage
 import app.rufin.rufin.settings.SettingsRow
 import app.rufin.rufin.settings.SettingsSwitch
+import app.rufin.rufin.settings.ThemeSettingsPage
+import app.rufin.rufin.settings.UpdateCheckInterval
+import app.rufin.rufin.settings.relayPage
 import app.rufin.rufin.shared.rufin_core.SourceOperation
+import app.rufin.rufin.ui.LocalPlayerBottomPadding
 import app.rufin.rufin.ui.RufinIcon
 import app.rufin.rufin.ui.SourceIcon
+import kotlinx.coroutines.launch
 
 /** What the first run's pages reach outside source setup. */
 internal class SourceWelcome(val preferences: PreferencesConnection, val player: PlayerConnection,
@@ -91,60 +118,119 @@ internal fun SourceChoices(model: RufinConnection, setup: SourceSetupConnection,
     }
 }
 
-/** The first run's last page: the sync's progress over the lookup switches. */
+/** The first run's pages once a source is added: what to settle while the library loads, over its progress. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun SourceLoadingPage(model: RufinConnection, welcome: SourceWelcome, close: () -> Unit) {
+internal fun SourceWizard(model: RufinConnection, welcome: SourceWelcome, close: () -> Unit) {
+    val preferences = welcome.preferences
+    val player = welcome.player
+    val pager = rememberPagerState { 3 }
+    val scope = rememberCoroutineScope()
+    val reduceMotion = LocalReduceMotion.current
+    fun show(page: Int) { scope.launch { if (reduceMotion) pager.scrollToPage(page) else pager.animateScrollToPage(page) } }
+    var integration by rememberSaveable { mutableStateOf<IntegrationPage?>(null) }
+    val accounts = preferences.accounts
+    LaunchedEffect(preferences) { accounts.load() }
+    val autoDj by remember(player) { derivedStateOf { player.playback?.controls?.autoDjEnabled == true } }
+    // Back steps through the pages, and leaves from the first.
+    BackHandler { if (pager.currentPage > 0) show(pager.currentPage - 1) else close() }
     Scaffold(bottomBar = {
         Surface {
-            Button(close, Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                Text(translate("Start Listening"))
+            Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LibraryProgress(model)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // The sides are as wide as each other, so the dots stay in the middle.
+                    Box(Modifier.weight(1f)) {
+                        if (pager.currentPage > 0) FilledTonalButton({ show(pager.currentPage - 1) }) { Text(translate("Back")) }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        repeat(pager.pageCount) { page ->
+                            Box(Modifier.size(6.dp).background(MaterialTheme.colorScheme.onSurface.copy(
+                                alpha = if (page == pager.currentPage) 1f else .3f), CircleShape))
+                        }
+                    }
+                    val last = pager.currentPage == pager.pageCount - 1
+                    Box(Modifier.weight(1f).padding(start = 8.dp), contentAlignment = Alignment.CenterEnd) {
+                        Button({ if (last) close() else show(pager.currentPage + 1) }) { Text(translate(if (last) "Start Listening" else "Next")) }
+                    }
+                }
             }
         }
     }) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
-            contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            item { Column(Modifier.padding(horizontal = 2.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                val failed = model.sourceOperation as? SourceOperation.Failed
-                Text(translate(if (model.sourceBusy || failed != null) "While your library loads" else "Your library is ready"),
-                    style = MaterialTheme.typography.headlineMedium)
-                val progress = model.sourceProgress
-                val total = progress?.total
-                if (failed != null) app.rufin.rufin.ui.ErrorNotice(failed.message)
-                else if (model.sourceBusy) {
-                    if (progress != null && total != null && total > 0UL) LinearProgressIndicator(progress = {
-                        (progress.completed.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                    }, modifier = Modifier.fillMaxWidth())
-                    else LinearProgressIndicator(Modifier.fillMaxWidth())
-                    model.sourceStatus?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        CompositionLocalProvider(LocalPlayerBottomPadding provides 0.dp) {
+            HorizontalPager(pager, Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), verticalAlignment = Alignment.Top) { page ->
+                when (page) {
+                    0 -> SettingsPage {
+                        SettingsGroup(translate("Online Lookups"),
+                            translate("Rufin asks these services about the music you play. All of this can be changed later in Settings.")) {
+                            ExternalMetadataSwitch(preferences, player, translate("Artist pictures, covers and tags from MusicBrainz, Last.fm and Wikidata"))
+                            ExternalLyricsSwitch(player, translate("Lyrics from LRCLIB, NetEase, Genius and SimpMusic when a track has none"))
+                            KaraokeModeSwitch(player, translate("Uses available karaoke lyrics or fetches them from the internet"))
+                            UpdateCheckInterval(preferences, translate("New Rufin releases from GitHub"))
+                            PrivateModeSwitch(preferences, translate("Turns off lookups, scrobbling, play reporting and update checks"))
+                        }
+                        SettingsGroup(translate("Scrobbling")) {
+                            accounts.state?.let { state -> ScrobblingAccountRows(state) { integration = it } }
+                        }
                     }
+                    1 -> SettingsPage {
+                        SettingsGroup(translate("Playback")) {
+                            // A station plays alone, and a room's Auto DJ is its host's, as on the player.
+                            SettingsSwitch(translate("Auto DJ"), autoDj, enabled = !player.live && model.room.room?.hosting != false) { player.autoDj() }
+                            SimilarArtistsSwitch(preferences)
+                            TransitionMode(player)
+                            LoudnessNormalizationChoice(player)
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(translate("Rufin Connect"), Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary)
+                            ConnectPage(model, preferences, { integration = relayPage() }, embedded = true, setup = true)
+                        }
+                        SettingsGroup { KeepRunningInBackground(preferences) }
+                    }
+                    else -> ThemeSettingsPage(preferences, translate("Theme"))
                 }
-            } }
-            item { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SettingsGroup(translate("Online Lookups")) {
-                    welcome.preferences.applicationSettings?.let { state ->
-                        SettingsSwitch(translate("External metadata lookup"), state.externalMetadataEnabled,
-                            translate("Artist pictures, covers and tags from MusicBrainz, Last.fm and Wikidata")) {
-                            welcome.preferences.changePreference { setExternalMetadataEnabled(it) }
-                        }
-                    }
-                    welcome.player.settings?.lyrics?.let { lyrics ->
-                        SettingsSwitch(translate("External lyrics lookup"), lyrics.externalLyricsEnabled,
-                            translate("Lyrics from LRCLIB, NetEase, Genius and SimpMusic when a track has none")) {
-                            welcome.player.lyricsPreference { setExternalLyricsEnabled(it) }
-                        }
-                    }
-                    welcome.preferences.applicationSettings?.let { state ->
-                        SettingsSwitch(translate("Private mode"), state.privateMode,
-                            translate("Turns off lookups, scrobbling, play reporting and update checks")) {
-                            welcome.preferences.changePreference { setPrivateMode(it) }
-                        }
-                    }
-                }
-                Text(translate("Rufin asks these services about the music you play. All of this can be changed later in Settings."),
-                    Modifier.padding(horizontal = 12.dp), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } }
+            }
         }
+    }
+    // A scrobbling service's page, or the relay's, opens over the pages and returns to them.
+    integration?.let { page ->
+        Dialog(onDismissRequest = { integration = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+            Scaffold(topBar = {
+                TopAppBar(title = { Text(page.name) }, navigationIcon = {
+                    IconButton({ integration = null }) { RufinIcon("rufin-go-previous-symbolic", translate("Back")) }
+                })
+            }) { padding ->
+                Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
+                    CompositionLocalProvider(LocalPlayerBottomPadding provides 0.dp) {
+                        IntegrationDetailPage(model, preferences, player, page, { integration = it }) { integration = null }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** How far the library is: the sync's status over its bar, then that it is ready. */
+@Composable
+private fun LibraryProgress(model: RufinConnection) {
+    val failed = model.sourceOperation as? SourceOperation.Failed
+    if (failed != null) app.rufin.rufin.ui.ErrorNotice(failed.message)
+    else if (model.sourceBusy) Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        model.sourceStatus?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        }
+        val progress = model.sourceProgress
+        val total = progress?.total
+        if (progress != null && total != null && total > 0UL) LinearProgressIndicator(progress = {
+            (progress.completed.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+        }, modifier = Modifier.fillMaxWidth())
+        else LinearProgressIndicator(Modifier.fillMaxWidth())
+    } else Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), Alignment.CenterVertically) {
+        RufinIcon("rufin-object-select-symbolic", null, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
+        Text(translate("Your library is ready"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

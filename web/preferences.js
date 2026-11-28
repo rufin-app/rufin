@@ -1,6 +1,6 @@
 import { api, browserHeaders, state } from "./connection.js";
 import { qualityControls } from "./audio-quality.js";
-import { closeIntegration, init as initIntegrations, integrationOpen, showIntegrations } from "./integrations.js";
+import { closeIntegration, init as initIntegrations, integrationOpen, loadIntegrations, showIntegrations } from "./integrations.js";
 import { openSource, sourceIcon, sources, updateSources } from "./sources.js";
 import { $, applyGrids, el, icon, notice, openPopup, run, tr, setLayoutSettings } from "./ui.js";
 
@@ -98,9 +98,10 @@ function themePreview(shapes, schemes) {
   return preview;
 }
 
+// Every theme picker shows them: the Theme page's and the first run's.
 function renderThemes(themes, shapes, errors) {
   const current = JSON.stringify(values["/theme_preference"]);
-  $("pref-themes").replaceChildren(
+  for (const grid of document.querySelectorAll(".theme-grid")) grid.replaceChildren(
     ...themes.map((theme) => {
       const tile = el("div", "theme-tile");
       const select = el("button", "theme-select");
@@ -129,14 +130,18 @@ function renderThemes(themes, shapes, errors) {
       return tile;
     }),
   );
-  $("pref-theme-errors").textContent = errors.join("\n");
-  $("pref-theme-errors").hidden = !errors.length;
+  for (const note of document.querySelectorAll(".theme-errors")) {
+    note.textContent = errors.join("\n");
+    note.hidden = !errors.length;
+  }
 }
 
 // The standard themes share the app's accent; a theme with its own accents keeps its choice
 // and becomes the theme, as GTK's tile dropdown does.
 function accentMenu(theme, anchor) {
   const menu = $("theme-accent-menu");
+  // A modal dialog takes input only inside itself, so the menu opens in the picker's.
+  anchor.closest("dialog").append(menu);
   menu.replaceChildren(
     ...theme.accents.map((accent) => {
       const item = el("button", "menu-item");
@@ -564,6 +569,7 @@ function showPage(page, title = null) {
   closeIntegration();
   if (page === "storage") run(async () => showStorage(await api("/preferences/storage")));
   if (page === "library") run(renderLibrary);
+  if (page === "integrations") loadIntegrations();
   if (page === "downloads") run(renderDownloads);
 }
 

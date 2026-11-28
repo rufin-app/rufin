@@ -55,6 +55,13 @@ where
 {
     let runtime = tokio::runtime::Handle::current();
     let secret_storage_fallbacks = settings.secret_storage_fallbacks.1.clone();
+    // A first run goes online only once its setup ends: `SourceOwner::finish_setup`.
+    if settings.load().sources.configured.is_empty() {
+        let _ = settings.edit(|stored| {
+            stored.ui.setup_pending = true;
+            Ok(())
+        });
+    }
     let stored = settings.load();
     let secrets = Arc::new(SwitchableSecretStore::new(platform_secret_store(&settings)));
     // Source credentials saved before they were sealed are sealed once; the keyring may wait.

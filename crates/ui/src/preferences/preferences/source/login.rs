@@ -168,13 +168,12 @@ struct FoundView {
     onboarding: bool,
 }
 
-/// The first run's last page: the sync's progress over the lookup switches.
+/// The first run's pages after the source is in: the sync's progress under them.
 #[derive(Clone)]
 struct LoadingPage {
-    title: gtk::Label,
     bar: gtk::ProgressBar,
     status: gtk::Label,
-    ready: gtk::Image,
+    ready: gtk::Box,
 }
 
 impl LoadingPage {
@@ -186,11 +185,6 @@ impl LoadingPage {
             | SourceOperation::Refreshing { progress, .. } => Some(progress),
             _ => None,
         };
-        self.title.set_label(&if progress.is_some() {
-            tr("While your library loads")
-        } else {
-            tr("Your library is ready")
-        });
         self.bar.set_visible(progress.is_some());
         self.status.set_visible(progress.is_some());
         self.ready.set_visible(progress.is_none());
@@ -366,6 +360,8 @@ impl Shell {
         dialog.connect_closed(move |_| {
             if let Some(shell) = weak.upgrade() {
                 shell.release_inactive_add_server_form();
+                // Leaving the first run accepts what its switches show.
+                shell.products.source.finish_setup();
             }
         });
         dialog.present(Some(&self.chrome.window));
@@ -459,8 +455,12 @@ impl Shell {
         self.update_found_sources();
     }
 
+    /// Forgets the add form Preferences kept. The first run's dialog keeps its own.
     pub fn clear_retained_add_server_form(&self) {
-        self.source.add_server.borrow_mut().take();
+        let mut handle = self.source.add_server.borrow_mut();
+        if handle.as_ref().is_some_and(|handle| !handle.onboarding) {
+            handle.take();
+        }
     }
 
     fn mounted_add_server_context(&self) -> Option<SetupViewContext> {
@@ -1246,16 +1246,23 @@ fn loading_page(shell: &Rc<Shell>, dialog: Option<&adw::Dialog>) -> (gtk::Widget
     let resource = "preferences/source/onboarding_progress.ui";
     let builder = crate::ui_resource::builder(resource);
     crate::objects!(builder, resource, {
-        page: gtk::ScrolledWindow, title: gtk::Label, bar: gtk::ProgressBar, status: gtk::Label,
-        ready: gtk::Image, external_metadata: adw::SwitchRow, external_lyrics: adw::SwitchRow,
-        discord_presence: adw::SwitchRow, private_mode: adw::SwitchRow, start: gtk::Button,
+        page: gtk::Box, pages: adw::Carousel, bar: gtk::ProgressBar, status: gtk::Label,
+        ready: gtk::Box, external_metadata: adw::SwitchRow, external_lyrics: adw::SwitchRow,
+        karaoke: adw::SwitchRow, release_check_interval: adw::ComboRow,
+        discord_presence: adw::SwitchRow, private_mode: adw::SwitchRow,
+        lastfm: adw::ActionRow, listenbrainz: adw::ActionRow, librefm: adw::ActionRow,
+        playback: adw::PreferencesGroup, auto_dj: adw::SwitchRow,
+        similar_artists: adw::SwitchRow, connect: adw::PreferencesGroup,
+        back: gtk::Button, next: gtk::Button,
     });
     {
         let settings = shell.settings.current.borrow();
         external_metadata.set_active(settings.application.external_metadata_enabled);
         external_lyrics.set_active(settings.lyrics.preferences.external_lyrics_enabled);
+        karaoke.set_active(settings.lyrics.preferences.karaoke_mode);
         discord_presence.set_active(settings.rich_presence.enabled);
         private_mode.set_active(settings.application.private_mode);
+        auto_dj.set_active(settings.auto_dj_enabled);
     }
     let weak = Rc::downgrade(shell);
     external_metadata.connect_active_notify(move |row| {
@@ -1269,6 +1276,16 @@ fn loading_page(shell: &Rc<Shell>, dialog: Option<&adw::Dialog>) -> (gtk::Widget
             shell.player_ui.set_external_lyrics_enabled(row.is_active());
         }
     });
+    let weak = Rc::downgrade(shell);
+    karaoke.connect_active_notify(move |row| {
+        if let Some(shell) = weak.upgrade() {
+            let active = row.is_active();
+            (shell.player_ui).set_lyrics_setting("lyrics karaoke setting", true, |settings| {
+                settings.karaoke_mode = active
+            });
+        }
+    });
+    super::super::bind_release_check_interval(shell, &release_check_interval, |_| {});
     let weak = Rc::downgrade(shell);
     discord_presence.connect_active_notify(move |row| {
         if let Some(shell) = weak.upgrade() {
@@ -1286,21 +1303,134 @@ fn loading_page(shell: &Rc<Shell>, dialog: Option<&adw::Dialog>) -> (gtk::Widget
             shell.set_private_mode(row.is_active());
         }
     });
+
+    // Each scrobbling row opens its page in Preferences and shows the account on return.
+    let accounts = [
+        ("lastfm", lastfm.downgrade()),
+        ("listenbrainz", listenbrainz.downgrade()),
+        ("librefm", librefm.downgrade()),
+    ];
+    let show_accounts: Rc<dyn Fn()> = {
+        let weak = Rc::downgrade(shell);
+        Rc::new(move || {
+            let Some(shell) = weak.upgrade() else { return };
+            let preferences = shell.products.scrobbling.preferences();
+            let saved = [
+                (
+                    preferences.lastfm.connected,
+                    preferences.lastfm.username.as_str(),
+                ),
+                (
+                    preferences.listenbrainz.connected,
+                    preferences.listenbrainz.username.as_str(),
+                ),
+                (
+                    preferences.librefm.connected,
+                    preferences.librefm.username.as_str(),
+                ),
+            ];
+            for ((_, row), (connected, username)) in accounts.iter().zip(saved) {
+                if let Some(row) = row.upgrade() {
+                    row.set_subtitle(&super::super::integrations::account_status(
+                        connected, username,
+                    ));
+                }
+            }
+        })
+    };
+    show_accounts();
+    for (id, row) in [
+        ("lastfm", &lastfm),
+        ("listenbrainz", &listenbrainz),
+        ("librefm", &librefm),
+    ] {
+        let weak = Rc::downgrade(shell);
+        let show_accounts = Rc::clone(&show_accounts);
+        row.connect_activated(move |_| {
+            let Some(shell) = weak.upgrade() else { return };
+            (shell.preferences.integration).replace(Some(id.into()));
+            super::super::present_preferences_dialog_with_page(
+                &shell,
+                super::super::PreferencesPageKind::Integrations,
+                false,
+                false,
+            );
+            if let Some(preferences) = shell.preferences.active_dialog() {
+                let show_accounts = Rc::clone(&show_accounts);
+                preferences.connect_closed(move |_| show_accounts());
+            }
+        });
+    }
+
+    let weak = Rc::downgrade(shell);
+    auto_dj.connect_active_notify(move |row| {
+        if let Some(shell) = weak.upgrade()
+            && shell.products.settings.load().auto_dj_enabled != row.is_active()
+        {
+            shell.products.playback.toggle_auto_dj();
+        }
+    });
+    shell.settings.bind_switch(
+        &similar_artists,
+        "Auto DJ setting",
+        |settings| &mut settings.application.auto_dj_similar_artists,
+        |_| {},
+    );
+    let (transition, crossfade_options) = crate::player::playback_settings::transition_rows(
+        &shell.player_ui,
+        &shell.settings.current.borrow().playback,
+        220,
+    );
+    playback.add(&transition);
+    playback.add(&crossfade_options);
+    playback.add(&super::super::general::loudness_normalization_row(
+        shell,
+        |_| {},
+    ));
+    if let Some(dialog) = dialog {
+        connect.add(&super::super::connect::page(shell, dialog, true));
+    }
+    let themes = super::super::themes::page(shell, true);
+    themes.set_hexpand(true);
+    pages.append(&themes);
+
+    let last = pages.n_pages().saturating_sub(1);
+    let (back_button, next_button) = (back.downgrade(), next.downgrade());
+    pages.connect_page_changed(move |_, index| {
+        if let Some(back) = back_button.upgrade() {
+            back.set_visible(index > 0);
+        }
+        if let Some(next) = next_button.upgrade() {
+            next.set_label(&if index == last {
+                tr("Start Listening")
+            } else {
+                tr("Next")
+            });
+        }
+    });
+    let carousel = pages.downgrade();
+    back.connect_clicked(move |_| {
+        if let Some(pages) = carousel.upgrade() {
+            let index = pages.position().round() as u32;
+            if index > 0 {
+                pages.scroll_to(&pages.nth_page(index - 1), true);
+            }
+        }
+    });
+    let carousel = pages.downgrade();
     let dialog = dialog.map(|dialog| dialog.downgrade());
-    start.connect_clicked(move |_| {
-        if let Some(dialog) = dialog.as_ref().and_then(|dialog| dialog.upgrade()) {
+    next.connect_clicked(move |_| {
+        let Some(pages) = carousel.upgrade() else {
+            return;
+        };
+        let index = pages.position().round() as u32;
+        if index < last {
+            pages.scroll_to(&pages.nth_page(index + 1), true);
+        } else if let Some(dialog) = dialog.as_ref().and_then(|dialog| dialog.upgrade()) {
             dialog.close();
         }
     });
-    (
-        page.upcast(),
-        LoadingPage {
-            title,
-            bar,
-            status,
-            ready,
-        },
-    )
+    (page.upcast(), LoadingPage { bar, status, ready })
 }
 
 fn mount_setup_flow(shell: &Rc<Shell>, context: &SetupViewContext) {

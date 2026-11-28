@@ -25,7 +25,7 @@
         <div class="pref-group">{% call m::switch("/reduce_motion", localization::tr("Reduce motion"), "") %}{% endcall %}</div>
         <h4>{{ localization::tr("App settings") }}</h4>
         <div class="pref-group">
-          <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Update check interval") }}</span></span><select data-setting="/release_check_interval_hours"><option value="0">{{ localization::tr("Off") }}</option><option value="1">{{ localization::tr("1 hour") }}</option><option value="6">{{ localization::tr("6 hours") }}</option><option value="12">{{ localization::tr("12 hours") }}</option><option value="24">{{ localization::tr("24 hours") }}</option></select></label>
+          {% call m::update_interval("") %}{% endcall %}
         </div>
         <h4>{{ localization::tr("Behavior") }}</h4>
         <div class="pref-group">
@@ -109,10 +109,7 @@
         </div>
       </section>
       <section id="pref-theme" role="tabpanel" hidden>
-        <div class="theme-options">
-          <div id="pref-themes" class="theme-grid" role="radiogroup" aria-label="{{ localization::tr("Theme") }}"></div>
-          <p id="pref-theme-errors" class="theme-errors" hidden></p>
-        </div>
+        {% call m::theme_picker() %}{% endcall %}
         <div id="theme-accent-menu" class="media-menu" popover="auto" role="menu" aria-label="{{ localization::tr("Accent color") }}"></div>
       </section>
       <section id="pref-integrations" role="tabpanel" hidden>
@@ -120,29 +117,29 @@
           <nav class="integration-list" aria-label="{{ localization::tr("Integrations") }}">
             <h5>{{ localization::tr("Scrobbling") }}</h5>
             <div class="integration-group" id="integrations-scrobbling">
-              {% call m::integration_row("lastfm", "Last.fm") %}{% endcall %}
-              {% call m::integration_row("listenbrainz", "ListenBrainz") %}{% endcall %}
-              {% call m::integration_row("librefm", "Libre.fm") %}{% endcall %}
-              {% call m::integration_row("add_server", localization::tr("Add server")) %}{% endcall %}
+              {% call m::integration_row("lastfm", "Last.fm", "integration-row") %}{% endcall %}
+              {% call m::integration_row("listenbrainz", "ListenBrainz", "integration-row") %}{% endcall %}
+              {% call m::integration_row("librefm", "Libre.fm", "integration-row") %}{% endcall %}
+              {% call m::integration_row("add_server", localization::tr("Add server"), "integration-row") %}{% endcall %}
             </div>
             <h5>{{ localization::tr("Lookups") }}</h5>
             <div class="integration-group">
-              {% call m::integration_row("metadata", localization::tr("Metadata")) %}{% endcall %}
-              {% call m::integration_row("lyrics", localization::tr("Lyrics")) %}{% endcall %}
+              {% call m::integration_row("metadata", localization::tr("Metadata"), "integration-row") %}{% endcall %}
+              {% call m::integration_row("lyrics", localization::tr("Lyrics"), "integration-row") %}{% endcall %}
             </div>
             <h5>{{ localization::tr("Presence and links") }}</h5>
             <div class="integration-group">
-              {% call m::integration_row("discord", "Discord") %}{% endcall %}
-              {% call m::integration_row("links", localization::tr("Page links")) %}{% endcall %}
+              {% call m::integration_row("discord", "Discord", "integration-row") %}{% endcall %}
+              {% call m::integration_row("links", localization::tr("Page links"), "integration-row") %}{% endcall %}
             </div>
             <h5>{{ localization::tr("Remote folders") }}</h5>
             <div class="integration-group">
-              {% call m::integration_row("webdav", localization::tr("WebDAV / Nextcloud")) %}{% endcall %}
-              {% call m::integration_row("smb", localization::tr("SMB / Samba")) %}{% endcall %}
+              {% call m::integration_row("webdav", localization::tr("WebDAV / Nextcloud"), "integration-row") %}{% endcall %}
+              {% call m::integration_row("smb", localization::tr("SMB / Samba"), "integration-row") %}{% endcall %}
             </div>
             <h5>{{ localization::tr("Connection settings") }}</h5>
             <div class="integration-group">
-              {% call m::integration_row("iroh_relay", localization::tr("Iroh relay")) %}{% endcall %}
+              {% call m::integration_row("iroh_relay", localization::tr("Iroh relay"), "integration-row") %}{% endcall %}
             </div>
           </nav>
           <div class="integration-detail">
@@ -179,7 +176,7 @@
               <h4>{{ localization::tr("Server") }}</h4>
               <div class="pref-group">
                 <div class="pref-row"><span class="pref-label"><span>{{ localization::tr("Protocol") }}</span></span><span class="pref-value" id="server-protocol"></span></div>
-                <div class="pref-row"><span class="pref-label"><span>{{ localization::tr("Server URL") }}</span><small id="server-url"></small></span></div>
+                <div class="pref-row"><span class="pref-label"><span>{{ localization::tr("Server URL") }}</span><small id="scrobbling-server-url"></small></span></div>
                 <label class="pref-row" id="server-token-row"><span class="pref-label"><span>{{ localization::tr("User token") }}</span></span><input type="password" autocomplete="off" id="server-token" /></label>
                 <label class="pref-row" data-sign-in><span class="pref-label"><span>{{ localization::tr("Username") }}</span></span><input autocomplete="off" id="server-username" /></label>
                 <label class="pref-row" data-sign-in><span class="pref-label"><span>{{ localization::tr("Password") }}</span></span><input type="password" autocomplete="off" id="server-password" /></label>
@@ -293,10 +290,7 @@
         </div>
         <div class="pref-group" data-tabs="playback-tab" data-tab="queue">
           <div class="pref-row"><span class="pref-label"><span>{{ localization::tr("Transition mode") }}</span></span>
-            <div class="segmented" role="radiogroup" aria-label="{{ localization::tr("Transition mode") }}">
-              <label><input type="radio" name="pref-transition" value='"Gapless"' data-setting="/playback/transition_mode" />{{ localization::tr("Gapless") }}</label>
-              <label><input type="radio" name="pref-transition" value='"Crossfade"' data-setting="/playback/transition_mode" />{{ localization::tr("Crossfade") }}</label>
-            </div>
+            {% call m::transition_mode("pref-transition") %}{% endcall %}
           </div>
           <label class="pref-row" data-when="/playback/transition_mode=Crossfade"><span class="pref-label"><span>{{ localization::tr("Crossfade duration") }}</span></span><span class="pref-range"><input type="range" min="1" max="30" step="1" data-setting="/playback/crossfade_seconds" /><output></output></span></label>
           {% call m::switch("/playback/skip_same_album_crossfade", localization::tr("Skip same-album crossfade"), "") %}{% endcall %}
@@ -333,7 +327,7 @@
         </div>
         </div>
         <div class="pref-group" data-tabs="playback-tab" data-tab="audio" hidden>
-          <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Loudness normalization") }}</span></span><select data-setting="/playback/loudness_normalization"><option value='"Off"'>{{ localization::tr("Off") }}</option><option value='"ReplayGain"'>ReplayGain</option><option value='"EbuR128"'>EBU R128</option></select></label>
+          {% call m::loudness_normalization() %}{% endcall %}
           <label class="pref-row" data-when="/playback/loudness_normalization!=Off"><span class="pref-label"><span>{{ localization::tr("Normalization scope") }}</span><small>{{ localization::tr("Track evens out every song, while Album preserves the intended differences within each album") }}</small></span><select data-setting="/playback/loudness_normalization_scope"><option value='"Track"'>{{ localization::tr("Track") }}</option><option value='"Album"'>{{ localization::tr("Album") }}</option></select></label>
           <label class="pref-row" data-when="/playback/loudness_normalization=EbuR128"><span class="pref-label"><span>{{ localization::tr("Target loudness") }}</span><small>{{ localization::tr("EBU R128 reference level") }}</small></span><span class="pref-range"><input type="range" min="-48" max="0" step="1" data-setting="/playback/ebu_r128_target_lufs" /><output></output></span></label>
           <label class="pref-row" data-when="/playback/loudness_normalization=EbuR128"><span class="pref-label"><span>{{ localization::tr("Write EBU R128 tags to files") }}</span><small>{{ localization::tr("Store calculated loudness in supported Local music files") }}</small></span><input type="checkbox" role="switch" data-setting="/playback/write_ebu_r128_tags" /></label>

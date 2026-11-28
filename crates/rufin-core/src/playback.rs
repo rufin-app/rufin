@@ -408,7 +408,7 @@ impl PlaybackOwner {
         owner.runtime.spawn(async move {
             while let Ok((source_id, report)) = report_receiver.recv().await {
                 let Some(owner) = weak.upgrade() else { break };
-                if owner.settings.load().ui.application.private_mode {
+                if owner.settings.load().ui.private() {
                     continue;
                 }
                 let source = Arc::clone(&owner.source);
@@ -631,7 +631,7 @@ impl PlaybackOwner {
     }
 
     fn report_source(&self, report: playback::SourceReportFact) {
-        if external_source_reporting_enabled(self.settings.load().ui.application.private_mode)
+        if external_source_reporting_enabled(self.settings.load().ui.private())
             && let Some((source_id, kind, _)) = library::source_entity_parts(&report.media_uri)
             && kind == "track"
         {

@@ -207,7 +207,7 @@ impl LyricsService {
             Arc::downgrade(&service),
             |service, previous, current| {
                 if previous.ui.lyrics != current.ui.lyrics
-                    || previous.ui.application.private_mode != current.ui.application.private_mode
+                    || previous.ui.private() != current.ui.private()
                 {
                     service.settings_changed(previous, current);
                 }
@@ -405,9 +405,9 @@ impl LyricsService {
             !settings.preferences.show_furigana && !settings.preferences.show_romanization;
         self.apply_settings(
             before,
-            previous.ui.application.private_mode,
+            previous.ui.private(),
             settings,
-            current.ui.application.private_mode,
+            current.ui.private(),
         );
         if readings_changed {
             self.refresh_current();
@@ -514,7 +514,7 @@ impl LyricsService {
             let plan = settings
                 .ui
                 .lyrics
-                .automatic_lyrics_plan(settings.ui.application.private_mode, &track_id);
+                .automatic_lyrics_plan(settings.ui.private(), &track_id);
             self.begin_current(&mut state, &media_id, plan, true, false)
         };
         if let Some(prepared) = prepared {
@@ -1156,7 +1156,7 @@ impl LyricsService {
                 .ui
                 .lyrics
                 .preferences
-                .external_lyrics_network_allowed(settings.ui.application.private_mode);
+                .external_lyrics_network_allowed(settings.ui.private());
             let providers = if allowed {
                 settings
                     .ui
@@ -1331,7 +1331,7 @@ impl LyricsService {
                 .ui
                 .lyrics
                 .preferences
-                .external_lyrics_network_allowed(settings.ui.application.private_mode)
+                .external_lyrics_network_allowed(settings.ui.private())
                 || !settings
                     .ui
                     .lyrics
@@ -1347,10 +1347,10 @@ impl LyricsService {
                 .filter(|current| &current.context.media.id == media_id)?
                 .context
                 .clone();
-            let plan = settings.ui.lyrics.configured_lyrics_plan(
-                settings.ui.application.private_mode,
-                &context.media.id.media_uri,
-            );
+            let plan = settings
+                .ui
+                .lyrics
+                .configured_lyrics_plan(settings.ui.private(), &context.media.id.media_uri);
             cancel_current_work(&mut state);
             let current = state.current.as_mut()?;
             current.request = self.next_request.fetch_add(1, Ordering::AcqRel);
@@ -1413,10 +1413,10 @@ impl LyricsService {
             .filter(|current| &current.context.media.id == media_id)?
             .context
             .clone();
-        let plan = settings.ui.lyrics.configured_lyrics_plan(
-            settings.ui.application.private_mode,
-            &context.media.id.media_uri,
-        );
+        let plan = settings
+            .ui
+            .lyrics
+            .configured_lyrics_plan(settings.ui.private(), &context.media.id.media_uri);
         cancel_current_work(&mut state);
         let current = state.current.as_mut()?;
         current.request = self.next_request.fetch_add(1, Ordering::AcqRel);
