@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: Rufin\n"
 "Report-Msgid-Bugs-To: https://github.com/rufin-app/rufin/issues\n"
 "POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"PO-Revision-Date: 2026-11-28 13:03+0000\n"
+"PO-Revision-Date: 2026-11-28 13:29+0000\n"
 "Last-Translator: Jiahao Li <thejiahao@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Chinese (Simplified Han script) <https://hosted.weblate.org/"
 "projects/rufin/app/zh_Hans/>\n"
@@ -2433,7 +2433,7 @@ msgid "Lyrics storage"
 msgstr "歌词存储"
 
 msgid "Lyrics will appear here."
-msgstr ""
+msgstr "此处显示歌词。"
 
 msgid "Lyrics your library doesn't have"
 msgstr "媒体库中缺失的歌词"
@@ -2460,10 +2460,10 @@ msgid "Match"
 msgstr "匹配"
 
 msgid "Matched"
-msgstr ""
+msgstr "已匹配"
 
 msgid "Matching tracks..."
-msgstr ""
+msgstr "正在匹配曲目…"
 
 msgid "Maximum frequency (Hz)"
 msgstr "最高频率 (Hz)"
@@ -2475,7 +2475,7 @@ msgid "Maximum year"
 msgstr "结束年份"
 
 msgid "Maximum"
-msgstr "最大"
+msgstr "最大值"
 
 msgid "May {year}"
 msgstr "{year} 年 5 月"
@@ -2493,13 +2493,13 @@ msgid "Metadata editing is no longer available"
 msgstr "元数据编辑不可用"
 
 msgid "Metadata editing requires Local access"
-msgstr ""
+msgstr "元数据编辑需要本地权限"
 
 msgid "Metadata lookups"
 msgstr "元数据"
 
 msgid "Metadata saved"
-msgstr ""
+msgstr "已保存元数据"
 
 msgid "Metadata was saved, but refreshing the source failed."
 msgstr "元数据已保存，但无法刷新数据源。"
@@ -2508,7 +2508,7 @@ msgid "Metadata"
 msgstr "元数据"
 
 msgid "Minimize overview"
-msgstr ""
+msgstr "收起概览"
 
 msgid "Minimum frequency (Hz)"
 msgstr "最低频率 (Hz)"
@@ -2520,7 +2520,7 @@ msgid "Minimum year"
 msgstr "起始年份"
 
 msgid "Minimum"
-msgstr ""
+msgstr "最小值"
 
 msgid "Minutes"
 msgstr "分钟"
@@ -2691,7 +2691,7 @@ msgid "Needs attention"
 msgstr "需要处理"
 
 msgid "Needs review"
-msgstr ""
+msgstr "需要检查"
 
 msgid "NetEase"
 msgstr "网易云音乐"
@@ -3360,7 +3360,7 @@ msgid "Queue a track to begin"
 msgstr ""
 
 msgid "Queue tracks to show"
-msgstr ""
+msgstr "显示的队列曲目数"
 
 msgid "Queue"
 msgstr "队列"
@@ -4023,7 +4023,7 @@ msgid "Services"
 msgstr "服务"
 
 msgid "Set from the line you picked"
-msgstr "已根据选中行设置"
+msgstr "根据选中歌词行设置"
 
 msgid "Set the Discord activity type to Listening"
 msgstr "将 Discord 活动类型设置为 “正在收听”"
