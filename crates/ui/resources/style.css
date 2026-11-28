@@ -1629,9 +1629,6 @@ dialog.alert.playlist-delete-dialog .message-area {
   box-shadow: inset 0 1px color-mix(in srgb, currentColor 8%, transparent);
 }
 
-/* Home's Quick mix: rows as Home's other rows, each the albums its next press starts with, its
-   name and the tracks it plays, with a line above it; the grid's clip hides the first line's.
-   Under the pointer the rows' Play group shows at its end, reaching its edges. */
 /* Home's Quick mix: each mix a tile filled as a section card is, its glyph in a block tinted
    with the accent, then its name. */
 flowbox.home-quick-mix > flowboxchild {
@@ -1649,13 +1646,9 @@ flowbox.home-quick-mix > flowboxchild:hover {
   padding: 8px;
 }
 
-.home-quick-mix-row .home-row-title {
-  font-weight: 600;
-}
-
 image.home-quick-mix-glyph {
-  min-width: 24px;
-  min-height: 24px;
+  min-width: 20px;
+  min-height: 20px;
   padding: 6px;
   color: var(--accent-color);
 }
