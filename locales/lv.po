@@ -287,6 +287,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"Through public relays, which help devices find each other. They see who "
+"connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Track evens out every song, while Album preserves the intended differences "
 "within each album"
 msgstr ""
@@ -358,6 +363,9 @@ msgstr "5 jaunākie albumi"
 
 msgid "6 hours"
 msgstr "6 stundas"
+
+msgid "A device on another network needs a relay and an invitation"
+msgstr ""
 
 msgid "A new update is available, restart to apply"
 msgstr ""
@@ -632,6 +640,14 @@ msgstr "Anonīms"
 
 msgid "Any"
 msgstr "Jebkurš"
+
+#, fuzzy
+#| msgid "here"
+msgid "Anywhere"
+msgstr "šeit"
+
+msgid "Anywhere, through your own relay"
+msgstr ""
 
 #, fuzzy
 #| msgid "App settings"
@@ -1354,6 +1370,9 @@ msgstr "Saturs"
 #| msgid "Connecting to {device}..."
 msgid "Continue from {device}"
 msgstr "Izveido savienojumu ar {device}..."
+
+msgid "Continue where another device left off, or control what it plays"
+msgstr ""
 
 msgid "Continue"
 msgstr "Turpināt"
@@ -2725,6 +2744,9 @@ msgstr ""
 msgid "Keep running in the background"
 msgstr "Turpināt Rufin darbību pēc loga aizvēršanas"
 
+msgid "Keeps your devices in sync"
+msgstr ""
+
 msgid "Keyboard Shortcuts"
 msgstr "Tastatūras saīsnes"
 
@@ -3223,6 +3245,9 @@ msgstr "Pārvietot lejup"
 msgid "Move up"
 msgstr "Pārvietot augšup"
 
+msgid "Moves playback between them"
+msgstr ""
+
 msgid "Multi-selection"
 msgstr "Vairāku elementu atlase"
 
@@ -3360,6 +3385,9 @@ msgstr "Nekad neatskaņotie"
 
 msgid "New Playlist"
 msgstr "Jauns atskaņošanas saraksts"
+
+msgid "New Rufin releases from GitHub"
+msgstr ""
 
 msgid "New Smart Playlist"
 msgstr "Jauns viedais atskaņošanas saraksts"
@@ -3996,6 +4024,9 @@ msgstr "Atskaņošanas saraksti"
 #| msgid "Play random"
 msgid "Plays from"
 msgstr "Atskaņot nejaušā secībā"
+
+msgid "Plays this device's music on the others"
+msgstr ""
 
 msgid "Plays"
 msgstr "Atskaņošanas reizes"
@@ -4980,8 +5011,10 @@ msgstr "Slepenā atslēga"
 msgid "Shared secret"
 msgstr "Slepenā atslēga"
 
-msgid "Shares your queue. Your music keeps playing."
-msgstr ""
+#, fuzzy
+#| msgid "Search queue"
+msgid "Shares your queue"
+msgstr "Meklēt rindā"
 
 #, fuzzy
 #| msgid "Show Rufin"
@@ -5278,6 +5311,9 @@ msgstr "Avots"
 msgid "Sources"
 msgstr "Avoti"
 
+msgid "Sources, sign-ins, playlists, favorites, history and preferences"
+msgstr ""
+
 #, fuzzy
 #| msgid "Spacious"
 msgid "Spacing"
@@ -5529,6 +5565,9 @@ msgstr ""
 #| msgid "Server is unreachable"
 msgid "The room is unreachable"
 msgstr "Serveris nav pieejams"
+
+msgid "The same Wi-Fi or wired network"
+msgstr ""
 
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr ""
@@ -6033,8 +6072,10 @@ msgstr "Laipni lūdzam Rufin instalācijas programmā"
 msgid "What Auto DJ and radio pick"
 msgstr ""
 
-msgid "While your library loads"
-msgstr ""
+#, fuzzy
+#| msgid "Next audio device"
+msgid "Where are your devices?"
+msgstr "Nākamā skaņas ierīce"
 
 msgid "Wide"
 msgstr ""
@@ -6105,6 +6146,11 @@ msgid "Your library is ready"
 msgstr "Kešotā bibliotēka ir gatava"
 
 msgid "Your music belongs here"
+msgstr "Šeit ir paredzēts jūsu mūzikas atskaņošanai"
+
+#, fuzzy
+#| msgid "Your music belongs here"
+msgid "Your music keeps playing"
 msgstr "Šeit ir paredzēts jūsu mūzikas atskaņošanai"
 
 #, fuzzy
@@ -6611,9 +6657,6 @@ msgstr "Laipni lūdzam Rufin instalācijas programmā"
 
 #~ msgid "Source to use for cover images and song/artist links"
 #~ msgstr "Avots, ko izmantot vāku attēliem un dziesmu/izpildītāju saitēm"
-
-#~ msgid "here"
-#~ msgstr "šeit"
 
 #, fuzzy
 #~| msgid "Selection"

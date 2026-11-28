@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: Rufin\n"
 "Report-Msgid-Bugs-To: https://github.com/rufin-app/rufin/issues\n"
 "POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"PO-Revision-Date: 2026-11-28 13:29+0000\n"
+"PO-Revision-Date: 2026-11-28 15:55+0000\n"
 "Last-Translator: Jiahao Li <thejiahao@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Chinese (Simplified Han script) <https://hosted.weblate.org/"
 "projects/rufin/app/zh_Hans/>\n"
@@ -26,11 +26,11 @@ msgstr "将下载日语词典以提供假名注音和罗马音。此设置会增
 msgid ""
 "A relay helps your devices and rooms reach each other when they cannot "
 "connect directly."
-msgstr ""
+msgstr "中继可连接无法直联的设备和房间。"
 
 msgid ""
 "A relay locked with a token takes it at the end of its address: ?token=..."
-msgstr ""
+msgstr "使用令牌保护的中继需要在地址末尾附上令牌：?token=…"
 
 msgid ""
 "Approving gives this device access to your profile and saved source logins."
@@ -98,7 +98,7 @@ msgstr "日志中敏感信息和绝对路径已脱敏，但分享前仍建议自
 
 msgid ""
 "Music never passes through a public relay. A relay of your own may carry it."
-msgstr ""
+msgstr "音乐不会通过公共中继，但可能通过自建中继。"
 
 msgid "No results ¯\\_(°╭╮°)_/¯"
 msgstr "没有结果 ¯\\_(°╭╮°)_/¯"
@@ -165,14 +165,14 @@ msgid ""
 "{sources}\n"
 "Their retained user state and saved logins will remain unless selected."
 msgstr ""
-"是否替换所选内容并移除以下已配置数据源？\n"
+"是否替换选中内容并移除以下已配置数据源？\n"
 "{sources}\n"
 "未选中的将保留用户状态和登录凭据。"
 
 msgid ""
 "Replace the selected contents with this backup? Local folder permissions may "
 "need to be selected again."
-msgstr "是否用此备份替换所选内容？可能需要重新授予本地文件夹权限。"
+msgstr "是否用此备份替换选中内容？可能需要重新授予本地文件夹权限。"
 
 msgid ""
 "Route server media through this device instead of sharing provider URLs with "
@@ -187,7 +187,7 @@ msgstr "Rufin 会从这些服务查询播放的曲目。这些设置均可在首
 msgid ""
 "Rufin asks these services about the music you play. All of this can be "
 "changed later in Settings."
-msgstr "Rufin 会向这些服务询问你所播放的音乐。所有这些之后都可以在设置中更改。"
+msgstr "Rufin 会从这些服务获取你的音乐。稍后可在设置中更改。"
 
 msgid ""
 "Rufin will calculate the missing EBU R128 metadata for the whole library. "
@@ -198,7 +198,7 @@ msgstr ""
 
 msgid ""
 "Run by the Iroh project. They see who connects to whom, never what is sent."
-msgstr ""
+msgstr "由 Iroh 项目运营。它们仅看得到连接方，而非传输内容。"
 
 msgid ""
 "Some changes were saved. Close this editor and reopen it to review the "
@@ -248,6 +248,15 @@ msgid ""
 "time you change a rating."
 msgstr "将现有评分写入文件，后续更改评分也会修改文件。"
 
+#, fuzzy
+#| msgid ""
+#| "Run by the Iroh project. They see who connects to whom, never what is "
+#| "sent."
+msgid ""
+"Through public relays, which help devices find each other. They see who "
+"connects to whom, never what is sent."
+msgstr "由 Iroh 项目运营。它们仅看得到连接方，而非传输内容。"
+
 msgid ""
 "Track evens out every song, while Album preserves the intended differences "
 "within each album"
@@ -264,7 +273,7 @@ msgstr "需要使用新 API 密钥在各客户端重新连接。"
 
 msgid ""
 "{room} shares songs: members who have a song play it for listeners who don't"
-msgstr ""
+msgstr "{room} 正在共享曲目：拥有曲目者将为其他听众播放"
 
 msgid "(hold to shuffle)"
 msgstr "(长按随机播放)"
@@ -311,6 +320,9 @@ msgstr "最新 5 张专辑"
 msgid "6 hours"
 msgstr "6 小时"
 
+msgid "A device on another network needs a relay and an invitation"
+msgstr ""
+
 msgid "A new update is available, restart to apply"
 msgstr "有新的更新可用，重启以应用"
 
@@ -329,10 +341,8 @@ msgstr "API 密钥"
 msgid "About Rufin"
 msgstr "关于 Rufin"
 
-#, fuzzy
-#| msgid "Use a public relay"
 msgid "About the public relays"
-msgstr "使用公共中继"
+msgstr "关于公共中继"
 
 msgid "Absolute"
 msgstr "绝对"
@@ -442,10 +452,8 @@ msgstr "低于此数时补充曲目"
 msgid "Add"
 msgstr "添加"
 
-#, fuzzy
-#| msgid "Find in {name}"
 msgid "Added by {name}"
-msgstr "在 {name} 中查找"
+msgstr "由 {name} 添加"
 
 msgid "Added to"
 msgstr "已添加到"
@@ -536,6 +544,12 @@ msgstr "匿名"
 
 msgid "Any"
 msgstr "任何"
+
+msgid "Anywhere"
+msgstr ""
+
+msgid "Anywhere, through your own relay"
+msgstr ""
 
 msgid "App icon"
 msgstr "应用图标"
@@ -679,7 +693,7 @@ msgid "BPM"
 msgstr "BPM"
 
 msgid "Back in the room"
-msgstr ""
+msgstr "已重新加入房间"
 
 msgid "Back"
 msgstr "返回"
@@ -1123,6 +1137,9 @@ msgstr "内容"
 msgid "Continue from {device}"
 msgstr "从 {device} 继续播放"
 
+msgid "Continue where another device left off, or control what it plays"
+msgstr ""
+
 msgid "Continue"
 msgstr "继续"
 
@@ -1136,7 +1153,7 @@ msgid "Controller"
 msgstr "控制端"
 
 msgid "Copied"
-msgstr ""
+msgstr "已复制"
 
 msgid "Copy access token"
 msgstr "复制访问令牌"
@@ -1144,10 +1161,8 @@ msgstr "复制访问令牌"
 msgid "Copy invitation"
 msgstr "复制邀请码"
 
-#, fuzzy
-#| msgid "Copy invitation"
 msgid "Copy invite"
-msgstr "复制邀请码"
+msgstr "复制邀请"
 
 msgid "Copy link"
 msgstr "复制链接"
@@ -1245,10 +1260,8 @@ msgstr "创建播放列表"
 msgid "Create playlist"
 msgstr "创建播放列表"
 
-#, fuzzy
-#| msgid "Create"
 msgid "Create room"
-msgstr "创建"
+msgstr "创建房间"
 
 msgid "Create"
 msgstr "创建"
@@ -1672,12 +1685,10 @@ msgid "End of this track"
 msgstr "播完当前曲目"
 
 msgid "End room"
-msgstr ""
+msgstr "结束房间"
 
-#, fuzzy
-#| msgid "Edit theme"
 msgid "End the room?"
-msgstr "编辑主题"
+msgstr "结束房间？"
 
 msgid "Ends around {time}"
 msgstr "约在 {time} 结束"
@@ -1725,7 +1736,7 @@ msgid "Every track of your favorite artists"
 msgstr "所有已收藏艺人的曲目"
 
 msgid "Everyone stops listening together"
-msgstr ""
+msgstr "所有人都将停止收听"
 
 msgid "Everything, including new tracks"
 msgstr "所有内容，包括新增曲目"
@@ -2121,7 +2132,7 @@ msgid "Homepage"
 msgstr "首页"
 
 msgid "Host"
-msgstr ""
+msgstr "房主"
 
 msgid "Hour"
 msgstr "时间"
@@ -2193,10 +2204,8 @@ msgstr "纯音乐"
 msgid "Integrations"
 msgstr "集成"
 
-#, fuzzy
-#| msgid "Invite"
 msgid "Invite link"
-msgstr "邀请"
+msgstr "邀请链接"
 
 msgid "Invite"
 msgstr "邀请"
@@ -2225,19 +2234,17 @@ msgstr "日语词典"
 msgid "Jellyfin"
 msgstr "Jellyfin"
 
-#, fuzzy
-#| msgid "Join profile"
 msgid "Join a room"
-msgstr "加入配置文件"
+msgstr "加入房间"
 
 msgid "Join profile"
 msgstr "加入配置文件"
 
 msgid "Join to copy its sources and sign-ins"
-msgstr "加入以复制其音源与登录凭据"
+msgstr "加入以复制其数据源与登录凭据"
 
 msgid "Join {room}?"
-msgstr ""
+msgstr "加入房间？"
 
 msgid "Join"
 msgstr "加入"
@@ -2265,6 +2272,9 @@ msgstr "供离线收听。更改文件夹仅对后续下载生效"
 
 msgid "Keep running in the background"
 msgstr "允许后台运行"
+
+msgid "Keeps your devices in sync"
+msgstr ""
 
 msgid "Keyboard Shortcuts"
 msgstr "键盘快捷键"
@@ -2324,13 +2334,13 @@ msgid "Leave out tracks rated two stars or lower"
 msgstr "排除两星及以下曲目"
 
 msgid "Leave room"
-msgstr ""
+msgstr "离开房间"
 
 msgid "Leave the password empty to keep the saved credential"
 msgstr "留空以保留现有凭据"
 
 msgid "Leave this room first"
-msgstr ""
+msgstr "请先离开当前房间"
 
 msgid "Left sidebar"
 msgstr "左侧栏"
@@ -2392,10 +2402,8 @@ msgstr "ListenBrainz API"
 msgid "ListenBrainz or Audioscrobbler API"
 msgstr "ListenBrainz 或 Audioscrobbler API"
 
-#, fuzzy
-#| msgid "Listening"
 msgid "Listener"
-msgstr "收听"
+msgstr "听众"
 
 msgid "Listening overview"
 msgstr "收听概览"
@@ -2497,10 +2505,8 @@ msgstr "查询"
 msgid "Lookups"
 msgstr "查询"
 
-#, fuzzy
-#| msgid "Connection lost. Reconnecting..."
 msgid "Lost the room. Reconnecting..."
-msgstr "连接中断。正在重新连接…"
+msgstr "房间连接中断。正在重新连接…"
 
 msgid "Loudness normalization"
 msgstr "响度标准化"
@@ -2572,7 +2578,7 @@ msgid "May {year}"
 msgstr "{year} 年 5 月"
 
 msgid "Members who have a song play it for listeners who don't"
-msgstr ""
+msgstr "拥有曲目者将为其他听众播放"
 
 msgid "Menu"
 msgstr "菜单"
@@ -2638,7 +2644,7 @@ msgid "Mixes"
 msgstr "动态合集"
 
 msgid "Mode"
-msgstr ""
+msgstr "模式"
 
 msgid "Monday"
 msgstr "周一"
@@ -2688,6 +2694,9 @@ msgstr "下移"
 msgid "Move up"
 msgstr "上移"
 
+msgid "Moves playback between them"
+msgstr ""
+
 msgid "Multi-selection"
 msgstr "多选"
 
@@ -2695,10 +2704,10 @@ msgid "Music Folder"
 msgstr "音乐文件夹"
 
 msgid "Music access permission was denied"
-msgstr ""
+msgstr "未获得音乐访问权限"
 
 msgid "Music folder is unavailable: {folder}"
-msgstr ""
+msgstr "音乐文件夹不可用：{folder}"
 
 msgid "Music folder"
 msgstr "音乐文件夹"
@@ -2743,7 +2752,7 @@ msgid "Mute"
 msgstr "静音"
 
 msgid "Muted"
-msgstr ""
+msgstr "已静音"
 
 msgid "My music"
 msgstr "我的音乐"
@@ -2802,6 +2811,9 @@ msgstr "从未播放"
 msgid "New Playlist"
 msgstr "新建播放列表"
 
+msgid "New Rufin releases from GitHub"
+msgstr ""
+
 msgid "New Smart Playlist"
 msgstr "新建智能播放列表"
 
@@ -2821,7 +2833,7 @@ msgid "New playlist"
 msgstr "新建播放列表"
 
 msgid "New release is available"
-msgstr ""
+msgstr "新版本可用"
 
 msgid "Newly added"
 msgstr "最近添加"
@@ -2836,10 +2848,10 @@ msgid "Next audio device"
 msgstr "下一音频设备"
 
 msgid "Next page"
-msgstr ""
+msgstr "下一页"
 
 msgid "Next period"
-msgstr ""
+msgstr "下一时段"
 
 msgid "Next source"
 msgstr "下一数据源"
@@ -2854,7 +2866,7 @@ msgid "No albums from this artist yet"
 msgstr "艺人暂无专辑"
 
 msgid "No artwork found"
-msgstr ""
+msgstr "未找到封面"
 
 msgid "No cached server path yet"
 msgstr "暂无缓存的服务器路径"
@@ -2875,58 +2887,58 @@ msgid "No file linked"
 msgstr "未关联文件"
 
 msgid "No folders selected"
-msgstr ""
+msgstr "未选中文件夹"
 
 msgid "No limit"
-msgstr ""
+msgstr "无限制"
 
 msgid "No linked servers found"
-msgstr ""
+msgstr "未找到关联服务器"
 
 msgid "No listening activity in this period"
-msgstr ""
+msgstr "时段内没有播放记录"
 
 msgid "No local file mapping"
 msgstr "未配置本地文件映射"
 
 msgid "No local files or folders configured"
-msgstr ""
+msgstr "未配置本地文件或文件夹"
 
 msgid "No lyrics available."
-msgstr ""
+msgstr "暂无歌词。"
 
 msgid "No lyrics"
 msgstr "无歌词"
 
 msgid "No matching track in this release"
-msgstr ""
+msgstr "专辑版本中无匹配曲目"
 
 msgid "No matching tracks found"
 msgstr "未找到匹配曲目"
 
 msgid "No matching tracks"
-msgstr ""
+msgstr "无匹配曲目"
 
 msgid "No music from this artist yet"
-msgstr ""
+msgstr "此艺人暂无音乐"
 
 msgid "No network address available"
-msgstr ""
+msgstr "无可用网络地址"
 
 msgid "No network devices found"
 msgstr "未发现网络设备"
 
 msgid "No playable entries were found"
-msgstr ""
+msgstr "未找到可播放条目"
 
 msgid "No playlists yet"
-msgstr ""
+msgstr "暂无播放列表"
 
 msgid "No related tracks found"
 msgstr "未找到相关曲目"
 
 msgid "No results for \"{query}\""
-msgstr ""
+msgstr "未找到与 “{query}” 相关的结果"
 
 msgid "No results"
 msgstr "无结果"
@@ -2935,22 +2947,22 @@ msgid "No servers found, add one manually or try again"
 msgstr "未发现服务器，请手动添加或重试"
 
 msgid "No smart playlists yet"
-msgstr ""
+msgstr "暂无智能播放列表"
 
 msgid "No source"
-msgstr ""
+msgstr "无数据源"
 
 msgid "No sources configured"
-msgstr ""
+msgstr "未配置数据源"
 
 msgid "No tracks here yet"
-msgstr ""
+msgstr "暂无曲目"
 
 msgid "No"
 msgstr "否"
 
 msgid "Nobody in the room can send this song"
-msgstr ""
+msgstr "房间内无人能发送此曲目"
 
 msgid "None"
 msgstr "无"
@@ -2959,18 +2971,16 @@ msgid "Normalization scope"
 msgstr "标准化范围"
 
 msgid "Not available while listening together"
-msgstr ""
+msgstr "一起收听时不可用"
 
 msgid "Not connected"
 msgstr "未连接"
 
-#, fuzzy
-#| msgid "While your library loads"
 msgid "Not in your library"
-msgstr "正在加载媒体库"
+msgstr "不在你的媒体库中"
 
 msgid "Not in your library. Sitting this one out."
-msgstr ""
+msgstr "不在你的媒体库中，暂不参与。"
 
 msgid "Not needed for most servers"
 msgstr "通常不需要"
@@ -2979,28 +2989,28 @@ msgid "Not played recently"
 msgstr "最近未播"
 
 msgid "Not set"
-msgstr ""
+msgstr "未设置"
 
 msgid "Not valid"
-msgstr ""
+msgstr "无效"
 
 msgid "Nothing here yet"
-msgstr ""
+msgstr "暂无内容"
 
 msgid "Nothing in this folder"
-msgstr ""
+msgstr "文件夹为空"
 
 msgid "Nothing played yet"
-msgstr ""
+msgstr "暂无播放记录"
 
 msgid "Nothing playing"
-msgstr ""
+msgstr "暂未播放"
 
 msgid "Nothing queued"
 msgstr "队列为空"
 
 msgid "Nothing to play here"
-msgstr ""
+msgstr "无内容可播放"
 
 msgid "Notifications"
 msgstr "通知"
@@ -3027,7 +3037,7 @@ msgid "October {year}"
 msgstr "{year} 年 10 月"
 
 msgid "Off only for a server you control"
-msgstr ""
+msgstr "请仅对自建服务器关闭"
 
 msgid "Off"
 msgstr "禁用"
@@ -3038,10 +3048,8 @@ msgstr "离线"
 msgid "On repeat"
 msgstr "循环播放"
 
-#, fuzzy
-#| msgid "Search this network"
 msgid "On this network only"
-msgstr "扫描网络"
+msgstr "仅本地网络"
 
 msgid "On"
 msgstr "启用"
@@ -3059,7 +3067,7 @@ msgid "One path per line"
 msgstr "每行一个路径"
 
 msgid "One row shows albums and artists as cards"
-msgstr ""
+msgstr "单行显示专辑和艺人卡片"
 
 msgid "Online Lookups"
 msgstr "在线查询"
@@ -3068,7 +3076,7 @@ msgid "Only fill missing information"
 msgstr "仅填充缺失信息"
 
 msgid "Only the host turns Auto DJ on or off"
-msgstr ""
+msgstr "仅房主可切换自动 DJ"
 
 msgid "Opacity (%)"
 msgstr "不透明度 (%)"
@@ -3203,13 +3211,13 @@ msgid "Path in Source"
 msgstr "数据源内路径"
 
 msgid "Path"
-msgstr ""
+msgstr "路径"
 
 msgid "Pause"
 msgstr "暂停"
 
 msgid "Pauses at {time}"
-msgstr ""
+msgstr "将于 {time} 暂停"
 
 msgid "Pauses when that track ends"
 msgstr "曲目结束后暂停"
@@ -3227,7 +3235,7 @@ msgid "Peak"
 msgstr "峰值"
 
 msgid "Percent the volume changes per scroll or volume shortcut"
-msgstr ""
+msgstr "每次滚动或按下音量快捷键时的音量变化 (百分比)"
 
 msgid "Perceptual for a finer control at low volume; Linear for a direct scale"
 msgstr "感知在低音量下调节更精细，线性为等比例变化"
@@ -3251,13 +3259,13 @@ msgid "Play (shuffled)"
 msgstr "播放 (随机)"
 
 msgid "Play Later (shuffled)"
-msgstr ""
+msgstr "最后播放 (随机)"
 
 msgid "Play Later"
 msgstr "最后播放"
 
 msgid "Play Next (shuffled)"
-msgstr ""
+msgstr "下一首播放 (随机)"
 
 msgid "Play Next"
 msgstr "下一首播放"
@@ -3266,25 +3274,25 @@ msgid "Play Rufin's picks instead of the server's own"
 msgstr "播放 Rufin 的推荐，而非服务器的"
 
 msgid "Play album"
-msgstr ""
+msgstr "播放专辑"
 
 msgid "Play artist"
-msgstr ""
+msgstr "播放艺人"
 
 msgid "Play count"
 msgstr "播放次数"
 
 msgid "Play radio later"
-msgstr ""
+msgstr "最后播放电台"
 
 msgid "Play radio next"
-msgstr ""
+msgstr "下一首播放电台"
 
 msgid "Play radio"
 msgstr "播放电台"
 
 msgid "Play track"
-msgstr ""
+msgstr "播放曲目"
 
 msgid "Play"
 msgstr "播放"
@@ -3293,10 +3301,10 @@ msgid "Play/Pause"
 msgstr "播放/暂停"
 
 msgid "Playback controls"
-msgstr ""
+msgstr "播放控制"
 
 msgid "Playback position"
-msgstr ""
+msgstr "播放进度"
 
 msgid "Playback speed"
 msgstr "播放速度"
@@ -3305,28 +3313,28 @@ msgid "Playback"
 msgstr "播放"
 
 msgid "Played"
-msgstr ""
+msgstr "已播放"
 
 msgid "Player"
 msgstr "播放器"
 
 msgid "Playing from {}"
-msgstr ""
+msgstr "正在播放：{}"
 
 msgid "Playing from"
-msgstr ""
+msgstr "正在播放"
 
 msgid "Playing on this device"
-msgstr ""
+msgstr "正在此设备上播放"
 
 msgid "Playing on {device}"
-msgstr ""
+msgstr "正在 {device} 上播放"
 
 msgid "Playing stream"
-msgstr ""
+msgstr "播放串流"
 
 msgid "Playing"
-msgstr ""
+msgstr "正在播放"
 
 msgid "Playlist File"
 msgstr "播放列表文件"
@@ -3335,7 +3343,7 @@ msgid "Playlist file changed"
 msgstr "播放列表文件已更改"
 
 msgid "Playlist files"
-msgstr ""
+msgstr "播放列表文件"
 
 msgid "Playlist name"
 msgstr "播放列表名称"
@@ -3347,7 +3355,7 @@ msgid "Playlist radio"
 msgstr "播放列表电台"
 
 msgid "Playlist tracks"
-msgstr ""
+msgstr "播放列表曲目"
 
 msgid "Playlist"
 msgstr "播放列表"
@@ -3357,6 +3365,9 @@ msgstr "播放列表"
 
 msgid "Plays from"
 msgstr "统计周期"
+
+msgid "Plays this device's music on the others"
+msgstr ""
 
 msgid "Plays"
 msgstr "播放次数"
@@ -3413,7 +3424,7 @@ msgid "Presets"
 msgstr "预设"
 
 msgid "Prevent automatic metadata refreshes from replacing these values"
-msgstr ""
+msgstr "防止自动刷新元数据时覆盖"
 
 msgid "Previous Track"
 msgstr "上一首"
@@ -3425,10 +3436,10 @@ msgid "Previous audio device"
 msgstr "上一音频设备"
 
 msgid "Previous page"
-msgstr ""
+msgstr "上一页"
 
 msgid "Previous period"
-msgstr ""
+msgstr "上一时段"
 
 msgid "Previous"
 msgstr "上一首"
@@ -3436,10 +3447,8 @@ msgstr "上一首"
 msgid "Privacy & Security"
 msgstr "隐私与安全"
 
-#, fuzzy
-#| msgid "Privacy & Security"
 msgid "Privacy policy"
-msgstr "隐私与安全"
+msgstr "隐私政策"
 
 msgid "Private mode is off"
 msgstr "无痕模式已禁用"
@@ -3457,7 +3466,7 @@ msgid "Profile up to date"
 msgstr "配置文件已最新"
 
 msgid "Pronunciation"
-msgstr ""
+msgstr "发音"
 
 msgid "Protocol"
 msgstr "协议"
@@ -3468,10 +3477,8 @@ msgstr "数据源"
 msgid "Proxy casting through Rufin"
 msgstr "投放由 Rufin 代理"
 
-#, fuzzy
-#| msgid "Use a public relay"
 msgid "Public relays"
-msgstr "使用公共中继"
+msgstr "公共中继"
 
 msgid "Public"
 msgstr "公开"
@@ -3483,7 +3490,7 @@ msgid "Q"
 msgstr "Q"
 
 msgid "Queue a track to begin"
-msgstr ""
+msgstr "将曲目加入队列以开始播放"
 
 msgid "Queue tracks to show"
 msgstr "显示的队列曲目数"
@@ -3519,7 +3526,7 @@ msgid "Rating"
 msgstr "评分"
 
 msgid "Reading tags..."
-msgstr ""
+msgstr "正在读取标签…"
 
 msgid "Ready"
 msgstr "就绪"
@@ -3549,7 +3556,7 @@ msgid "Reconnect"
 msgstr "重新连接"
 
 msgid "Record label"
-msgstr ""
+msgstr "录制标签"
 
 msgid "Recording"
 msgstr "曲目"
@@ -3621,7 +3628,7 @@ msgid "Reload themes"
 msgstr "重新加载主题"
 
 msgid "Reload to apply changes"
-msgstr ""
+msgstr "重新加载以应用变更"
 
 msgid "Reload"
 msgstr "重新加载"
@@ -3675,7 +3682,7 @@ msgid "Remove device"
 msgstr "移除设备"
 
 msgid "Remove folder"
-msgstr ""
+msgstr "移除文件夹"
 
 msgid "Remove from Favorites"
 msgstr "从收藏中移除"
@@ -3687,21 +3694,19 @@ msgid "Remove from Queue"
 msgstr "从队列中移除"
 
 msgid "Remove from Saved"
-msgstr ""
+msgstr "从已保存中移除"
 
 msgid "Remove from folder"
 msgstr "从文件夹中移除"
 
-#, fuzzy
-#| msgid "Removed from"
 msgid "Remove from room"
-msgstr "已移除出"
+msgstr "从房间中移除"
 
 msgid "Remove group"
-msgstr ""
+msgstr "移除分组"
 
 msgid "Remove image"
-msgstr ""
+msgstr "移除图片"
 
 msgid "Remove rule"
 msgstr "移除规则"
@@ -3734,13 +3739,13 @@ msgid "Rename"
 msgstr "重命名"
 
 msgid "Repeat all"
-msgstr ""
+msgstr "列表循环"
 
 msgid "Repeat off"
-msgstr ""
+msgstr "关闭循环"
 
 msgid "Repeat one"
-msgstr ""
+msgstr "单曲循环"
 
 msgid "Repeat"
 msgstr "循环播放"
@@ -3749,7 +3754,7 @@ msgid "Replace file contents"
 msgstr "覆盖文件内容"
 
 msgid "Replace saved custom headers"
-msgstr ""
+msgstr "替换已保存的自定义标头"
 
 msgid "ReplayGain tags"
 msgstr "回放增益标签"
@@ -3758,7 +3763,7 @@ msgid "ReplayGain"
 msgstr "回放增益"
 
 msgid "Report an Issue"
-msgstr ""
+msgstr "报告问题"
 
 msgid "Request failed ({status})"
 msgstr "请求失败 ({status})"
@@ -3770,7 +3775,7 @@ msgid "Reset appearance"
 msgstr "重置外观"
 
 msgid "Reset to defaults"
-msgstr ""
+msgstr "恢复默认设置"
 
 msgid "Reset"
 msgstr "重置"
@@ -3788,16 +3793,16 @@ msgid "Restore defaults without deleting saved presets"
 msgstr "恢复默认，并保留已保存的预设"
 
 msgid "Restore player layout"
-msgstr ""
+msgstr "恢复播放器布局"
 
 msgid "Restore"
 msgstr "恢复"
 
 msgid "Results from radio-browser.info."
-msgstr ""
+msgstr "搜索结果来自 radio-browser.info。"
 
 msgid "Results per section"
-msgstr ""
+msgstr "每版块数量"
 
 msgid "Resume"
 msgstr "继续播放"
@@ -3809,7 +3814,7 @@ msgid "Retry"
 msgstr "重试"
 
 msgid "Reverse order"
-msgstr ""
+msgstr "倒序"
 
 msgid "Ribbon"
 msgstr "丝带频谱"
@@ -3830,10 +3835,10 @@ msgid "Romaji"
 msgstr "罗马音"
 
 msgid "Room"
-msgstr ""
+msgstr "房间"
 
 msgid "Rooms"
-msgstr ""
+msgstr "房间"
 
 msgid "Rounded bars"
 msgstr "圆角柱形"
@@ -3861,10 +3866,10 @@ msgid "Rufin data folder"
 msgstr "Rufin 数据文件夹"
 
 msgid "Rufin host"
-msgstr ""
+msgstr "Rufin 主机"
 
 msgid "Rufin needs local access to {path}"
-msgstr ""
+msgstr "Rufin 需要本地路径 {path} 的访问权限"
 
 msgid "Rule actions"
 msgstr "规则操作"
@@ -3918,33 +3923,32 @@ msgid "Save"
 msgstr "保存"
 
 msgid "Saved Plex Login"
-msgstr ""
+msgstr "已保存的 Plex 登录凭据"
 
 msgid "Saved logins"
 msgstr "登录凭据"
 
 msgid "Saved mapping. {matched} of {total} server path matches"
 msgid_plural "Saved mapping. {matched} of {total} server paths match"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "已保存映射。已匹配 {matched} / {total} 个服务器路径"
 
 msgid "Saved preset"
 msgstr "已保存预设"
 
 msgid "Saved to"
-msgstr ""
+msgstr "已保存到"
 
 msgid "Saved"
 msgstr "已保存"
 
 msgid "Saved..."
-msgstr ""
+msgstr "已保存…"
 
 msgid "Saving..."
 msgstr "正在保存…"
 
 msgid "Scanning tracks"
-msgstr ""
+msgstr "正在扫描曲目"
 
 msgid "Schedule"
 msgstr "频率"
@@ -4181,10 +4185,8 @@ msgstr "阴影"
 msgid "Share invite"
 msgstr ""
 
-#, fuzzy
-#| msgid "Share"
 msgid "Share songs"
-msgstr "分享"
+msgstr "分享曲目"
 
 msgid "Share"
 msgstr "分享"
@@ -4195,11 +4197,11 @@ msgstr ""
 msgid "Shared secret"
 msgstr "共享密钥"
 
-msgid "Shares your queue. Your music keeps playing."
+msgid "Shares your queue"
 msgstr ""
 
 msgid "Show Rufin in headline"
-msgstr ""
+msgstr "在标题中显示 Rufin"
 
 msgid "Show Rufin"
 msgstr "显示 Rufin"
@@ -4211,7 +4213,7 @@ msgid "Show artwork"
 msgstr ""
 
 msgid "Show comparison"
-msgstr ""
+msgstr "显示对比"
 
 msgid "Show current lyrics line"
 msgstr ""
@@ -4307,10 +4309,10 @@ msgid "Sign In with Password"
 msgstr "用密码登录"
 
 msgid "Sign in again"
-msgstr ""
+msgstr "重新登录"
 
 msgid "Sign in to Plex first"
-msgstr ""
+msgstr "请先登录 Plex"
 
 msgid "Sign in with Nextcloud"
 msgstr "用 Nextcloud 登录"
@@ -4322,7 +4324,7 @@ msgid "Sign in"
 msgstr "登录"
 
 msgid "Signing in..."
-msgstr ""
+msgstr "正在登录…"
 
 msgid "Similar artists from ListenBrainz"
 msgstr "ListenBrainz 上的相似艺人"
@@ -4339,10 +4341,8 @@ msgstr "单曲"
 msgid "Singles"
 msgstr "单曲"
 
-#, fuzzy
-#| msgid "Settings and sources"
 msgid "Sitting this one out"
-msgstr "设置与数据源"
+msgstr "暂不参与"
 
 msgid "Size in gigabytes"
 msgstr "缓存大小 (GB)"
@@ -4384,7 +4384,7 @@ msgid "Smart Playlists"
 msgstr "智能播放列表"
 
 msgid "Smart playlist tracks"
-msgstr ""
+msgstr "智能播放列表曲目"
 
 msgid "Smart playlists"
 msgstr "智能播放列表"
@@ -4396,7 +4396,7 @@ msgid "Solid bars"
 msgstr "实心柱形"
 
 msgid "Some playlist entries could not be imported"
-msgstr ""
+msgstr "部分播放列表条目无法导入"
 
 msgid "Some"
 msgstr "中"
@@ -4408,7 +4408,7 @@ msgid "Song title"
 msgstr "曲目名称"
 
 msgid "Song"
-msgstr ""
+msgstr "曲目"
 
 msgid "Sort artists and albums by their sort tags instead of their names"
 msgstr "按排序标签而非名称排序艺人和专辑"
@@ -4432,10 +4432,10 @@ msgid "Source by position"
 msgstr "按序号切换数据源"
 
 msgid "Source is no longer available"
-msgstr ""
+msgstr "数据源不可用"
 
 msgid "Source setup is unavailable"
-msgstr ""
+msgstr "数据源设置不可用"
 
 msgid "Source type"
 msgstr "数据源类型"
@@ -4446,11 +4446,14 @@ msgstr "数据源"
 msgid "Sources"
 msgstr "数据源"
 
+msgid "Sources, sign-ins, playlists, favorites, history and preferences"
+msgstr ""
+
 msgid "Spacing"
 msgstr "间距"
 
 msgid "Spectrum · dBFS"
-msgstr ""
+msgstr "频谱 · dBFS"
 
 msgid "Spectrum line"
 msgstr "频谱线"
@@ -4474,7 +4477,7 @@ msgid "Start minimized"
 msgstr "启动时最小化"
 
 msgid "Start playing automatically"
-msgstr ""
+msgstr "自动播放"
 
 msgid "Start"
 msgstr "开始"
@@ -4507,7 +4510,7 @@ msgid "Stereo"
 msgstr "立体声"
 
 msgid "Stop casting to listen together"
-msgstr ""
+msgstr "请先停止投放，再一起收听"
 
 msgid "Stop"
 msgstr "停止"
@@ -4525,7 +4528,7 @@ msgid "Stream cache"
 msgstr "串流缓存"
 
 msgid "Stream quality on mobile data"
-msgstr ""
+msgstr "使用流量时串流质量"
 
 msgid "Stream quality"
 msgstr "串流质量"
@@ -4603,7 +4606,7 @@ msgid "Tags"
 msgstr "标签"
 
 msgid "Target loudness"
-msgstr ""
+msgstr "目标响度"
 
 msgid "Teal"
 msgstr "青色"
@@ -4621,37 +4624,40 @@ msgid "The API token was not accepted. Please connect again."
 msgstr "API 令牌无效。请重新连接。"
 
 msgid "The anchored track is gone"
-msgstr ""
+msgstr "定位曲目已不存在"
 
 msgid "The closest match wins; on a tie, the higher one."
 msgstr "最佳匹配优先，相同则按顺序。"
 
 msgid "The connection no longer exists"
-msgstr ""
+msgstr "连接已失效"
 
 msgid "The files are deleted where they are stored. This cannot be undone."
-msgstr ""
+msgstr "文件将原地删除，且无法撤销。"
 
 msgid "The room ended"
-msgstr ""
+msgstr "房间已结束"
 
 msgid "The room is full"
-msgstr ""
+msgstr "房间已满"
 
 msgid "The room is not playing this song"
-msgstr ""
+msgstr "此房间未播放此曲目"
 
 msgid "The room is unreachable"
+msgstr "无法连接房间"
+
+msgid "The same Wi-Fi or wired network"
 msgstr ""
 
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
-msgstr ""
+msgstr "长按打开的菜单。点击条目可显示或隐藏。"
 
 msgid "TheAudioDB album ID"
-msgstr ""
+msgstr "TheAudioDB 专辑 ID"
 
 msgid "TheAudioDB artist ID"
-msgstr ""
+msgstr "TheAudioDB 艺人 ID"
 
 msgid "Theme"
 msgstr "主题"
@@ -4668,19 +4674,17 @@ msgstr "此设备已从配置文件中移除"
 msgid "This device"
 msgstr "本设备"
 
-#, fuzzy
-#| msgid "Item is no longer available"
 msgid "This invite is no longer valid"
-msgstr "条目不可用"
+msgstr "邀请已失效"
 
 msgid "This is not a room invite"
-msgstr ""
+msgstr "无法识别房间邀请"
 
 msgid "This is owned by {source} and synced to it."
-msgstr ""
+msgstr "此播放列表属于 {source}，并与其同步。"
 
 msgid "This isn't available"
-msgstr ""
+msgstr "此功能不可用"
 
 msgid "This item has no link to share"
 msgstr ""
@@ -4689,19 +4693,19 @@ msgid "This playlist only accepts {source} tracks"
 msgstr ""
 
 msgid "This room does not share songs"
-msgstr ""
+msgstr "此房间不分享曲目"
 
 msgid "This room no longer shares songs"
-msgstr ""
+msgstr "此房间不再分享曲目"
 
 msgid "This room shares songs with listeners who don't have them"
-msgstr ""
+msgstr "此房间会将曲目分享给听众"
 
 msgid "This room uses another version of Rufin. Please update Rufin."
-msgstr ""
+msgstr "此房间的 Rufin 版本不同，请更新 Rufin。"
 
 msgid "This room uses no relay"
-msgstr ""
+msgstr "房间未使用中继"
 
 #, fuzzy
 #| msgid "Disconnect this device"
@@ -4717,8 +4721,6 @@ msgstr "去年今日"
 msgid "This will remove all configured state. Do you want to continue?"
 msgstr "将清除全部已配置状态。是否继续？"
 
-#, fuzzy
-#| msgid "Use a public relay"
 msgid "Through public relays"
 msgstr "使用公共中继"
 
@@ -4743,7 +4745,7 @@ msgid "Toggle Fullscreen"
 msgstr "切换全屏"
 
 msgid "Tone and channels"
-msgstr ""
+msgstr "音调与声道"
 
 msgid "Tools"
 msgstr "工具"
@@ -4791,7 +4793,7 @@ msgid "Track"
 msgstr "曲目"
 
 msgid "Tracks ahead on mobile data"
-msgstr ""
+msgstr "使用流量时预缓存曲目数"
 
 msgid "Tracks from every playlist"
 msgstr "所有播放列表中的曲目"
@@ -5018,10 +5020,8 @@ msgstr "调高音量"
 msgid "Volume scale"
 msgstr "音量曲线"
 
-#, fuzzy
-#| msgid "Volume Up"
 msgid "Volume step"
-msgstr "调高音量"
+msgstr "音量步进"
 
 msgid "Volume"
 msgstr ""
@@ -5071,8 +5071,10 @@ msgstr "欢迎使用 Rufin"
 msgid "What Auto DJ and radio pick"
 msgstr "自动 DJ 与电台选曲"
 
-msgid "While your library loads"
-msgstr "正在加载媒体库"
+#, fuzzy
+#| msgid "Nearby devices"
+msgid "Where are your devices?"
+msgstr "附近设备"
 
 msgid "Wide"
 msgstr "较宽"
@@ -5117,18 +5119,21 @@ msgid "Yes"
 msgstr "是"
 
 msgid "You have {have} of {songs} songs"
-msgstr ""
+msgstr "你拥有 {have} / {songs} 首曲目"
 
 msgid "You need to configure a local address"
 msgstr ""
 
 msgid "You"
-msgstr ""
+msgstr "你"
 
 msgid "Your library is ready"
 msgstr "你的媒体库已就绪"
 
 msgid "Your music belongs here"
+msgstr ""
+
+msgid "Your music keeps playing"
 msgstr ""
 
 #, fuzzy
@@ -5139,10 +5144,8 @@ msgstr "名称 (排序)"
 msgid "Your own API key"
 msgstr "你的 API 密钥"
 
-#, fuzzy
-#| msgid "Your own API key"
 msgid "Your own relay"
-msgstr "你的 API 密钥"
+msgstr "自建中继"
 
 msgid "Your queue is empty."
 msgstr "队列为空。"
@@ -5252,7 +5255,7 @@ msgstr[0] "{count} 项"
 
 msgid "{count} folder selected"
 msgid_plural "{count} folders selected"
-msgstr[0] "已选择 {count} 个文件夹"
+msgstr[0] "已选中 {count} 个文件夹"
 
 msgid "{count} folder"
 msgid_plural "{count} folders"
@@ -5266,18 +5269,15 @@ msgid "{count} listen was already in Rufin."
 msgid_plural "{count} listens were already in Rufin."
 msgstr[0] "{count} 条播放记录已存在于 Rufin 中。"
 
-#, fuzzy
-#| msgid "Imported {count} listen."
-#| msgid_plural "Imported {count} listens."
 msgid "{count} listening"
-msgstr "已导入 {count} 条播放记录。"
+msgstr "{count} 人正在收听"
 
 msgid "{count} month ago"
 msgid_plural "{count} months ago"
 msgstr[0] "{count} 月前"
 
 msgid "{count} of {members} can play this"
-msgstr ""
+msgstr "{members} 人中有 {count} 人可播放"
 
 msgid "{count} play"
 msgid_plural "{count} plays"
@@ -5417,6 +5417,9 @@ msgstr ""
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "欢迎使用 Rufin 安装程序"
+
+#~ msgid "While your library loads"
+#~ msgstr "正在加载媒体库"
 
 #~ msgid "Troubleshooting"
 #~ msgstr "故障排除"

@@ -239,6 +239,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"Through public relays, which help devices find each other. They see who "
+"connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Track evens out every song, while Album preserves the intended differences "
 "within each album"
 msgstr ""
@@ -305,6 +310,9 @@ msgid "5 Latest Albums"
 msgstr "最新的 5 張專輯"
 
 msgid "6 hours"
+msgstr ""
+
+msgid "A device on another network needs a relay and an invitation"
 msgstr ""
 
 msgid "A new update is available, restart to apply"
@@ -589,6 +597,12 @@ msgid "Anonymous"
 msgstr ""
 
 msgid "Any"
+msgstr ""
+
+msgid "Anywhere"
+msgstr ""
+
+msgid "Anywhere, through your own relay"
 msgstr ""
 
 #, fuzzy
@@ -1342,6 +1356,9 @@ msgstr "繼續"
 #| msgid "Connecting to {device}..."
 msgid "Continue from {device}"
 msgstr "正在連接到 {device}..."
+
+msgid "Continue where another device left off, or control what it plays"
+msgstr ""
 
 msgid "Continue"
 msgstr "繼續"
@@ -2726,6 +2743,9 @@ msgstr "使音樂在離線時仍然可用。資料夾的變更只會影響新的
 msgid "Keep running in the background"
 msgstr "讓 Rufin 在視窗關閉後仍然保持運行"
 
+msgid "Keeps your devices in sync"
+msgstr ""
+
 msgid "Keyboard Shortcuts"
 msgstr "快捷鍵"
 
@@ -3218,6 +3238,9 @@ msgstr "下移"
 msgid "Move up"
 msgstr "上移"
 
+msgid "Moves playback between them"
+msgstr ""
+
 #, fuzzy
 #| msgid "Selection"
 msgid "Multi-selection"
@@ -3353,6 +3376,9 @@ msgstr "從未播放"
 
 msgid "New Playlist"
 msgstr "新增播放清單"
+
+msgid "New Rufin releases from GitHub"
+msgstr ""
 
 msgid "New Smart Playlist"
 msgstr "新增智慧播放清單"
@@ -4032,6 +4058,9 @@ msgstr "播放清單"
 #| msgid "Play random"
 msgid "Plays from"
 msgstr "任意播放"
+
+msgid "Plays this device's music on the others"
+msgstr ""
 
 msgid "Plays"
 msgstr ""
@@ -5032,8 +5061,10 @@ msgstr ""
 msgid "Shared secret"
 msgstr ""
 
-msgid "Shares your queue. Your music keeps playing."
-msgstr ""
+#, fuzzy
+#| msgid "Search queue"
+msgid "Shares your queue"
+msgstr "搜尋佇列"
 
 #, fuzzy
 #| msgid "Show Rufin"
@@ -5336,6 +5367,9 @@ msgstr "無來源"
 msgid "Sources"
 msgstr ""
 
+msgid "Sources, sign-ins, playlists, favorites, history and preferences"
+msgstr ""
+
 msgid "Spacing"
 msgstr ""
 
@@ -5578,6 +5612,9 @@ msgid "The room is not playing this song"
 msgstr ""
 
 msgid "The room is unreachable"
+msgstr ""
+
+msgid "The same Wi-Fi or wired network"
 msgstr ""
 
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
@@ -6067,8 +6104,10 @@ msgstr "連接"
 msgid "What Auto DJ and radio pick"
 msgstr ""
 
-msgid "While your library loads"
-msgstr ""
+#, fuzzy
+#| msgid "Next audio device"
+msgid "Where are your devices?"
+msgstr "下一個音訊裝置"
 
 msgid "Wide"
 msgstr ""
@@ -6131,6 +6170,9 @@ msgid "Your library is ready"
 msgstr ""
 
 msgid "Your music belongs here"
+msgstr ""
+
+msgid "Your music keeps playing"
 msgstr ""
 
 #, fuzzy
