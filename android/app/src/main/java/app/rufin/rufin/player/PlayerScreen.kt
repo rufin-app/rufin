@@ -898,19 +898,21 @@ private fun PlayerProgress(player: PlayerConnection) {
 }
 
 private data class PlayerTransportState(val shuffle: Boolean, val repeat: QueueRepeatMode,
-    val desiredPlaying: Boolean, val canPrevious: Boolean, val canNext: Boolean, val live: Boolean)
+    val desiredPlaying: Boolean, val canPrevious: Boolean, val canNext: Boolean,
+    /** The queue's order is the listener's to set: not a station's. */
+    val ordered: Boolean)
 
 @Composable
 private fun PlayerTransport(player: PlayerConnection, play: IconButtonColors) {
     val transport by remember(player) { derivedStateOf {
         player.playback?.let { PlayerTransportState(it.controls.shuffleEnabled, it.controls.repeatMode, it.transport.desiredPlaying,
-            it.transport.current != null && !player.live, it.queue.canNext, player.live) }
+            it.transport.current != null && !player.live, it.queue.canNext, !player.live) }
     } }
     val current = transport ?: return
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             PlayerIconButton("rufin-shuffle-symbolic", "Shuffle", player::shuffle,
-                Modifier.size(48.dp).semantics { selected = current.shuffle }, enabled = !current.live, selected = current.shuffle,
+                Modifier.size(48.dp).semantics { selected = current.shuffle }, enabled = current.ordered, selected = current.shuffle,
                 iconSize = 24.dp, glyph = true)
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -927,7 +929,7 @@ private fun PlayerTransport(player: PlayerConnection, play: IconButtonColors) {
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             PlayerIconButton(if (current.repeat == QueueRepeatMode.ONE) "rufin-repeat-one-symbolic" else "rufin-repeat-symbolic",
                 when (current.repeat) { QueueRepeatMode.ONE -> "Repeat one"; QueueRepeatMode.ALL -> "Repeat all"; else -> "Repeat off" },
-                player::repeat, Modifier.size(48.dp), enabled = !current.live, selected = current.repeat != QueueRepeatMode.OFF,
+                player::repeat, Modifier.size(48.dp), enabled = current.ordered, selected = current.repeat != QueueRepeatMode.OFF,
                 iconSize = 24.dp, glyph = true)
         }
     }

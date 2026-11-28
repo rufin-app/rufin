@@ -302,7 +302,7 @@ internal fun IntegrationDetailPage(model: RufinConnection, preferences: Preferen
 
 private fun relayLabel(relay: IrohRelay): String = when (relay) {
     IrohRelay.Off -> translate("Off")
-    IrohRelay.Rufin -> "Rufin"
+    IrohRelay.Public -> translate("Public relays")
     is IrohRelay.Custom -> translate("Custom URL")
 }
 
@@ -314,20 +314,26 @@ private fun RelayPage(preferences: PreferencesConnection, saved: IrohRelay) {
     val savedAddress = (saved as? IrohRelay.Custom)?.url.orEmpty()
     var address by rememberSaveable(savedAddress) { mutableStateOf(savedAddress) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SegmentedPill(listOf(IrohRelay.Off, IrohRelay.Rufin, custom), mode, { mode = it },
-            Modifier.fillMaxWidth(), equal = true) { option, _ -> Text(relayLabel(option)) }
-        if (mode is IrohRelay.Custom) {
-            OutlinedTextField(address, { address = it }, Modifier.fillMaxWidth(), singleLine = true,
+        Text(translate("A relay helps your devices and rooms reach each other when they cannot connect directly."), Modifier.padding(horizontal = 12.dp), style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // Off and the public relays are saved as they are chosen; a custom relay once its address is saved.
+        SegmentedPill(listOf(IrohRelay.Off, IrohRelay.Public, custom), mode, {
+            mode = it
+            if (it !is IrohRelay.Custom) preferences.changePreference { setIrohRelay(it) }
+        }, Modifier.fillMaxWidth(), equal = true) { option, _ -> Text(relayLabel(option)) }
+        if (mode is IrohRelay.Custom) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(address, { address = it }, Modifier.weight(1f), singleLine = true,
                 label = { Text(translate("Relay address")) }, colors = settingsTextFieldColors())
+            FilledTonalButton({ preferences.changePreference { setIrohRelay(IrohRelay.Custom(address.trim())) } },
+                enabled = address.isNotBlank() && address.trim() != savedAddress) { Text(translate("Save")) }
         }
-        Button(onClick = {
-            val choice = if (mode is IrohRelay.Custom) IrohRelay.Custom(address.trim()) else mode
-            preferences.changePreference { setIrohRelay(choice) }
-        }, modifier = Modifier.align(Alignment.End)) { Text(translate("Save")) }
     }
-    SettingsGroup {
-        LinkRow(preferences, translate("Self-host an Iroh Relay"), null, "https://docs.iroh.computer/iroh-services/relays/self-hosted")
-        LinkRow(preferences, translate("Use a public relay"), null, "https://github.com/n0-computer/iroh/blob/v1.5.0/iroh/src/defaults.rs")
+    SettingsGroup(translate("Public relays")) {
+        LinkRow(preferences, translate("About the public relays"), translate("Run by the Iroh project. They see who connects to whom, never what is sent."), "https://docs.iroh.computer/iroh-services/relays/public")
+        LinkRow(preferences, translate("Privacy policy"), null, "https://iroh.computer/legal")
+    }
+    SettingsGroup(translate("Your own relay")) {
+        LinkRow(preferences, translate("Self-host an Iroh Relay"), translate("A relay locked with a token takes it at the end of its address: ?token=..."), "https://docs.iroh.computer/iroh-services/relays/self-hosted")
     }
 }
 

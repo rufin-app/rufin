@@ -25,7 +25,8 @@
             android:exported="false" android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/shared_files" />
         </provider>
-        <activity android:name=".RufinActivity" android:exported="false"
+        <!-- One instance: an invite link opened while the app runs comes to it, not to a second one. -->
+        <activity android:name=".RufinActivity" android:exported="false" android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density" />
         <!-- Launcher entries, one per app icon; AppIcon keeps exactly one enabled. -->
         <activity-alias android:name=".MainActivity" android:targetActivity=".RufinActivity"
@@ -50,6 +51,23 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <!-- A room's invite link opens the app, whichever icon is enabled. -->
+        <activity-alias android:name=".InviteActivity" android:targetActivity=".RufinActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rufin" android:host="room" />
+            </intent-filter>
+            <!-- The link as it is shared. Android asks rufin.app whether this app may open it. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="rufin.app" android:path="/room" />
+                <data android:path="/room/" />
             </intent-filter>
         </activity-alias>
         <activity android:name=".StorageRestartActivity" android:exported="false"

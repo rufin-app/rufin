@@ -7,6 +7,7 @@ import { setFavorite, openLinks } from "./library.js";
 import { deleteAction, playlistMenu, radioMenu, showMenu, goToMenu, shareAction } from "./menus.js";
 
 import { $, button, el, run } from "./ui.js";
+import { decorate } from "./rooms.js";
 import {
   bindDrag,
   acceptsMedia,
@@ -175,6 +176,8 @@ function showQueue(value) {
           : { after: row.position },
       );
     });
+    li.dataset.uri = row.track.uri;
+    decorate(li, row.track);
     $("queue").append(li);
   }
 }

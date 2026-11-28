@@ -15,7 +15,7 @@ use crate::widgets::{
 use adw::prelude::*;
 use gtk::{gio, glib};
 use library::QueueRow;
-use localization::tr;
+use localization::{tr, tr_with};
 use rufin_core::artwork::ArtworkBinding;
 use rufin_core::playback::{QueueReorderTarget, QueueSelection};
 use rufin_core::settings::layout::{LibraryField, LibraryListKey, LibraryListSettings};
@@ -540,8 +540,19 @@ fn queue_title_column(shell: &Rc<crate::player::PlayerUi>) -> gtk::ColumnViewCol
             &row.track.media_uri,
         );
         let subtitle = cell.subtitle();
-        subtitle.set_visible(!row.track.metadata.artist.is_empty());
-        cell.bind_subtitle(row.links(LibraryField::Artist));
+        // A room's song this library has no copy of: nothing to hear, unless the room
+        // shares songs.
+        let lacking = row.track.media_uri.starts_with("rufin-room:");
+        let shared = (shell.room.borrow().as_ref()).is_some_and(|room| room.sharing);
+        cell.set_opacity(if lacking && !shared { 0.5 } else { 1.0 });
+        if lacking {
+            cell.clear_subtitle();
+            subtitle.set_visible(true);
+            subtitle.set_text(&tr("Not in your library"));
+        } else {
+            subtitle.set_visible(!row.track.metadata.artist.is_empty());
+            cell.bind_subtitle(row.links(LibraryField::Artist));
+        }
         let cover = cell.cover();
         let Some(window) = shell.shell() else {
             return;
@@ -574,6 +585,89 @@ fn queue_title_column(shell: &Rc<crate::player::PlayerUi>) -> gtk::ColumnViewCol
         LibraryField::TitleMerged,
     ));
     column
+}
+
+/// Shows one row of a room: how many members have its song, when not all do, and who added it.
+fn show_room_cell(cell: &gtk::Box, room: &rufin_core::room::RoomView, position: usize) {
+    let (Some(have), Some(by)) = (
+        cell.first_child().and_downcast::<gtk::Label>(),
+        cell.last_child().and_downcast::<adw::Avatar>(),
+    ) else {
+        return;
+    };
+    let members = room.members.len() as u32;
+    let count = room.counts.get(position).copied().unwrap_or(members);
+    have.set_visible(count < members);
+    have.set_text(&format!("{count}/{members}"));
+    have.set_tooltip_text(Some(&tr_with(
+        "{count} of {members} can play this",
+        &[
+            ("count", &count.to_string()),
+            ("members", &members.to_string()),
+        ],
+    )));
+    let name = room.added_by.get(position).map(String::as_str);
+    by.set_visible(name.is_some_and(|name| !name.is_empty()));
+    by.set_text(name);
+    by.set_tooltip_text(
+        name.map(|name| tr_with("Added by {name}", &[("name", name)]))
+            .as_deref(),
+    );
+}
+
+/// In a room: how many members have a row's song and who added it.
+fn queue_room_column(shell: &Rc<crate::player::PlayerUi>) -> gtk::ColumnViewColumn {
+    let factory = gtk::SignalListItemFactory::new();
+    let setup_shell = Rc::downgrade(shell);
+    factory.connect_setup(move |_, item| {
+        let Some(item) = item.downcast_ref::<gtk::ListItem>() else {
+            return;
+        };
+        let cell = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        cell.set_halign(gtk::Align::End);
+        cell.set_valign(gtk::Align::Center);
+        let have = gtk::Label::new(None);
+        have.add_css_class("room-have");
+        cell.append(&have);
+        cell.append(&adw::Avatar::new(22, None, true));
+        if let Some(shell) = setup_shell.upgrade() {
+            install_queue_row_interactions(cell.upcast_ref(), &shell, item, None);
+        }
+        item.set_child(Some(&cell));
+    });
+    let bind_shell = Rc::downgrade(shell);
+    connect_row_bind(&factory, move |item| {
+        let Some(item) = item.downcast_ref::<gtk::ListItem>() else {
+            return;
+        };
+        let (Some(cell), Some(shell)) = (
+            item.child().and_downcast::<gtk::Box>(),
+            bind_shell.upgrade(),
+        ) else {
+            return;
+        };
+        let Some(object) = item.item().and_then(|item| item.downcast::<RowItem>().ok()) else {
+            return;
+        };
+        let row = object.value::<Arc<QueueRow>>().expect("Queue row");
+        if let Some(room) = shell.room.borrow().as_ref() {
+            show_room_cell(&cell, room, row.position);
+        }
+        let mut cells = shell.room_cells.borrow_mut();
+        cells.retain(|(known, _)| known.upgrade().is_some_and(|known| known != cell));
+        cells.push((cell.downgrade(), row.position));
+    });
+    let unbind_shell = Rc::downgrade(shell);
+    factory.connect_unbind(move |_, item| {
+        if let Some(item) = item.downcast_ref::<gtk::ListItem>()
+            && let Some(cell) = item.child().and_downcast::<gtk::Box>()
+            && let Some(shell) = unbind_shell.upgrade()
+        {
+            (shell.room_cells.borrow_mut())
+                .retain(|(known, _)| known.upgrade().is_some_and(|known| known != cell));
+        }
+    });
+    gtk::ColumnViewColumn::new(None, Some(factory))
 }
 
 fn queue_duration_column(shell: &Rc<crate::player::PlayerUi>) -> gtk::ColumnViewColumn {
@@ -835,7 +929,13 @@ pub(super) fn configure_queue_columns(
     {
         table.remove_column(&column);
     }
-    let columns: Vec<_> = settings
+    let mut fields = settings
+        .row_fields
+        .iter()
+        .copied()
+        .map(Some)
+        .collect::<Vec<_>>();
+    let mut columns: Vec<_> = settings
         .row_fields
         .iter()
         .map(|field| {
@@ -863,12 +963,23 @@ pub(super) fn configure_queue_columns(
             (column, width)
         })
         .collect();
+    // A room adds who added each song and how many have it, before the row's tools.
+    if shell.room.borrow().is_some() {
+        let column = queue_room_column(shell);
+        let place = fields
+            .iter()
+            .position(|field| *field == Some(LibraryField::Tools))
+            .unwrap_or(fields.len());
+        table.insert_column(place as u32, &column);
+        columns.insert(place, (column, 76));
+        fields.insert(place, None);
+    }
     let header = queue_header(shell, key);
     header.replace(
         &columns
             .iter()
-            .zip(&settings.row_fields)
-            .map(|((column, _), field)| (column.clone(), Some(*field)))
+            .zip(&fields)
+            .map(|((column, _), field)| (column.clone(), *field))
             .collect::<Vec<_>>(),
     );
     header.set_visible(settings.display.show_header && table.is_visible());
@@ -1456,7 +1567,99 @@ pub fn clear_queue_panel_children(
     }
 }
 
+impl crate::player::PlayerUi {
+    /// Shows the room this player follows in the queue: its name above the tools, and in each
+    /// row who added the song and how many have it.
+    fn show_room(self: &Rc<Self>, room: Option<rufin_core::room::RoomView>) {
+        let panel = &self.right_panel;
+        panel.queue_room.set_visible(room.is_some());
+        // Only the host clears a room's queue.
+        (panel.queue_clear_button).set_sensitive(room.as_ref().is_none_or(|room| room.hosting));
+        if let Some(room) = &room {
+            panel.queue_room_undo.set_visible(room.undo);
+            panel.queue_room_name.set_text(&room.name);
+            panel.queue_room_songs.set_text(&tr_with(
+                "You have {have} of {songs} songs",
+                &[
+                    ("have", &room.have.to_string()),
+                    ("songs", &room.songs.to_string()),
+                ],
+            ));
+            self.room_cells.borrow_mut().retain(|(cell, position)| {
+                let cell = cell.upgrade();
+                if let Some(cell) = &cell {
+                    show_room_cell(cell, room, *position);
+                }
+                cell.is_some()
+            });
+        }
+        // Entering or leaving a room, and a room starting or stopping to share songs,
+        // change what the queue's rows show.
+        let shows =
+            |room: &Option<rufin_core::room::RoomView>| room.as_ref().map(|room| room.sharing);
+        let shown = shows(&room);
+        if shows(&self.room.replace(room)) == shown {
+            return;
+        }
+        self.update_bottom_player_transport();
+        for (panel, key) in [
+            (&self.right_panel.queue_panel, LibraryListKey::Queue),
+            (
+                &self.views.fullscreen_player.queue_panel,
+                LibraryListKey::FullscreenTracks,
+            ),
+        ] {
+            let Some(table) = queue_panel_scroller(panel)
+                .and_then(|scroller| scroller.child())
+                .and_downcast::<gtk::ColumnView>()
+            else {
+                continue;
+            };
+            let columns = configure_queue_columns(self, &table, key);
+            let fit = if key == LibraryListKey::Queue {
+                self.right_panel.queue_width_fit.borrow().clone()
+            } else {
+                self.views
+                    .fullscreen_player
+                    .queue_width_fit
+                    .borrow()
+                    .clone()
+            };
+            if let Some(fit) = fit {
+                fit.replace(columns);
+            }
+        }
+    }
+}
+
 pub fn connect_queue_panel_controls(shell: &Rc<crate::player::PlayerUi>) {
+    if let Some(window) = shell.shell() {
+        let mut rooms = window.products.room.subscribe();
+        let weak = Rc::downgrade(shell);
+        glib::spawn_future_local(async move {
+            loop {
+                let room = rooms.borrow_and_update().room.clone();
+                let Some(shell) = weak.upgrade() else {
+                    break;
+                };
+                shell.show_room(room);
+                drop(shell);
+                if rooms.changed().await.is_err() {
+                    break;
+                }
+            }
+        });
+        let (room, runtime) = (
+            window.products.room.clone(),
+            window.products.runtime.clone(),
+        );
+        (shell.right_panel.queue_room_undo).connect_clicked(move |_| {
+            let room = room.clone();
+            runtime.spawn(async move {
+                let _ = (room.execute(rufin_core::room::RoomAction::Undo)).await;
+            });
+        });
+    }
     for panel in [
         &shell.right_panel.queue_panel,
         &shell.views.fullscreen_player.queue_panel,

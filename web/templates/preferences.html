@@ -254,20 +254,25 @@
               </div>
             </div>
             <div class="integration-page" data-integration-page="iroh_relay" hidden>
+              <p class="pref-note">{{ localization::tr("A relay helps your devices and rooms reach each other when they cannot connect directly.") }}</p>
               <div class="pref-group">
-                <label class="pref-row"><span class="pref-label">{{ localization::tr("Relay") }}</span>
+                <label class="pref-row" title="{{ localization::tr("Music never passes through a public relay. A relay of your own may carry it.") }}"><span class="pref-label">{{ localization::tr("Relay") }}</span>
                   <select id="integration-relay-mode">
                     <option value="off">{{ localization::tr("Off") }}</option>
-                    <option value="rufin">Rufin</option>
+                    <option value="public">{{ localization::tr("Public relays") }}</option>
                     <option value="custom">{{ localization::tr("Custom URL") }}</option>
                   </select>
                 </label>
-                <label class="pref-row" id="integration-relay-address-row" hidden><span class="pref-label">{{ localization::tr("Relay address") }}</span><input id="integration-relay-address" type="url" autocomplete="off" /></label>
-                <button type="button" id="integration-relay-save">{{ localization::tr("Save") }}</button>
+                <label class="pref-row" id="integration-relay-address-row" hidden><span class="pref-label">{{ localization::tr("Relay address") }}</span><input id="integration-relay-address" type="url" autocomplete="off" /><button type="button" id="integration-relay-save">{{ localization::tr("Save") }}</button></label>
               </div>
+              <h4>{{ localization::tr("Public relays") }}</h4>
               <div class="pref-group">
-                {% call m::link_row("https://docs.iroh.computer/iroh-services/relays/self-hosted", localization::tr("Self-host an Iroh Relay"), "") %}{% endcall %}
-                {% call m::link_row("https://github.com/n0-computer/iroh/blob/v1.5.0/iroh/src/defaults.rs", localization::tr("Use a public relay"), "") %}{% endcall %}
+                {% call m::link_row("https://docs.iroh.computer/iroh-services/relays/public", localization::tr("About the public relays"), localization::tr("Run by the Iroh project. They see who connects to whom, never what is sent.")) %}{% endcall %}
+                {% call m::link_row("https://iroh.computer/legal", localization::tr("Privacy policy"), "") %}{% endcall %}
+              </div>
+              <h4>{{ localization::tr("Your own relay") }}</h4>
+              <div class="pref-group">
+                {% call m::link_row("https://docs.iroh.computer/iroh-services/relays/self-hosted", localization::tr("Self-host an Iroh Relay"), localization::tr("A relay locked with a token takes it at the end of its address: ?token=...")) %}{% endcall %}
               </div>
             </div>
             {% for (kind, name, status, add) in [("webdav", "WebDAV / Nextcloud", "Remote folders over WebDAV", "Add WebDAV folder"), ("smb", "SMB / Samba", "Remote folders on a Windows share or NAS", "Add SMB folder")] %}

@@ -20,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -38,6 +39,7 @@ import app.rufin.rufin.ui.ToolButton
 import app.rufin.rufin.ui.clockText
 import androidx.compose.ui.zIndex
 import app.rufin.rufin.shared.rufin_core.PreparedQueuePage
+import app.rufin.rufin.shared.rufin_core.RoomAction
 import app.rufin.rufin.shared.rufin_core.Route
 import app.rufin.rufin.browse.*
 import app.rufin.rufin.shared.library.QueueRow
@@ -85,6 +87,9 @@ internal fun PlayerQueue(player: PlayerConnection, modifier: Modifier = Modifier
     val revision by remember(player) { derivedStateOf { player.playback?.queue?.revision } }
     val output by remember(player) { derivedStateOf { player.playback?.controls?.playbackOutput } }
     val currentIndex by remember(player) { derivedStateOf { player.playback?.queue?.currentIndex } }
+    // The room this player follows: its name over the queue, who added each song and who can play it.
+    val rooms = player.model.room
+    val room = rooms.room
     var searchVisible by remember { mutableStateOf(false) }
     // Select: rows a tap picks, which then move up or down together or leave; dragging still works.
     var selecting by remember { mutableStateOf(false) }
@@ -252,25 +257,32 @@ internal fun PlayerQueue(player: PlayerConnection, modifier: Modifier = Modifier
         } else Row(Modifier.fillMaxWidth().padding(start = if (sheet) 4.dp else 8.dp, end = if (sheet) 10.dp else 8.dp, top = 4.dp),
             verticalAlignment = Alignment.CenterVertically) {
             val filled = (player.playback?.queue?.total ?: 0UL) > 0UL
+            // Only the host clears a room's queue.
+            val clearable = filled && room?.hosting != false
             val toggleSearch = { searchVisible = !searchVisible; if (!searchVisible) search = "" }
             // The sheet names the queue and counts it, then its tools as the player's. The pane beside a page is
             // the desktop's: one row of tools, no title, in the desktop's order; Select, which the desktop needs
             // no button for, ends it.
             if (sheet) {
                 Column(Modifier.weight(1f).padding(start = 16.dp)) {
-                    Text(translate("Queue"), style = MaterialTheme.typography.titleLarge)
-                    Text(remember(player.playback?.queue?.total, translation) { player.playback?.queue?.total?.let(::trackCountText).orEmpty() },
+                    Text(room?.name ?: translate("Queue"), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge)
+                    Text(if (room != null) translate("You have {have} of {songs} songs").replace("{have}", room.have.toString())
+                            .replace("{songs}", room.songs.toString())
+                        else remember(player.playback?.queue?.total, translation) { player.playback?.queue?.total?.let(::trackCountText).orEmpty() },
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                // What the listener just played in the room can be taken back while the room still can.
+                if (room?.undo == true) ToolButton("rufin-edit-undo-symbolic", "Undo") { rooms.action(RoomAction.Undo) }
                 ToolButton("rufin-search-symbolic", "Search", selected = searchVisible, action = toggleSearch)
                 ToolButton("rufin-playlists-symbolic", "Create a playlist from queue", enabled = filled) { create = true }
                 ToolButton("rufin-selection-mode-symbolic", "Select", enabled = filled) { selecting = true }
-                ToolButton("rufin-user-trash-symbolic", "Clear queue", enabled = filled) { clear = true }
+                ToolButton("rufin-user-trash-symbolic", "Clear queue", enabled = clearable) { clear = true }
             } else {
                 val tool = Modifier.size(40.dp)
                 PlayerIconButton("rufin-playlists-symbolic", "Create a playlist from queue", { create = true }, tool, enabled = filled)
-                PlayerIconButton("rufin-user-trash-symbolic", "Clear queue", { clear = true }, tool, enabled = filled)
+                PlayerIconButton("rufin-user-trash-symbolic", "Clear queue", { clear = true }, tool, enabled = clearable)
                 PlayerIconButton("rufin-search-symbolic", "Search", toggleSearch, tool, selected = searchVisible)
+                if (room?.undo == true) PlayerIconButton("rufin-edit-undo-symbolic", "Undo", { rooms.action(RoomAction.Undo) }, tool)
                 Spacer(Modifier.weight(1f))
                 PlayerIconButton("rufin-selection-mode-symbolic", "Select", { selecting = true }, tool, enabled = filled)
             }
@@ -288,6 +300,8 @@ internal fun PlayerQueue(player: PlayerConnection, modifier: Modifier = Modifier
                 else {
                     val position = remember(row) { row.position() }
                     val metadata = remember(row) { row.track().metadata }
+                    // A room's song this library has no copy of: named, and nothing to play.
+                    val lacking = remember(row) { row.track().mediaUri.startsWith("rufin-room:") }
                     val isReleased = releasedIndex == index
                     val isDragging = dragged == position && !isReleased
                     val placement = if (reduceMotion || isDragging || isReleased || reordered) Modifier
@@ -340,17 +354,21 @@ internal fun PlayerQueue(player: PlayerConnection, modifier: Modifier = Modifier
                                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     if (selecting) app.rufin.rufin.browse.SelectionMark(position in picked)
                                     QueueSheetCover(row, player)
-                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    // Nothing to hear of it, unless the room shares songs.
+                                    Column(Modifier.weight(1f).alpha(if (lacking && room?.sharing != true) .5f else 1f),
+                                        verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                             if (playing) PlayingIndicator()
                                             Text(metadata.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge,
                                                 color = if (playing) MaterialTheme.colorScheme.secondary else if (current) MaterialTheme.colorScheme.primary
                                                     else MaterialTheme.colorScheme.onSurface)
                                         }
-                                        Text(listOf(metadata.artist, metadata.album).filter(String::isNotBlank).joinToString(" · "),
+                                        Text(if (lacking) translate("Not in your library")
+                                            else listOf(metadata.artist, metadata.album).filter(String::isNotBlank).joinToString(" · "),
                                             maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
+                                    if (room != null) QueueRoomMarks(room, position)
                                     if (metadata.durationMillis > 0) Text(clockText(metadata.durationMillis.toULong()),
                                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     // The handle drags at once; a hold anywhere on the row does too.
@@ -396,6 +414,25 @@ internal fun PlayerQueue(player: PlayerConnection, modifier: Modifier = Modifier
     }
     playlist?.let { item -> PlaylistPickerSheet(player.model, player.model.browse, item, player) { playlist = null } }
     metadataEditor?.row?.metadataItem?.let { item -> MetadataEditorScreen(player.model, item) { metadataEditor = null } }
+}
+
+/** A room's marks on a queue row: how many listeners can play the song, where not all can, and who added it. */
+@Composable
+private fun QueueRoomMarks(room: app.rufin.rufin.shared.rufin_core.RoomView, position: ULong) {
+    val index = position.coerceAtMost(Int.MAX_VALUE.toULong()).toInt()
+    val listeners = room.members.size
+    val count = room.counts.getOrNull(index)?.toInt() ?: listeners
+    val by = room.addedBy.getOrNull(index).orEmpty()
+    if (count < listeners) {
+        val label = translate("{count} of {members} can play this").replace("{count}", count.toString()).replace("{members}", listeners.toString())
+        Text("$count/$listeners", Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(horizontal = 6.dp, vertical = 2.dp).semantics { contentDescription = label },
+            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    if (by.isNotEmpty()) {
+        val label = translate("Added by {name}").replace("{name}", by)
+        app.rufin.rufin.room.RoomAvatar(by, 22.dp, Modifier.semantics { contentDescription = label })
+    }
 }
 
 @Composable

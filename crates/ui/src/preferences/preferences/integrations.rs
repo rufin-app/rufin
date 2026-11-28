@@ -147,7 +147,9 @@ pub(super) fn page(
         network_list: gtk::ListBox,
         relay_mode: adw::ComboRow,
         relay_address: adw::EntryRow,
-        relay_save: gtk::Button,
+        relay_public_link: adw::ActionRow,
+        relay_privacy_link: adw::ActionRow,
+        relay_host_link: adw::ActionRow,
         lastfm_account: adw::ActionRow,
         lastfm_connect: gtk::Button,
         listenbrainz_account: adw::ActionRow,
@@ -260,29 +262,46 @@ pub(super) fn page(
     }
     state.details.set_visible_child_name("lastfm");
     state.show_selection();
+    state.open_requested();
+    let weak = Rc::downgrade(&state);
+    navigation.connect_map(move |_| {
+        if let Some(state) = weak.upgrade() {
+            state.open_requested();
+        }
+    });
 
-    let address_row = relay_address.downgrade();
+    open_link(&relay_public_link, shell, RELAY_PUBLIC_URL);
+    open_link(&relay_privacy_link, shell, RELAY_PRIVACY_URL);
+    open_link(&relay_host_link, shell, RELAY_HOST_URL);
+    let save = |shell: &Rc<Shell>, choice: IrohRelay| {
+        if shell.products.settings.iroh_relay() == choice {
+            return;
+        }
+        if let Err(error) = shell.products.settings.set_iroh_relay(choice) {
+            (shell.control_feedback).show_feedback_toast(error.to_string());
+        }
+    };
+    // Off and the public relays are saved as they are chosen; a custom relay once its
+    // address is applied.
+    let (weak, address_row) = (Rc::downgrade(shell), relay_address.downgrade());
     relay_mode.connect_selected_notify(move |mode| {
         if let Some(address) = address_row.upgrade() {
             address.set_visible(mode.selected() == 2);
         }
+        let choice = match mode.selected() {
+            0 => IrohRelay::Off,
+            1 => IrohRelay::Public,
+            _ => return,
+        };
+        if let Some(shell) = weak.upgrade() {
+            save(&shell, choice);
+        }
     });
     let weak = Rc::downgrade(shell);
-    let mode = relay_mode.clone();
-    let address = relay_address.clone();
-    relay_save.connect_clicked(move |_| {
-        let Some(shell) = weak.upgrade() else { return };
-        let choice = match mode.selected() {
-            1 => IrohRelay::Rufin,
-            2 => IrohRelay::Custom {
-                url: address.text().trim().into(),
-            },
-            _ => IrohRelay::Off,
-        };
-        if let Err(error) = shell.products.settings.set_iroh_relay(choice) {
-            shell
-                .control_feedback
-                .show_feedback_toast(error.to_string());
+    relay_address.connect_apply(move |address| {
+        if let Some(shell) = weak.upgrade() {
+            let url = address.text().trim().into();
+            save(&shell, IrohRelay::Custom { url });
         }
     });
 
@@ -298,7 +317,7 @@ pub(super) fn page(
             if shown_relay.borrow().as_ref() != Some(&relay) {
                 let (mode, label) = match &relay {
                     IrohRelay::Off => (0, tr("Off")),
-                    IrohRelay::Rufin => (1, "Rufin".into()),
+                    IrohRelay::Public => (1, tr("Public relays")),
                     IrohRelay::Custom { .. } => (2, tr("Custom URL")),
                 };
                 relay_mode.set_selected(mode);
@@ -322,10 +341,21 @@ impl Integrations {
     }
 
     fn open(&self, row: &gtk::ListBoxRow) {
-        let Some(id) = self.item_id(row) else {
-            return;
-        };
-        self.details.set_visible_child_name(&id);
+        if let Some(id) = self.item_id(row) {
+            self.open_id(&id);
+        }
+    }
+
+    /// Opens the integration another surface asked for, such as the relay from Rooms.
+    fn open_requested(&self) {
+        if let Some(id) = self.shell.preferences.integration.take() {
+            self.open_id(&id);
+            self.show_selection();
+        }
+    }
+
+    fn open_id(&self, id: &str) {
+        self.details.set_visible_child_name(id);
         if self.narrow.get() == Some(true)
             && let Some(navigation) = self.navigation.upgrade()
         {
@@ -854,6 +884,10 @@ fn replace_if_changed(current: &mut bool, next: bool) -> bool {
     *current = next;
     true
 }
+
+const RELAY_PUBLIC_URL: &str = "https://docs.iroh.computer/iroh-services/relays/public";
+const RELAY_PRIVACY_URL: &str = "https://iroh.computer/legal";
+const RELAY_HOST_URL: &str = "https://docs.iroh.computer/iroh-services/relays/self-hosted";
 
 fn open_link(row: &adw::ActionRow, shell: &Rc<Shell>, url: &'static str) {
     let shell = Rc::downgrade(shell);

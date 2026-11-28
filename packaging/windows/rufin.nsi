@@ -439,6 +439,11 @@ FunctionEnd
         "NoModify" 1
     WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RUFIN_PROJECT_NAME}" \
         "NoRepair" 1
+    ; rufin:// links, a room's invite, open the app.
+    WriteRegStr HKCU "Software\Classes\rufin" "" "URL:${RUFIN_DISPLAY_NAME}"
+    WriteRegStr HKCU "Software\Classes\rufin" "URL Protocol" ""
+    WriteRegStr HKCU "Software\Classes\rufin\shell\open\command" "" \
+        '$\"${DIRECTORY}\bin\rufin.exe$\" $\"%1$\"'
 !macroend
 
 Function .onInit
@@ -568,6 +573,7 @@ restore_backups:
     StrCmp $RegistrationStarted 1 0 update_failure_report
     StrCmp $PreviousRegistration 1 restore_registration
     DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${RUFIN_PROJECT_NAME}"
+    DeleteRegKey HKCU "Software\Classes\rufin"
     Goto update_failure_report
 restore_registration:
     !insertmacro WriteRufinUninstallRegistration "$PreviousVersion" "$LegacyInstallDir"
@@ -807,6 +813,7 @@ uninstall_registration_removed:
     IfErrors uninstall_restore_registration
     RMDir "$INSTDIR"
     DeleteRegKey HKCU "Software\${RUFIN_PROJECT_NAME}"
+    DeleteRegKey HKCU "Software\Classes\rufin"
     ClearErrors
     Goto uninstall_done
 

@@ -20,6 +20,7 @@ mod library;
 pub mod persistence;
 mod privacy;
 mod reorder_row;
+pub mod rooms;
 mod search;
 pub mod source;
 mod storage;
@@ -60,6 +61,8 @@ fn show_discord_flatpak_help(row: &adw::SwitchRow) {
 
 pub struct PreferencesState {
     pub source_choice: RefCell<Option<sources::SourceId>>,
+    /// The integration whose page Integrations opens next, where another surface asked.
+    pub integration: RefCell<Option<String>>,
     pub connect_dialog: gtk::glib::WeakRef<adw::Dialog>,
     pub connect_feedback: RefCell<Option<Rc<crate::widgets::feedback::ControlFeedbackState>>>,
     pub secret_storage_row: gtk::glib::WeakRef<adw::ComboRow>,

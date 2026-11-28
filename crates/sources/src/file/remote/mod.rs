@@ -18,6 +18,7 @@ pub(crate) mod metadata;
 mod playlist;
 pub(crate) mod reader;
 pub(crate) mod scan;
+mod sealed;
 pub(crate) mod smb;
 #[cfg(test)]
 mod tests;

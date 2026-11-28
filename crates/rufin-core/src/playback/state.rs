@@ -118,6 +118,10 @@ pub enum Command {
     StreamInputsChanged,
     ResolveCurrentAgain(String),
     SetSleepTimer(SleepTimerRequest),
+    /// A room leads this player, with the modes it plays by, or lets it go. While it leads,
+    /// a song this player cannot play waits for the room to move on, the queue it mirrors
+    /// is not saved and the modes it shows are the room's.
+    Follow(Option<crate::room::Modes>),
 }
 
 impl Command {
@@ -412,6 +416,7 @@ pub(super) struct Player {
     buffering_percent: Option<u8>,
     last_error: Option<String>,
     consecutive_skips: usize,
+    following: Option<crate::room::Modes>,
     /// How often a radio stream joined again in a row without being heard for a while.
     live_rejoins: usize,
     /// A radio station announced another song, which scrobbling announces in turn.
@@ -479,6 +484,7 @@ impl Player {
             buffering_percent: None,
             last_error: None,
             consecutive_skips: 0,
+            following: None,
             live_rejoins: 0,
             announced_changed: false,
             stream_leads: HashMap::new(),
@@ -765,7 +771,11 @@ impl Player {
     }
     pub(super) fn take_queue_persistence(&mut self) -> Option<library::QueueUpdate> {
         let dirty = self.sequence.take_persistence();
-        if self.external.is_some() { None } else { dirty }
+        if self.external.is_some() || self.following.is_some() {
+            None
+        } else {
+            dirty
+        }
     }
     pub(super) fn accepts_queue(&self, id: u64) -> bool {
         self.pending_queue
@@ -1105,6 +1115,9 @@ impl Player {
             Command::StreamInputsChanged => Ok(self.stream_inputs_changed()),
             Command::ResolveCurrentAgain(media_uri) => Ok(self.resolve_current_again(&media_uri)),
             Command::SetSleepTimer(request) => Ok(self.set_sleep_timer(request, sample)),
+            Command::Follow(following) => Ok({
+                self.following = following;
+            }),
         }
     }
 
@@ -1215,14 +1228,18 @@ impl Player {
             .filter(|current| current.id == run)
         {
             let desired_playing = current.desired_playing;
-            let told = self.tells(&error, &current.row.track.media_uri, current.advanced);
+            // A room's song this library has no copy of: the player waits it out in silence.
+            let sits_out =
+                self.following.is_some() && current.row.track.media_uri.starts_with("rufin-room:");
+            let told =
+                !sits_out && self.tells(&error, &current.row.track.media_uri, current.advanced);
             self.dirty = true;
             self.finish_current(RunEndReason::Failed, sample);
             self.buffering_percent = None;
             if told {
                 self.report_error(error.message().to_string());
             }
-            if !self.skip_unplayable(error.kind(), desired_playing) {
+            if !self.skip_unplayable(error.kind(), desired_playing) && !sits_out {
                 self.last_error = Some(error.message().to_string());
             }
             return;
@@ -2799,6 +2816,7 @@ impl Player {
             MAX_CONSECUTIVE_SKIPS
         };
         if !(failure.skippable() || unreachable)
+            || self.following.is_some()
             || !self.settings.skip_unplayable_tracks
             || self.sequence.repeat_mode() == QueueRepeatMode::One
             || self.consecutive_skips >= limit
@@ -3481,8 +3499,11 @@ impl Player {
             },
             controls: ControlsView {
                 repeat_mode: sequence.repeat_mode(),
-                shuffle_enabled: sequence.shuffle_enabled(),
-                auto_dj_enabled: self.auto_dj_enabled(),
+                // A room's order is its shuffle, and its Auto DJ is the host's.
+                shuffle_enabled: (self.following)
+                    .map_or(sequence.shuffle_enabled(), |room| room.shuffle),
+                auto_dj_enabled: (self.following)
+                    .map_or(self.auto_dj_enabled(), |room| room.auto_dj),
                 volume: if self.output_muted() {
                     0.0
                 } else {

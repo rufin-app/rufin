@@ -59,6 +59,9 @@ pub struct PlayerUi {
     pub lyrics: LyricsState,
     playback: RefCell<Option<SelectedPlaybackState>>,
     queue: RefCell<QueueState>,
+    /// The room this player follows, and the queue cells that show it by their positions.
+    room: RefCell<Option<rufin_core::room::RoomView>>,
+    room_cells: RefCell<Vec<(gtk::glib::WeakRef<gtk::Box>, usize)>>,
     pub lyric_content: RefCell<SelectedLyricsState>,
     pub mini: Cell<MiniPlayer>,
     /// The tall mini player opened the fullscreen player, so leaving it closes it again.
@@ -84,6 +87,8 @@ impl PlayerUi {
             lyrics,
             playback: RefCell::new(None),
             queue: RefCell::new(QueueState::new()),
+            room: RefCell::new(None),
+            room_cells: RefCell::new(Vec::new()),
             lyric_content: RefCell::new(SelectedLyricsState::new()),
             mini: Cell::new(MiniPlayer::Off),
             fullscreen_for_mini: Cell::new(false),

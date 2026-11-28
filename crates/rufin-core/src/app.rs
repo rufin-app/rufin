@@ -264,6 +264,11 @@ where
     );
     source.install_connect(&connect);
     connect.start();
+    let room = crate::room::RoomOwner::new(
+        settings_handle.as_ref().clone(),
+        Arc::clone(&playback),
+        runtime.clone(),
+    );
 
     let changes = source.changes();
     source.start()?;
@@ -282,6 +287,7 @@ where
             .0,
             backup,
             connect,
+            room,
             library,
             runtime,
             downloads: source.downloads().clone(),

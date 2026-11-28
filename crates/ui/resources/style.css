@@ -722,6 +722,13 @@ headerbar.shared-topbar .topbar-search > entry.search {
 .topbar-search .search-enter { opacity: 0; }
 .topbar-search.has-query .search-enter { opacity: 0.7; }
 
+/* A theme may give its cards the colour of its popovers. On a popover a group of rows is
+   filled from the text colour instead, so it shows as one container in every theme. */
+popover list.boxed-list,
+popover .card {
+  background-color: color-mix(in srgb, currentColor 8%, transparent);
+}
+
 .search-popover > contents {
   background: color-mix(in srgb, var(--window-fg-color) 8%, var(--window-bg-color));
   color: var(--window-fg-color);
@@ -3824,3 +3831,33 @@ listview.log-list > row { padding: 0; }
 .log-row.log-quiet .log-message { opacity: 0.62; }
 .log-row .log-code,
 .log-row.log-raw .log-message { font-family: monospace; font-size: 0.8em; }
+
+/* A popover of the top bar is no title of it: the names of its entry rows stand where their
+   text does, in their own weight. */
+headerbar popover row.entry .title,
+headerbar popover row.entry .subtitle {
+  padding-left: 0;
+  padding-right: 0;
+  font-weight: inherit;
+}
+
+/* The room this player follows, above its queue: a quiet band. */
+.queue-room {
+  padding: 8px 6px 8px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+/* The Rooms button counts who listens: its icon keeps the edge its neighbours' icons have. */
+headerbar.shared-topbar menubutton.topbar-button.counted > button {
+  padding: 0 8px;
+}
+
+/* In a room's queue: how many members have a song, where not all do. */
+.room-have {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 0.82em;
+  font-weight: 700;
+}

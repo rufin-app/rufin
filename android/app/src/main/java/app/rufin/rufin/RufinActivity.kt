@@ -57,8 +57,21 @@ class RufinActivity : ComponentActivity() {
         connection.saveOverview(uri)
     }
 
+    /** A room's invite link opened the app: the Rooms sheet offers to join it. */
+    private fun offerRoom(intent: Intent?) {
+        val link = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.data
+            ?.takeIf { it.scheme == "rufin" || (it.scheme == "https" && it.host == "rufin.app") } ?: return
+        connection.room.offer(link.toString())
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        offerRoom(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) offerRoom(intent)
         val model = connection
         setContent {
             val measureFrames = BuildConfig.DEBUG || model.debugLogging

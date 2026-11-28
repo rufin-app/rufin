@@ -67,6 +67,14 @@ function showRefill(refilling) {
   }
 }
 
+// A radio station has nowhere to skip to, nothing to order and no library track to favorite; a
+// room's Auto DJ is its host's to turn on and off.
+function showModes() {
+  const live = !!state.playback?.current?.live;
+  for (const id of ["previous", "next", "mix", "shuffle", "repeat"]) $(id).disabled = live;
+  $("auto-dj").disabled = live || (!!state.room && !state.room.hosting);
+}
+
 function showPlayback(value) {
   if (
     seekPreview != null &&
@@ -133,10 +141,9 @@ function showPlayback(value) {
   if (!volumeEditing && !sendingVolume && !volumeRequest)
     $("volume").value = value?.volume ?? 1;
   updateVolumeIcon();
-  // A radio station has nowhere to skip to, nothing to order and no library track to favorite.
   const live = !!value?.current?.live;
   $("app").toggleAttribute("data-live", live);
-  for (const id of ["auto-dj", "shuffle", "previous", "next", "repeat", "mix"]) $(id).disabled = live;
+  showModes();
   $("current-favorite").disabled = !track || live;
   $("seek").max = Math.max(1, value?.duration_ms || 0);
   $("seek").disabled = !track || !value.can_seek;
@@ -770,4 +777,4 @@ function initSleepTimer() {
   showSleepPresets();
 }
 
-export { coverRequest, showLyrics, showPlayback, init };
+export { coverRequest, showLyrics, showModes, showPlayback, init };

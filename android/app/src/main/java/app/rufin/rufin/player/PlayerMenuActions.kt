@@ -19,6 +19,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import app.rufin.rufin.shared.library.QueueRepeatMode
@@ -61,8 +63,9 @@ internal fun PlayerMenuActions(player: PlayerConnection, onMix: () -> Unit, onSl
     val (timer, text) = rememberSleepTimer(player)
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
         Row(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-            // A station plays alone: Mix and Auto DJ have no queue to fill.
-            PlayerMenuTile("rufin-auto-dj-symbolic", translate("Auto DJ"), Modifier.weight(1f), active = autoDj, enabled = !player.live,
+            // A station plays alone: Mix and Auto DJ have no queue to fill. A room's Auto DJ is its host's.
+            PlayerMenuTile("rufin-auto-dj-symbolic", translate("Auto DJ"), Modifier.weight(1f), active = autoDj,
+                enabled = !player.live && player.model.room.room?.hosting != false,
                 onClick = player::autoDj, onLongClick = onAutoDjSettings, longClickLabel = translate("Settings"))
             PlayerMenuTile("rufin-mix-symbolic", translate("Mix"), Modifier.weight(1f), enabled = !player.live, onClick = onMix)
             PlayerMenuTile("rufin-sleep-timer-symbolic", text?.short?.ifEmpty { null } ?: translate("Sleep timer"),
@@ -81,21 +84,29 @@ internal fun QueueModes(player: PlayerConnection, modifier: Modifier = Modifier,
     val (timer, text) = rememberSleepTimer(player)
     var sleepTimer by remember { mutableStateOf(false) }
     val repeat = controls?.repeatMode ?: QueueRepeatMode.OFF
+    val rooms = player.model.room
+    // A station plays alone: it has no order to set.
+    val ordered = !player.live
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         QueueModeSide(transport, start = true) {
             QueueMode("rufin-shuffle-symbolic", translate("Shuffle"), null, Modifier.size(44.dp), active = controls?.shuffleEnabled == true,
-                enabled = !player.live, onClick = player::shuffle)
+                enabled = ordered, onClick = player::shuffle)
         }
         QueueMode("rufin-auto-dj-symbolic", translate("Auto DJ"), translate("Auto DJ"), Modifier.weight(1f).height(44.dp),
-            active = controls?.autoDjEnabled == true, enabled = !player.live, onClick = player::autoDj,
+            // A room's Auto DJ is its host's to turn on and off.
+            active = controls?.autoDjEnabled == true, enabled = ordered && rooms.room?.hosting != false, onClick = player::autoDj,
             onLongClick = onAutoDjSettings, longClickLabel = translate("Settings"))
         Spacer(Modifier.width(6.dp))
         QueueMode("rufin-sleep-timer-symbolic", translate("Sleep timer"), text?.short?.ifEmpty { null } ?: translate("Sleep timer"),
             Modifier.weight(1f).height(44.dp), active = timer != null, onClick = { sleepTimer = true })
+        Spacer(Modifier.width(6.dp))
+        // Room by name while the bar has the width; its icon alone once Shuffle and Repeat join the bar.
+        QueueMode("rufin-people-symbolic", translate("Room"), translate("Room"), Modifier.height(44.dp), active = rooms.room != null,
+            fold = transport, onClick = { rooms.sheet = true })
         QueueModeSide(transport, start = false) {
             QueueMode(if (repeat == QueueRepeatMode.ONE) "rufin-repeat-one-symbolic" else "rufin-repeat-symbolic",
                 translate(when (repeat) { QueueRepeatMode.ONE -> "Repeat one"; QueueRepeatMode.ALL -> "Repeat all"; else -> "Repeat off" }),
-                null, Modifier.size(44.dp), active = repeat != QueueRepeatMode.OFF, enabled = !player.live, onClick = player::repeat)
+                null, Modifier.size(44.dp), active = repeat != QueueRepeatMode.OFF, enabled = ordered, onClick = player::repeat)
         }
     }
     if (sleepTimer) SleepTimerSheet(player) { sleepTimer = false }
@@ -112,21 +123,33 @@ private fun QueueModeSide(shown: () -> Float, start: Boolean, content: @Composab
 }
 
 /** A button of the queue's bar: filled like the player's tools, in the accent while its mode is on. [text],
- *  where it has one, names it beside its icon. */
+ *  where it has one, names it beside its icon. With [fold] the button is as wide as its name at 0 and a
+ *  square of its icon at 1. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun QueueMode(icon: String, label: String, text: String?, modifier: Modifier, active: Boolean, enabled: Boolean = true,
-    onClick: () -> Unit, onLongClick: (() -> Unit)? = null, longClickLabel: String? = null) {
+    fold: (() -> Float)? = null, onClick: () -> Unit, onLongClick: (() -> Unit)? = null, longClickLabel: String? = null) {
     val time = tween<Color>(if (LocalReduceMotion.current) 0 else 180)
     val container by animateColorAsState(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh, time, label = "queueMode")
     val content by animateColorAsState(if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, time, label = "queueModeContent")
-    Surface(modifier.alpha(if (enabled) 1f else .38f).focusRing(RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp))
+    val width = if (fold == null) Modifier else Modifier.layout { measurable, constraints ->
+        val named = measurable.maxIntrinsicWidth(constraints.maxHeight)
+        val square = 44.dp.roundToPx()
+        val wide = (named + (square - named) * fold()).roundToInt().coerceIn(square, maxOf(square, constraints.maxWidth))
+        val placeable = measurable.measure(constraints.copy(minWidth = wide, maxWidth = wide))
+        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+    Surface(modifier.then(width).alpha(if (enabled) 1f else .38f).focusRing(RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp))
         .combinedClickable(enabled = enabled, onClick = onClick, onLongClick = onLongClick, onLongClickLabel = longClickLabel)
-        .semantics { selected = active }, color = container, contentColor = content) {
-        Row(Modifier.padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+        // A folded button shows no name: it keeps one for a screen reader.
+        .semantics { selected = active; if (fold != null) contentDescription = label }, color = container, contentColor = content) {
+        // A folding button keeps its icon where the square holds it: 13 dp in.
+        Row(Modifier.padding(horizontal = if (fold == null) 6.dp else 13.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (fold == null) Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally) else Arrangement.spacedBy(8.dp)) {
             RufinIcon(icon, label.takeIf { text == null }, Modifier.size(18.dp), tint = content, glyph = true)
-            if (text != null) Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge,
+            if (text != null) Text(text, Modifier.graphicsLayer { alpha = 1f - (fold?.invoke() ?: 0f) }
+                .then(if (fold == null) Modifier else Modifier.clearAndSetSemantics { }), maxLines = 1, softWrap = false,
+                overflow = if (fold == null) TextOverflow.Ellipsis else TextOverflow.Clip, style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold)
         }
     }

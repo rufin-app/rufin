@@ -191,6 +191,7 @@ pub async fn build(
     };
     let preferences = PreferencesState {
         source_choice: RefCell::new(None),
+        integration: RefCell::new(None),
         connect_dialog: gtk::glib::WeakRef::new(),
         connect_feedback: RefCell::new(None),
         secret_storage_row: gtk::glib::WeakRef::new(),
@@ -421,6 +422,16 @@ pub async fn build(
             let Some(shell) = weak.upgrade() else {
                 break;
             };
+            // A room's invite link asks whether to join; everything else is music to play.
+            let (invites, files): (Vec<_>, Vec<_>) = files
+                .into_iter()
+                .partition(|file| file.uri_scheme().as_deref() == Some("rufin"));
+            if let Some(invite) = invites.last() {
+                shell.chrome.topbar.offer_room(&invite.uri());
+            }
+            if files.is_empty() {
+                continue;
+            }
             let local = shell.products.settings.local_configuration();
             if let Err(error) = rufin_core::open::files(
                 std::sync::Arc::clone(&shell.products.playback),

@@ -15,7 +15,7 @@ mod download;
 pub use download::{ResolvedDownload, downloaded_codec};
 pub use library::AudioQuality;
 mod peer;
-pub use peer::{PeerAudio, PeerLink};
+pub use peer::{PeerAudio, PeerLink, PeerSource};
 mod config;
 mod detail_links;
 pub mod discovery;

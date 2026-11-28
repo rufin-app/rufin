@@ -63,6 +63,9 @@
             {% call m::icon("rufin-phonelink-symbolic") %}{% endcall %}
           </button>
           <button id="connect-continue" class="text-button" hidden></button>
+          <button id="rooms-button" popovertarget="rooms-popover" class="icon-button" type="button" title="{{ localization::tr("Rooms") }}" aria-label="{{ localization::tr("Rooms") }}" aria-haspopup="dialog">
+            {% call m::icon("rufin-people-symbolic") %}{% endcall %}<span id="rooms-count" hidden></span>
+          </button>
         </div>
         <div id="topbar-search" role="search">
           {% call m::icon("rufin-search-symbolic") %}{% endcall %}
@@ -92,6 +95,33 @@
           </button>
         </div>
       </header>
+      <div id="rooms-popover" popover="auto" aria-label="{{ localization::tr("Rooms") }}">
+        <div id="rooms-start">
+          <label class="rooms-field"><span>{{ localization::tr("Your name") }}</span><input id="rooms-name" type="text" autocomplete="off" maxlength="40" /></label>
+          <button id="rooms-create" class="primary" type="button">{{ localization::tr("Create room") }}</button>
+          <p class="rooms-caption">{{ localization::tr("Shares your queue. Your music keeps playing.") }}</p>
+          <p class="rooms-caption"><span id="rooms-reach"></span> <button id="rooms-reach-change" class="text-button" type="button">{{ localization::tr("Change") }}</button></p>
+          <h3>{{ localization::tr("Join a room") }}</h3>
+          <div class="rooms-join">
+            <input id="rooms-invite" type="text" autocomplete="off" placeholder="{{ localization::tr("Invite link") }}" aria-label="{{ localization::tr("Invite link") }}" />
+            <button id="rooms-join" type="button" disabled>{{ localization::tr("Join") }}</button>
+          </div>
+          <p id="rooms-invite-note" class="rooms-caption" hidden></p>
+          <p id="rooms-failure" hidden></p>
+        </div>
+        <div id="rooms-room" hidden>
+          <strong id="rooms-room-name"></strong>
+          <span id="rooms-room-count" class="rooms-caption"></span>
+          <button id="rooms-copy" type="button">{% call m::icon("rufin-edit-copy-symbolic") %}{% endcall %}{{ localization::tr("Copy invite") }}</button>
+          <ul id="rooms-members"></ul>
+          <label class="rooms-switch">
+            <span><span>{{ localization::tr("Share songs") }}</span><small>{{ localization::tr("Members who have a song play it for listeners who don't") }}</small></span>
+            <input id="rooms-share" type="checkbox" role="switch" />
+          </label>
+          <p class="rooms-caption"><span id="rooms-room-reach"></span> <button id="rooms-use-relay" class="text-button" type="button" hidden>{{ localization::tr("Use for my rooms") }}</button></p>
+          <button id="rooms-leave" class="text-button" type="button">{% call m::icon("rufin-application-exit-symbolic") %}{% endcall %}<span></span></button>
+        </div>
+      </div>
       <div id="main-menu" popover="auto" role="menu" aria-label="{{ localization::tr("Menu") }}">
         <button class="menu-item" role="menuitem" type="button" id="open-preferences">{% call m::icon("rufin-preferences-system-symbolic") %}{% endcall %}{{ localization::tr("Preferences") }}</button>
         <button class="menu-item" role="menuitem" id="refresh" form="transport-form" formaction="/api/sources/refresh">{% call m::icon("rufin-view-refresh-symbolic") %}{% endcall %}{{ localization::tr("Resync Library") }}</button>
@@ -197,6 +227,11 @@
       </main>
 
       <aside id="right-panel" aria-label="{{ localization::tr("Queue") }}">
+        <div id="queue-room" hidden>
+          {% call m::icon("rufin-people-symbolic") %}{% endcall %}
+          <span class="queue-room-text"><strong id="queue-room-name"></strong><span id="queue-room-songs"></span></span>
+          <button id="queue-room-undo" class="icon-button" type="button" title="{{ localization::tr("Undo") }}" aria-label="{{ localization::tr("Undo") }}" hidden>{% call m::icon("rufin-edit-undo-symbolic") %}{% endcall %}</button>
+        </div>
         <div class="panel-header">
           <h2>{% call m::icon("rufin-music-queue-symbolic") %}{% endcall %}{{ localization::tr("Queue") }} <span class="queue-total"><span id="queue-count" class="count">{{ page.queue_total }}</span><span id="queue-loading" class="loading" role="status" aria-label="{{ localization::tr("Loading...") }}" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" pathLength="100"/><circle cx="8" cy="8" pathLength="100"/></svg></span></span></h2>
           <label class="queue-limit" for="queue-limit"

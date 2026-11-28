@@ -141,7 +141,11 @@ class RufinService : MediaSessionService() {
 
     private val noisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY && playback.value?.controls?.playbackOutput is PlaybackOutput.Local) pause()
+            if (intent.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY && playback.value?.controls?.playbackOutput is PlaybackOutput.Local) {
+                // Headphones came out here: a room this device listens in plays on.
+                audioFocus.abandon()
+                transport().pauseHere()
+            }
         }
     }
 
@@ -164,7 +168,7 @@ class RufinService : MediaSessionService() {
             .setCallback(sessionCallback).setMediaButtonPreferences(mediaButtons(null)).build()
         addSession(session)
         audioFocus = AndroidAudioFocus(this, ::playingLocally,
-            pause = { playbackOwner?.pause() },
+            pause = { playbackOwner?.pauseHere() },
             duck = AndroidAudioTrack::duck,
             resume = {
                 try { play() } catch (error: Exception) { nativePlayer.failed(error) }
@@ -346,7 +350,7 @@ class RufinService : MediaSessionService() {
                         try {
                             preparePlayback()
                         } catch (error: Exception) {
-                            transport().pause()
+                            transport().pauseHere()
                             nativePlayer.failed(error)
                         }
                     }

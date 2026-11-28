@@ -21,6 +21,7 @@ pub mod playback;
 pub mod presence;
 pub mod radio;
 pub mod release_update;
+pub mod room;
 pub mod route;
 pub mod runtime;
 pub mod scrobbling;
