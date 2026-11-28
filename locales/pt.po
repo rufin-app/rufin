@@ -237,6 +237,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"Through public relays, which help devices find each other. They see who "
+"connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Track evens out every song, while Album preserves the intended differences "
 "within each album"
 msgstr ""
@@ -297,6 +302,9 @@ msgid "5 Latest Albums"
 msgstr ""
 
 msgid "6 hours"
+msgstr ""
+
+msgid "A device on another network needs a relay and an invitation"
 msgstr ""
 
 msgid "A new update is available, restart to apply"
@@ -519,6 +527,12 @@ msgid "Anonymous"
 msgstr ""
 
 msgid "Any"
+msgstr ""
+
+msgid "Anywhere"
+msgstr ""
+
+msgid "Anywhere, through your own relay"
 msgstr ""
 
 msgid "App icon"
@@ -1106,6 +1120,9 @@ msgid "Contents"
 msgstr ""
 
 msgid "Continue from {device}"
+msgstr ""
+
+msgid "Continue where another device left off, or control what it plays"
 msgstr ""
 
 msgid "Continue"
@@ -2244,6 +2261,9 @@ msgstr ""
 msgid "Keep running in the background"
 msgstr ""
 
+msgid "Keeps your devices in sync"
+msgstr ""
+
 msgid "Keyboard Shortcuts"
 msgstr ""
 
@@ -2663,6 +2683,9 @@ msgstr ""
 msgid "Move up"
 msgstr ""
 
+msgid "Moves playback between them"
+msgstr ""
+
 msgid "Multi-selection"
 msgstr ""
 
@@ -2775,6 +2798,9 @@ msgid "Never played"
 msgstr ""
 
 msgid "New Playlist"
+msgstr ""
+
+msgid "New Rufin releases from GitHub"
 msgstr ""
 
 msgid "New Smart Playlist"
@@ -3327,6 +3353,9 @@ msgid "Playlists"
 msgstr ""
 
 msgid "Plays from"
+msgstr ""
+
+msgid "Plays this device's music on the others"
 msgstr ""
 
 msgid "Plays"
@@ -4159,7 +4188,7 @@ msgstr ""
 msgid "Shared secret"
 msgstr ""
 
-msgid "Shares your queue. Your music keeps playing."
+msgid "Shares your queue"
 msgstr ""
 
 msgid "Show Rufin in headline"
@@ -4408,6 +4437,9 @@ msgstr ""
 msgid "Sources"
 msgstr ""
 
+msgid "Sources, sign-ins, playlists, favorites, history and preferences"
+msgstr ""
+
 msgid "Spacing"
 msgstr ""
 
@@ -4604,6 +4636,9 @@ msgid "The room is not playing this song"
 msgstr ""
 
 msgid "The room is unreachable"
+msgstr ""
+
+msgid "The same Wi-Fi or wired network"
 msgstr ""
 
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
@@ -5023,7 +5058,7 @@ msgstr ""
 msgid "What Auto DJ and radio pick"
 msgstr ""
 
-msgid "While your library loads"
+msgid "Where are your devices?"
 msgstr ""
 
 msgid "Wide"
@@ -5081,6 +5116,9 @@ msgid "Your library is ready"
 msgstr ""
 
 msgid "Your music belongs here"
+msgstr ""
+
+msgid "Your music keeps playing"
 msgstr ""
 
 msgid "Your name"

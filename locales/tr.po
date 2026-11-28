@@ -315,6 +315,11 @@ msgstr ""
 "değiştirdiğinizde bu puanları güncelleyecektir."
 
 msgid ""
+"Through public relays, which help devices find each other. They see who "
+"connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Track evens out every song, while Album preserves the intended differences "
 "within each album"
 msgstr ""
@@ -382,6 +387,9 @@ msgstr "En Son 5 Albüm"
 
 msgid "6 hours"
 msgstr "6 saat"
+
+msgid "A device on another network needs a relay and an invitation"
+msgstr ""
 
 msgid "A new update is available, restart to apply"
 msgstr "Yeni bir güncelleme mevcut, uygulamak için yeniden başlatın"
@@ -608,6 +616,12 @@ msgstr "Anonim"
 
 msgid "Any"
 msgstr "Herhangi"
+
+msgid "Anywhere"
+msgstr ""
+
+msgid "Anywhere, through your own relay"
+msgstr ""
 
 msgid "App icon"
 msgstr "Uygulama simgesi"
@@ -1202,6 +1216,9 @@ msgstr "İçerik"
 
 msgid "Continue from {device}"
 msgstr "{device} cihazından devam et"
+
+msgid "Continue where another device left off, or control what it plays"
+msgstr ""
 
 msgid "Continue"
 msgstr "Devam"
@@ -2366,6 +2383,9 @@ msgstr ""
 msgid "Keep running in the background"
 msgstr "Arka planda çalışmaya devam et"
 
+msgid "Keeps your devices in sync"
+msgstr ""
+
 msgid "Keyboard Shortcuts"
 msgstr "Klavye Kısayolları"
 
@@ -2795,6 +2815,9 @@ msgstr "Aşağı taşı"
 msgid "Move up"
 msgstr "Yukarı taşı"
 
+msgid "Moves playback between them"
+msgstr ""
+
 msgid "Multi-selection"
 msgstr "Çoklu seçim"
 
@@ -2910,6 +2933,9 @@ msgstr "Hiç çalınmadı"
 
 msgid "New Playlist"
 msgstr "Yeni Çalma Listesi"
+
+msgid "New Rufin releases from GitHub"
+msgstr ""
 
 msgid "New Smart Playlist"
 msgstr "Yeni Akıllı Çalma Listesi"
@@ -3478,6 +3504,9 @@ msgstr "Çalma listeleri"
 
 msgid "Plays from"
 msgstr "Şuradan çalmalar"
+
+msgid "Plays this device's music on the others"
+msgstr ""
 
 msgid "Plays"
 msgstr "Çalmalar"
@@ -4331,8 +4360,10 @@ msgstr "Paylaşılan dosya boyutu"
 msgid "Shared secret"
 msgstr "Paylaşılan gizli anahtar"
 
-msgid "Shares your queue. Your music keeps playing."
-msgstr ""
+#, fuzzy
+#| msgid "Search queue"
+msgid "Shares your queue"
+msgstr "Kuyrukta ara"
 
 msgid "Show Rufin in headline"
 msgstr "Başlıkta Rufin'i göster"
@@ -4589,6 +4620,9 @@ msgstr "Kaynak"
 msgid "Sources"
 msgstr "Kaynaklar"
 
+msgid "Sources, sign-ins, playlists, favorites, history and preferences"
+msgstr ""
+
 #, fuzzy
 #| msgid "Grid spacing"
 msgid "Spacing"
@@ -4798,6 +4832,9 @@ msgstr ""
 #| msgid "Server is unreachable"
 msgid "The room is unreachable"
 msgstr "Sunucuya ulaşılamıyor"
+
+msgid "The same Wi-Fi or wired network"
+msgstr ""
 
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr ""
@@ -5249,8 +5286,10 @@ msgstr "Rufin'e Hoş Geldiniz"
 msgid "What Auto DJ and radio pick"
 msgstr "Auto DJ ve radyo seçimi nedir"
 
-msgid "While your library loads"
-msgstr "Kitaplığınız yüklenirken"
+#, fuzzy
+#| msgid "Nearby devices"
+msgid "Where are your devices?"
+msgstr "Yakındaki cihazlar"
 
 msgid "Wide"
 msgstr "Geniş"
@@ -5315,6 +5354,11 @@ msgid "Your library is ready"
 msgstr "Kitaplığınız hazır"
 
 msgid "Your music belongs here"
+msgstr "Müziğiniz buraya ait"
+
+#, fuzzy
+#| msgid "Your music belongs here"
+msgid "Your music keeps playing"
 msgstr "Müziğiniz buraya ait"
 
 #, fuzzy
@@ -5622,6 +5666,9 @@ msgstr "{app_name} otomatik güncelleme seçeneği geçersiz."
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Rufin Kurulumuna Hoş Geldiniz"
+
+#~ msgid "While your library loads"
+#~ msgstr "Kitaplığınız yüklenirken"
 
 #~ msgid "Troubleshooting"
 #~ msgstr "Sorun giderme"

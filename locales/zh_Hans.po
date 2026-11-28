@@ -248,6 +248,15 @@ msgid ""
 "time you change a rating."
 msgstr "将现有评分写入文件，后续更改评分也会修改文件。"
 
+#, fuzzy
+#| msgid ""
+#| "Run by the Iroh project. They see who connects to whom, never what is "
+#| "sent."
+msgid ""
+"Through public relays, which help devices find each other. They see who "
+"connects to whom, never what is sent."
+msgstr "由 Iroh 项目运营。它们仅看得到连接方，而非传输内容。"
+
 msgid ""
 "Track evens out every song, while Album preserves the intended differences "
 "within each album"
@@ -310,6 +319,9 @@ msgstr "最新 5 张专辑"
 
 msgid "6 hours"
 msgstr "6 小时"
+
+msgid "A device on another network needs a relay and an invitation"
+msgstr ""
 
 msgid "A new update is available, restart to apply"
 msgstr "有新的更新可用，重启以应用"
@@ -532,6 +544,12 @@ msgstr "匿名"
 
 msgid "Any"
 msgstr "任何"
+
+msgid "Anywhere"
+msgstr ""
+
+msgid "Anywhere, through your own relay"
+msgstr ""
 
 msgid "App icon"
 msgstr "应用图标"
@@ -1118,6 +1136,9 @@ msgstr "内容"
 
 msgid "Continue from {device}"
 msgstr "从 {device} 继续播放"
+
+msgid "Continue where another device left off, or control what it plays"
+msgstr ""
 
 msgid "Continue"
 msgstr "继续"
@@ -2252,6 +2273,9 @@ msgstr "供离线收听。更改文件夹仅对后续下载生效"
 msgid "Keep running in the background"
 msgstr "允许后台运行"
 
+msgid "Keeps your devices in sync"
+msgstr ""
+
 msgid "Keyboard Shortcuts"
 msgstr "键盘快捷键"
 
@@ -2670,6 +2694,9 @@ msgstr "下移"
 msgid "Move up"
 msgstr "上移"
 
+msgid "Moves playback between them"
+msgstr ""
+
 msgid "Multi-selection"
 msgstr "多选"
 
@@ -2783,6 +2810,9 @@ msgstr "从未播放"
 
 msgid "New Playlist"
 msgstr "新建播放列表"
+
+msgid "New Rufin releases from GitHub"
+msgstr ""
 
 msgid "New Smart Playlist"
 msgstr "新建智能播放列表"
@@ -3335,6 +3365,9 @@ msgstr "播放列表"
 
 msgid "Plays from"
 msgstr "统计周期"
+
+msgid "Plays this device's music on the others"
+msgstr ""
 
 msgid "Plays"
 msgstr "播放次数"
@@ -4164,7 +4197,7 @@ msgstr ""
 msgid "Shared secret"
 msgstr "共享密钥"
 
-msgid "Shares your queue. Your music keeps playing."
+msgid "Shares your queue"
 msgstr ""
 
 msgid "Show Rufin in headline"
@@ -4413,6 +4446,9 @@ msgstr "数据源"
 msgid "Sources"
 msgstr "数据源"
 
+msgid "Sources, sign-ins, playlists, favorites, history and preferences"
+msgstr ""
+
 msgid "Spacing"
 msgstr "间距"
 
@@ -4610,6 +4646,9 @@ msgstr "此房间未播放此曲目"
 
 msgid "The room is unreachable"
 msgstr "无法连接房间"
+
+msgid "The same Wi-Fi or wired network"
+msgstr ""
 
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr "长按打开的菜单。点击条目可显示或隐藏。"
@@ -5032,8 +5071,10 @@ msgstr "欢迎使用 Rufin"
 msgid "What Auto DJ and radio pick"
 msgstr "自动 DJ 与电台选曲"
 
-msgid "While your library loads"
-msgstr "正在加载媒体库"
+#, fuzzy
+#| msgid "Nearby devices"
+msgid "Where are your devices?"
+msgstr "附近设备"
 
 msgid "Wide"
 msgstr "较宽"
@@ -5090,6 +5131,9 @@ msgid "Your library is ready"
 msgstr "你的媒体库已就绪"
 
 msgid "Your music belongs here"
+msgstr ""
+
+msgid "Your music keeps playing"
 msgstr ""
 
 #, fuzzy
@@ -5373,6 +5417,9 @@ msgstr ""
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "欢迎使用 Rufin 安装程序"
+
+#~ msgid "While your library loads"
+#~ msgstr "正在加载媒体库"
 
 #~ msgid "Troubleshooting"
 #~ msgstr "故障排除"

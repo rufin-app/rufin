@@ -315,6 +315,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"Through public relays, which help devices find each other. They see who "
+"connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Track evens out every song, while Album preserves the intended differences "
 "within each album"
 msgstr ""
@@ -383,6 +388,9 @@ msgstr "5 Album Terbaru"
 
 msgid "6 hours"
 msgstr "6 jam"
+
+msgid "A device on another network needs a relay and an invitation"
+msgstr ""
 
 msgid "A new update is available, restart to apply"
 msgstr "Pembaruan tersedia, mulai ulang untuk menerapkan"
@@ -630,6 +638,12 @@ msgstr "Anonim"
 
 msgid "Any"
 msgstr "Semua"
+
+msgid "Anywhere"
+msgstr ""
+
+msgid "Anywhere, through your own relay"
+msgstr ""
 
 #, fuzzy
 #| msgid "App settings"
@@ -1245,6 +1259,9 @@ msgstr "Isi"
 
 msgid "Continue from {device}"
 msgstr "Lanjutkan dari {device}"
+
+msgid "Continue where another device left off, or control what it plays"
+msgstr ""
 
 msgid "Continue"
 msgstr "Lanjutkan"
@@ -2491,6 +2508,9 @@ msgstr ""
 msgid "Keep running in the background"
 msgstr "Biarkan Rufin berjalan setelah jendela ditutup"
 
+msgid "Keeps your devices in sync"
+msgstr ""
+
 msgid "Keyboard Shortcuts"
 msgstr "Pintasan Keyboard"
 
@@ -2947,6 +2967,9 @@ msgstr "Pindahkan ke bawah"
 msgid "Move up"
 msgstr "Pindahkan ke atas"
 
+msgid "Moves playback between them"
+msgstr ""
+
 msgid "Multi-selection"
 msgstr "Pilihan ganda"
 
@@ -3071,6 +3094,9 @@ msgstr "Pernah diputar"
 
 msgid "New Playlist"
 msgstr "Playlist Baru"
+
+msgid "New Rufin releases from GitHub"
+msgstr ""
 
 msgid "New Smart Playlist"
 msgstr "Playlist Pintar Baru"
@@ -3643,6 +3669,9 @@ msgstr "Playlist"
 
 msgid "Plays from"
 msgstr "Putar dari"
+
+msgid "Plays this device's music on the others"
+msgstr ""
 
 msgid "Plays"
 msgstr "Putar"
@@ -4532,8 +4561,10 @@ msgstr ""
 msgid "Shared secret"
 msgstr ""
 
-msgid "Shares your queue. Your music keeps playing."
-msgstr ""
+#, fuzzy
+#| msgid "Search queue"
+msgid "Shares your queue"
+msgstr "Cari antrean"
 
 msgid "Show Rufin in headline"
 msgstr ""
@@ -4793,6 +4824,9 @@ msgstr ""
 msgid "Sources"
 msgstr ""
 
+msgid "Sources, sign-ins, playlists, favorites, history and preferences"
+msgstr ""
+
 #, fuzzy
 #| msgid "Grid spacing"
 msgid "Spacing"
@@ -5004,6 +5038,9 @@ msgstr ""
 #| msgid "Server is unreachable"
 msgid "The room is unreachable"
 msgstr "Server tidak dapat dijangkau"
+
+msgid "The same Wi-Fi or wired network"
+msgstr ""
 
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr ""
@@ -5436,8 +5473,10 @@ msgstr ""
 msgid "What Auto DJ and radio pick"
 msgstr ""
 
-msgid "While your library loads"
-msgstr "Memuat pustaka anda"
+#, fuzzy
+#| msgid "Nearby devices"
+msgid "Where are your devices?"
+msgstr "Perangkat di sekitar"
 
 msgid "Wide"
 msgstr ""
@@ -5496,6 +5535,9 @@ msgid "Your library is ready"
 msgstr "Pustaka anda siap"
 
 msgid "Your music belongs here"
+msgstr ""
+
+msgid "Your music keeps playing"
 msgstr ""
 
 #, fuzzy
@@ -5808,6 +5850,9 @@ msgstr ""
 msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr ""
+
+#~ msgid "While your library loads"
+#~ msgstr "Memuat pustaka anda"
 
 #~ msgid "Save action saves the lyrics directly to your source"
 #~ msgstr "Tombol Simpan langsung menyimpan lirik ke sumber Anda"

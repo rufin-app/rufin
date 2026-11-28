@@ -250,6 +250,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"Through public relays, which help devices find each other. They see who "
+"connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Track evens out every song, while Album preserves the intended differences "
 "within each album"
 msgstr ""
@@ -318,6 +323,9 @@ msgid "5 Latest Albums"
 msgstr "5 nejnovějších alb"
 
 msgid "6 hours"
+msgstr ""
+
+msgid "A device on another network needs a relay and an invitation"
 msgstr ""
 
 msgid "A new update is available, restart to apply"
@@ -604,6 +612,14 @@ msgid "Anonymous"
 msgstr ""
 
 msgid "Any"
+msgstr ""
+
+#, fuzzy
+#| msgid "here"
+msgid "Anywhere"
+msgstr "zde"
+
+msgid "Anywhere, through your own relay"
 msgstr ""
 
 #, fuzzy
@@ -1371,6 +1387,9 @@ msgstr "Kontextové menu"
 #| msgid "Connecting to {device}..."
 msgid "Continue from {device}"
 msgstr "Připojování k {device}..."
+
+msgid "Continue where another device left off, or control what it plays"
+msgstr ""
 
 msgid "Continue"
 msgstr "Pokračovat"
@@ -2787,6 +2806,9 @@ msgstr ""
 msgid "Keep running in the background"
 msgstr "Po zavření okna ponechat Rufin spuštěný"
 
+msgid "Keeps your devices in sync"
+msgstr ""
+
 msgid "Keyboard Shortcuts"
 msgstr "Klávesové zkratky"
 
@@ -3291,6 +3313,9 @@ msgstr "Posunout dolů"
 msgid "Move up"
 msgstr "Posunout nahoru"
 
+msgid "Moves playback between them"
+msgstr ""
+
 #, fuzzy
 #| msgid "Selection"
 msgid "Multi-selection"
@@ -3430,6 +3455,9 @@ msgstr "Nikdy nepřehráno"
 
 msgid "New Playlist"
 msgstr "Nový playlist"
+
+msgid "New Rufin releases from GitHub"
+msgstr ""
 
 msgid "New Smart Playlist"
 msgstr "Nový chytrý playlist"
@@ -4120,6 +4148,9 @@ msgstr "Playlisty"
 #| msgid "Play random"
 msgid "Plays from"
 msgstr "Přehrát náhodně"
+
+msgid "Plays this device's music on the others"
+msgstr ""
 
 msgid "Plays"
 msgstr "Přehrává"
@@ -5160,8 +5191,10 @@ msgstr "Sdílený tajný klíč"
 msgid "Shared secret"
 msgstr "Sdílený tajný klíč"
 
-msgid "Shares your queue. Your music keeps playing."
-msgstr ""
+#, fuzzy
+#| msgid "Search queue"
+msgid "Shares your queue"
+msgstr "Fronta vyhledávání"
 
 #, fuzzy
 #| msgid "Show Rufin"
@@ -5464,6 +5497,9 @@ msgstr "Zdroje"
 msgid "Sources"
 msgstr "Zdroje"
 
+msgid "Sources, sign-ins, playlists, favorites, history and preferences"
+msgstr ""
+
 msgid "Spacing"
 msgstr ""
 
@@ -5711,6 +5747,9 @@ msgstr ""
 #| msgid "Server is unreachable"
 msgid "The room is unreachable"
 msgstr "Server je nedostupný"
+
+msgid "The same Wi-Fi or wired network"
+msgstr ""
 
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr ""
@@ -6223,8 +6262,10 @@ msgstr "Spojení"
 msgid "What Auto DJ and radio pick"
 msgstr ""
 
-msgid "While your library loads"
-msgstr ""
+#, fuzzy
+#| msgid "Next audio device"
+msgid "Where are your devices?"
+msgstr "Další zvukové zařízení"
 
 msgid "Wide"
 msgstr ""
@@ -6287,6 +6328,9 @@ msgid "Your library is ready"
 msgstr ""
 
 msgid "Your music belongs here"
+msgstr ""
+
+msgid "Your music keeps playing"
 msgstr ""
 
 #, fuzzy
@@ -6747,9 +6791,6 @@ msgstr ""
 
 #~ msgid "Source to use for cover images and song/artist links"
 #~ msgstr "Zdroj pro získání obálky a odkazů na skladbu/interpreta"
-
-#~ msgid "here"
-#~ msgstr "zde"
 
 #, fuzzy
 #~| msgid "Selection"

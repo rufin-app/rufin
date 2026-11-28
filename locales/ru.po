@@ -312,6 +312,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"Through public relays, which help devices find each other. They see who "
+"connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Track evens out every song, while Album preserves the intended differences "
 "within each album"
 msgstr ""
@@ -379,6 +384,9 @@ msgstr "5 последних альбомов"
 
 msgid "6 hours"
 msgstr "6 часов"
+
+msgid "A device on another network needs a relay and an invitation"
+msgstr ""
 
 msgid "A new update is available, restart to apply"
 msgstr "Доступно новое обновление, перезагрузите, чтобы применить"
@@ -626,6 +634,14 @@ msgstr "Анонимный"
 
 msgid "Any"
 msgstr "Любой"
+
+#, fuzzy
+#| msgid "here"
+msgid "Anywhere"
+msgstr "здесь"
+
+msgid "Anywhere, through your own relay"
+msgstr ""
 
 msgid "App icon"
 msgstr "Иконка приложения"
@@ -1235,6 +1251,9 @@ msgstr "Содержание"
 
 msgid "Continue from {device}"
 msgstr "Продолжить с {device}"
+
+msgid "Continue where another device left off, or control what it plays"
+msgstr ""
 
 msgid "Continue"
 msgstr "Продолжить"
@@ -2462,6 +2481,9 @@ msgstr ""
 msgid "Keep running in the background"
 msgstr "Не останавливать работу Rufin после закрытия окна"
 
+msgid "Keeps your devices in sync"
+msgstr ""
+
 msgid "Keyboard Shortcuts"
 msgstr "Сочетания клавиш"
 
@@ -2927,6 +2949,9 @@ msgstr "Переместить вниз"
 msgid "Move up"
 msgstr "Переместить вверх"
 
+msgid "Moves playback between them"
+msgstr ""
+
 msgid "Multi-selection"
 msgstr "Множественный выбор"
 
@@ -3050,6 +3075,9 @@ msgstr "Ни разу не воспроизводилось"
 
 msgid "New Playlist"
 msgstr "Новый плейлист"
+
+msgid "New Rufin releases from GitHub"
+msgstr ""
 
 msgid "New Smart Playlist"
 msgstr "Новый умный плейлист"
@@ -3634,6 +3662,9 @@ msgstr "Плейлисты"
 #| msgid "Playing from"
 msgid "Plays from"
 msgstr "Воспроизведение с"
+
+msgid "Plays this device's music on the others"
+msgstr ""
 
 msgid "Plays"
 msgstr "Прослушано раз"
@@ -4530,8 +4561,10 @@ msgstr "Общий размер файла"
 msgid "Shared secret"
 msgstr "Общий секретный ключ"
 
-msgid "Shares your queue. Your music keeps playing."
-msgstr ""
+#, fuzzy
+#| msgid "Search queue"
+msgid "Shares your queue"
+msgstr "Поиск в очереди воспроизведения"
 
 msgid "Show Rufin in headline"
 msgstr "Показать Rufin в заголовке"
@@ -4804,6 +4837,9 @@ msgstr "Источник"
 msgid "Sources"
 msgstr "Источники"
 
+msgid "Sources, sign-ins, playlists, favorites, history and preferences"
+msgstr ""
+
 #, fuzzy
 #| msgid "Spacious"
 msgid "Spacing"
@@ -5025,6 +5061,9 @@ msgstr ""
 #| msgid "Server is unreachable"
 msgid "The room is unreachable"
 msgstr "Выбор недоступен"
+
+msgid "The same Wi-Fi or wired network"
+msgstr ""
 
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr ""
@@ -5481,8 +5520,10 @@ msgstr "Добро пожаловать в Rufin"
 msgid "What Auto DJ and radio pick"
 msgstr ""
 
-msgid "While your library loads"
-msgstr "Пока ваша библиотека загружается"
+#, fuzzy
+#| msgid "Nearby devices"
+msgid "Where are your devices?"
+msgstr "Ближайшие устройства"
 
 msgid "Wide"
 msgstr "Широкий"
@@ -5549,6 +5590,11 @@ msgid "Your library is ready"
 msgstr "Ваша библиотека готова"
 
 msgid "Your music belongs here"
+msgstr "Ваша музыка - здесь"
+
+#, fuzzy
+#| msgid "Your music belongs here"
+msgid "Your music keeps playing"
 msgstr "Ваша музыка - здесь"
 
 #, fuzzy
@@ -5892,6 +5938,9 @@ msgctxt "Windows installer"
 msgid "Welcome to Rufin Setup"
 msgstr "Добро пожаловать в программу установки Rufin"
 
+#~ msgid "While your library loads"
+#~ msgstr "Пока ваша библиотека загружается"
+
 #~ msgid "Troubleshooting"
 #~ msgstr "Устранение неполадок"
 
@@ -6049,9 +6098,6 @@ msgstr "Добро пожаловать в программу установки
 
 #~ msgid "Source to use for cover images and song/artist links"
 #~ msgstr "Источник для обложек и ссылок на песни/исполнителей"
-
-#~ msgid "here"
-#~ msgstr "здесь"
 
 #~ msgid "Select"
 #~ msgstr "Выбрать"
