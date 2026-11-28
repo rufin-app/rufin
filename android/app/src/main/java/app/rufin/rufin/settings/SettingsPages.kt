@@ -173,13 +173,8 @@ internal fun AppSettingsPage(destination: MoreDestination, model: RufinConnectio
                         browse.routes.map { it.item.name to it.title },
                         select = { page -> preferences.changePreference { setStartingPage(SidebarRouteItem.valueOf(page)) } })
                     AppIconChoice()
-                    SettingsSwitch(translate("Keep running in the background"), state.keepRunningInBackground,
-                        translate("Rufin Connect stays reachable while the screen is off or Rufin is closed")) { preferences.changePreference { setKeepRunningInBackground(it) } }
-                    // A TV has no battery to spare and no prompt for it.
-                    if (state.keepRunningInBackground && LocalConfiguration.current.uiMode and Configuration.UI_MODE_TYPE_MASK != Configuration.UI_MODE_TYPE_TELEVISION) BatteryOptimizationRow()
-                    PreferenceChoice(translate("Update check interval"), state.releaseCheckIntervalHours.toString(),
-                        listOf("0" to translate("Off"), "1" to translate("1 hour"), "6" to translate("6 hours"), "12" to translate("12 hours"), "24" to translate("24 hours")),
-                        select = { preferences.changePreference { setReleaseCheckIntervalHours(it.toUInt()) } })
+                    KeepRunningInBackground(preferences)
+                    UpdateCheckInterval(preferences)
                     SettingsLink(null, translate("Listening overview")) { navigate(MoreDestination.OverviewSettings) }
                 }
                 SettingsGroup(translate("Notifications")) {
@@ -197,7 +192,7 @@ internal fun AppSettingsPage(destination: MoreDestination, model: RufinConnectio
             }
             MoreDestination.Privacy -> {
                 SettingsGroup {
-                    SettingsSwitch(translate("Private mode"), state.privateMode) { preferences.changePreference { setPrivateMode(it) } }
+                    PrivateModeSwitch(preferences)
                     SettingsSwitch(translate("Proxy casting through Rufin"), state.castProxyEnabled) { preferences.changePreference { setCastProxyEnabled(it) } }
                     PreferenceChoice(translate("Casting network"), preferences.castNetworkInterface.orEmpty(),
                         listOf("" to translate("Automatic")) + castNetworks.map { it.id to "${it.name} (${it.address})" },
@@ -210,6 +205,30 @@ internal fun AppSettingsPage(destination: MoreDestination, model: RufinConnectio
         }
     }
 
+}
+
+@Composable
+internal fun PrivateModeSwitch(preferences: PreferencesConnection, summary: String? = null) {
+    val state = preferences.applicationSettings ?: return
+    SettingsSwitch(translate("Private mode"), state.privateMode, summary) { preferences.changePreference { setPrivateMode(it) } }
+}
+
+@Composable
+internal fun UpdateCheckInterval(preferences: PreferencesConnection, summary: String? = null) {
+    val state = preferences.applicationSettings ?: return
+    PreferenceChoice(translate("Update check interval"), state.releaseCheckIntervalHours.toString(),
+        listOf("0" to translate("Off"), "1" to translate("1 hour"), "6" to translate("6 hours"), "12" to translate("12 hours"), "24" to translate("24 hours")),
+        summary = summary, select = { preferences.changePreference { setReleaseCheckIntervalHours(it.toUInt()) } })
+}
+
+/** Keeping Rufin running, and Android's prompt that lets it once that is on. */
+@Composable
+internal fun KeepRunningInBackground(preferences: PreferencesConnection) {
+    val state = preferences.applicationSettings ?: return
+    SettingsSwitch(translate("Keep running in the background"), state.keepRunningInBackground,
+        translate("Rufin Connect stays reachable while the screen is off or Rufin is closed")) { preferences.changePreference { setKeepRunningInBackground(it) } }
+    // A TV has no battery to spare and no prompt for it.
+    if (state.keepRunningInBackground && LocalConfiguration.current.uiMode and Configuration.UI_MODE_TYPE_MASK != Configuration.UI_MODE_TYPE_TELEVISION) BatteryOptimizationRow()
 }
 
 /** While Android optimizes Rufin's battery use, which can stop it in the background: Android's own prompt to stop.

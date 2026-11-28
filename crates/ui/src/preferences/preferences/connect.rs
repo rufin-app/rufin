@@ -5,6 +5,7 @@ use rufin_core::connect::{
     Action, ActionError, CollectionProgress, Confirmation, Continuation, Control, Status,
     SyncFolder,
 };
+use rufin_core::settings::IrohRelay;
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
@@ -332,6 +333,82 @@ pub fn bind_controller(
     });
 }
 
+/// Enables Connect here. The first time it says what Connect does and asks where the other
+/// devices are, which is the relay they are reached through.
+fn enable(shell: &Rc<Shell>) {
+    if shell.products.connect.status().settings.enabled {
+        return run(shell, Action::Enable { enabled: true });
+    }
+    let resource = "preferences/connect_intro.ui";
+    let builder = crate::ui_resource::builder(resource);
+    crate::objects!(builder, resource, {
+        dialog: adw::Dialog, header: adw::HeaderBar, public: gtk::CheckButton,
+        custom: gtk::CheckButton, address: adw::EntryRow, enable: gtk::Button,
+    });
+    crate::widgets::controls::configure_dialog_header(&header);
+    match shell.products.settings.iroh_relay() {
+        IrohRelay::Off => {}
+        IrohRelay::Public => public.set_active(true),
+        IrohRelay::Custom { url } => {
+            custom.set_active(true);
+            address.set_text(&url);
+        }
+    }
+    // A relay of the user's own needs its address before Connect starts on it.
+    let ready: Rc<dyn Fn()> = {
+        let (custom, address, enable) =
+            (custom.downgrade(), address.downgrade(), enable.downgrade());
+        Rc::new(move || {
+            if let (Some(custom), Some(address), Some(enable)) =
+                (custom.upgrade(), address.upgrade(), enable.upgrade())
+            {
+                address.set_visible(custom.is_active());
+                enable.set_sensitive(!custom.is_active() || !address.text().trim().is_empty());
+            }
+        })
+    };
+    ready();
+    let changed = Rc::clone(&ready);
+    custom.connect_toggled(move |_| changed());
+    address.connect_changed(move |_| ready());
+    let weak = Rc::downgrade(shell);
+    let (popup, public, custom, address) = (
+        dialog.downgrade(),
+        public.downgrade(),
+        custom.downgrade(),
+        address.downgrade(),
+    );
+    enable.connect_clicked(move |_| {
+        let (Some(shell), Some(popup), Some(public), Some(custom), Some(address)) = (
+            weak.upgrade(),
+            popup.upgrade(),
+            public.upgrade(),
+            custom.upgrade(),
+            address.upgrade(),
+        ) else {
+            return;
+        };
+        let relay = if custom.is_active() {
+            IrohRelay::Custom {
+                url: address.text().trim().into(),
+            }
+        } else if public.is_active() {
+            IrohRelay::Public
+        } else {
+            IrohRelay::Off
+        };
+        if shell.products.settings.iroh_relay() != relay
+            && let Err(error) = shell.products.settings.set_iroh_relay(relay)
+        {
+            (shell.control_feedback).show_feedback_toast(error.to_string());
+            return;
+        }
+        popup.close();
+        run(&shell, Action::Enable { enabled: true });
+    });
+    present_light_dismiss_dialog(&dialog, &shell.chrome.window);
+}
+
 fn present(shell: &Rc<Shell>) {
     if let Some(dialog) = shell.preferences.connect_dialog.upgrade() {
         present_light_dismiss_dialog(&dialog, &shell.chrome.window);
@@ -345,11 +422,15 @@ fn present(shell: &Rc<Shell>) {
     );
 }
 
-pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog) -> gtk::Widget {
+/// The Connect page. `embedded` is the first run's copy: one group of a page that scrolls
+/// for it, with the connection settings left to Preferences.
+pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog, embedded: bool) -> gtk::Widget {
     let resource = "preferences/connect.ui";
     let builder = crate::ui_resource::builder(resource);
     crate::objects!(builder, resource, {
         connect_content: gtk::Overlay, page_title: gtk::Label,
+        scroller: gtk::ScrolledWindow, clamp: adw::Clamp, sections: gtk::Box,
+        reach: adw::ActionRow, reach_change: gtk::Button,
         choose_join: gtk::ToggleButton, choose_invite: gtk::ToggleButton,
         connection_choices: gtk::Box,
         start_section: gtk::Box, join_section: gtk::Box, invite_section: adw::ActionRow,
@@ -373,6 +454,17 @@ pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog) -> gtk::Widg
         browse_folder: gtk::Button, clear_folder: gtk::Button,
         leave: gtk::Button, folder_chooser: gtk::FileDialog,
     });
+    if embedded {
+        scroller.set_vscrollbar_policy(gtk::PolicyType::Never);
+        scroller.set_propagate_natural_height(true);
+        scroller.set_vexpand(false);
+        // The page around it has clamped the width already.
+        clamp.set_tightening_threshold(clamp.maximum_size());
+        sections.set_margin_start(0);
+        sections.set_margin_end(0);
+        sections.set_margin_top(0);
+        sections.set_margin_bottom(6);
+    }
     *shell.preferences.connect_feedback.borrow_mut() =
         Some(crate::widgets::feedback::ControlFeedbackState::new(
             &feedback_label,
@@ -416,11 +508,15 @@ pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog) -> gtk::Widg
         let approval_status = approval_status.downgrade();
         let title = page_title.downgrade();
         let dialog = connect_dialog.downgrade();
+        let reach = reach.downgrade();
         Rc::new(move || {
             let (Some(shell), Some(choice)) = (weak.upgrade(), choose_join.upgrade()) else {
                 return;
             };
             let state = shell.products.connect.status();
+            if let Some(reach) = reach.upgrade() {
+                reach.set_title(&state.settings.reach);
+            }
             let working = state.connecting || state.collection_progress.is_some();
             let busy = state.pairing.is_some() || working;
             let progress_visible = working && state.pairing.is_none() && state.error.is_none();
@@ -449,7 +545,7 @@ pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog) -> gtk::Widg
                 (&join_section, joining && !busy),
                 (&verify_section, state.pairing.is_some()),
                 (&connecting_section, progress_visible),
-                (&network_section, !busy),
+                (&network_section, !busy && !embedded),
                 (
                     &devices_section,
                     !busy && state.devices.iter().any(|device| device.enrolled),
@@ -528,7 +624,7 @@ pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog) -> gtk::Widg
                 && (!shell.products.connect.status().settings.enabled
                     || shell.products.connect.status().settings.profile.is_none())
             {
-                run(&shell, Action::Enable { enabled: true });
+                enable(&shell);
             }
         }
     });
@@ -657,8 +753,25 @@ pub(super) fn page(shell: &Rc<Shell>, connect_dialog: &adw::Dialog) -> gtk::Widg
             }
         });
     });
+    let weak = Rc::downgrade(shell);
+    create.connect_clicked(move |_| {
+        if let Some(shell) = weak.upgrade() {
+            enable(&shell);
+        }
+    });
+    let weak = Rc::downgrade(shell);
+    reach_change.connect_clicked(move |_| {
+        if let Some(shell) = weak.upgrade() {
+            (shell.preferences.integration).replace(Some("iroh_relay".into()));
+            super::present_preferences_dialog_with_page(
+                &shell,
+                super::PreferencesPageKind::Integrations,
+                false,
+                false,
+            );
+        }
+    });
     for (button, action) in [
-        (create.clone(), Action::Enable { enabled: true }),
         (refresh, Action::Refresh),
         (discover, Action::Discover),
         (cancel_pairing, Action::CancelPairing),

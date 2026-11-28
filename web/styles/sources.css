@@ -74,9 +74,132 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The first run: the source list, then the setup pages over a footer that stays, at one height.
+   Both scroll under the strip that holds the close button. */
 #welcome-dialog {
   width: min(620px, calc(100% - 24px));
-  overflow: auto;
+  padding: 44px 0 0;
+  overflow: hidden;
+}
+#welcome-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+#welcome-dialog:has(#welcome-setup:not([hidden])) {
+  height: min(720px, 90dvh);
+}
+/* A dialog's close button in its corner, over what scrolls. */
+.dialog-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+}
+#welcome-choices {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 30px 30px;
+}
+#welcome-setup:not([hidden]) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+#welcome-pages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 30px 8px;
+}
+#welcome-pages > section > h4,
+#welcome-connect h3 {
+  margin: 24px 0 8px;
+  font-size: 14px;
+}
+#welcome-pages > section > h4:first-child {
+  margin-top: 0;
+}
+#welcome-connect > [data-connect-section="start"] {
+  padding: 0 14px;
+  border-radius: 12px;
+  background: var(--card-bg-color, var(--surface));
+  box-shadow: 0 0 0 1px var(--border-color, var(--line));
+  overflow: hidden;
+}
+#welcome-connect button {
+  white-space: normal;
+}
+#welcome-connect .connect-card h4 {
+  margin: 0;
+  font-size: 14px;
+}
+#welcome-footer {
+  display: grid;
+  gap: 8px;
+  padding: 10px 18px 16px;
+}
+#welcome-library {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+#welcome-library > .icon {
+  width: 16px;
+  height: 16px;
+  color: var(--green, #2ec27e);
+}
+#welcome-library:not(.ready) > .icon {
+  display: none;
+}
+#welcome-bar {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--accent);
+}
+#welcome-steps {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+#welcome-back {
+  grid-column: 1;
+  justify-self: start;
+}
+#welcome-dots {
+  grid-column: 2;
+  display: flex;
+  gap: 6px;
+}
+#welcome-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: currentColor;
+  opacity: 0.3;
+}
+#welcome-dots span[aria-current="true"] {
+  opacity: 1;
+}
+#welcome-next {
+  grid-column: 3;
+  justify-self: end;
+}
+@media (max-width: 640px) {
+  #welcome-choices {
+    padding: 0 12px 24px;
+  }
+  #welcome-pages {
+    padding: 0 12px 8px;
+  }
+  #welcome-footer {
+    padding: 10px 12px 12px;
+  }
 }
 .welcome-header {
   display: grid;
@@ -92,6 +215,11 @@
 .welcome-icon {
   width: 64px;
   height: 64px;
+}
+.welcome-header > .icon {
+  width: 32px;
+  height: 32px;
+  color: var(--accent);
 }
 #welcome-dialog .pref-group-header {
   margin: 18px 0 8px;
@@ -153,10 +281,6 @@
 .welcome-kind .source-icon {
   width: 32px;
   height: 32px;
-}
-.welcome-start {
-  justify-content: center;
-  margin-top: 20px;
 }
 
 /* A field the form cannot be sent without carries an asterisk on its label. */

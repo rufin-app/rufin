@@ -20,7 +20,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -28,6 +27,9 @@ import androidx.compose.ui.unit.sp
 import app.rufin.rufin.app.RufinConnection
 import app.rufin.rufin.core.translate
 import app.rufin.rufin.player.PlayerIconButton
+import app.rufin.rufin.settings.ReachRow
+import app.rufin.rufin.settings.SettingsGroup
+import app.rufin.rufin.settings.SettingsRow
 import app.rufin.rufin.settings.settingsTextFieldColors
 import app.rufin.rufin.shared.rufin_core.RoomAction
 import app.rufin.rufin.shared.rufin_core.RoomStatus
@@ -99,21 +101,22 @@ private fun RoomsStart(rooms: RoomConnection, status: RoomStatus?, onRelay: () -
     val caption = MaterialTheme.colorScheme.onSurfaceVariant
     var name by rememberSaveable(status?.yourName) { mutableStateOf(status?.yourName.orEmpty()) }
     var invite by rememberSaveable { mutableStateOf("") }
-    Text(translate("Rooms"), Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.titleLarge)
-    OutlinedTextField(name, { name = it.take(40) }, Modifier.fillMaxWidth(), singleLine = true,
-        label = { Text(translate("Your name")) }, colors = settingsTextFieldColors())
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        RufinIcon("rufin-people-symbolic", null, Modifier.size(32.dp), MaterialTheme.colorScheme.primary)
+        Text(translate("Rooms"), style = MaterialTheme.typography.titleLarge)
+    }
+    SettingsGroup {
+        SettingsRow(translate("Shares your queue"), summary = translate("Your music keeps playing"),
+            leading = { RufinIcon("rufin-music-queue-symbolic", null) })
+        ReachRow(status?.reach.orEmpty(), onRelay)
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(name, { name = it.take(40) }, Modifier.weight(1f), singleLine = true,
+            label = { Text(translate("Your name")) }, colors = settingsTextFieldColors())
+        Button({ rooms.action(RoomAction.Create(name)) }, enabled = rooms.ready && !rooms.pending) { Text(translate("Create room")) }
+    }
     // A join under way is given up from where it was started.
     val joining = status?.joining == true
-    Button({ rooms.action(RoomAction.Create(name)) }, Modifier.fillMaxWidth(), enabled = rooms.ready && !rooms.pending) { Text(translate("Create room")) }
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(translate("Shares your queue. Your music keeps playing."), textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodySmall, color = caption)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(status?.reach.orEmpty(), Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall, color = caption)
-            TextButton(onRelay) { Text(translate("Change")) }
-        }
-    }
     Text(translate("Join a room"), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(invite, { invite = it }, Modifier.weight(1f), enabled = !joining, singleLine = true,

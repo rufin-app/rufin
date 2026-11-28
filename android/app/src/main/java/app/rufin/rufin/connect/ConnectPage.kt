@@ -15,27 +15,33 @@ import app.rufin.rufin.shared.rufin_core.Action as ConnectAction
 import app.rufin.rufin.shared.rufin_core.Status as ConnectStatus
 
 import app.rufin.rufin.ui.RufinIcon
+import app.rufin.rufin.settings.PreferencesConnection
+import app.rufin.rufin.settings.ReachRow
 import app.rufin.rufin.settings.SettingsPage
 import app.rufin.rufin.settings.SettingsGroup
 import app.rufin.rufin.settings.SettingsRow
 import java.text.NumberFormat
 
 @Composable
-internal fun ConnectProgressScreen(model: RufinConnection) {
+internal fun ConnectProgressScreen(model: RufinConnection, preferences: PreferencesConnection) {
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(model.connect::dismissOperation) { RufinIcon("rufin-go-previous-symbolic", translate("Back")) }
                 Text(translate("Rufin Connect"), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
             }
-            Box(Modifier.weight(1f)) { ConnectPage(model, progressOnly = true) }
+            Box(Modifier.weight(1f)) { ConnectPage(model, preferences, {}, progressOnly = true) }
         }
     }
 }
 
 @Composable
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-internal fun ConnectPage(model: RufinConnection, embedded: Boolean = false, progressOnly: Boolean = false) {
+internal fun ConnectPage(model: RufinConnection, preferences: PreferencesConnection,
+    /** Opens the relay's page, from the row that says how far Connect reaches. */
+    onRelay: () -> Unit, embedded: Boolean = false, progressOnly: Boolean = false,
+    /** The first run shows the page's start, down to what is nearby. */
+    setup: Boolean = false) {
     val connect = model.connect
     DisposableEffect(connect) { connect.pageVisible = true; onDispose { connect.pageVisible = false } }
     val state = connect.state
@@ -47,6 +53,8 @@ internal fun ConnectPage(model: RufinConnection, embedded: Boolean = false, prog
         }
     }
     var join by remember { mutableStateOf(false) }
+    // Enabling asks first what Connect does and where its devices are.
+    var enable by remember { mutableStateOf(false) }
     var rename by remember { mutableStateOf(false) }
     var leave by remember { mutableStateOf(false) }
     var disable by remember { mutableStateOf(false) }
@@ -85,12 +93,12 @@ internal fun ConnectPage(model: RufinConnection, embedded: Boolean = false, prog
                 trailing = { IconButton({ rename = true }, enabled = enabled) { RufinIcon("rufin-document-edit-symbolic", translate("Edit")) } },
                 modifier = Modifier.clickable(enabled) { rename = true })
             if (state.settings.profile == null) {
-                Button({ connect.action(ConnectAction.Enable(true)) }, Modifier.fillMaxWidth(), enabled = enabled) {
+                Button({ enable = true }, Modifier.fillMaxWidth(), enabled = enabled) {
                     Text(translate("Enable Rufin Connect"))
                 }
             } else SettingsRow(translate("Enable Rufin Connect"), summary = state.profileStatus.takeIf { failure == null },
                 trailing = { Switch(state.settings.enabled, {
-                    if (it) connect.action(ConnectAction.Enable(true)) else disable = true
+                    if (it) enable = true else disable = true
                 }, enabled = enabled) })
             }
             if (progressOnly && failure == null) Text(state.profileStatus, Modifier.padding(horizontal = 12.dp, vertical = 8.dp), style = MaterialTheme.typography.titleMedium)
@@ -112,9 +120,10 @@ internal fun ConnectPage(model: RufinConnection, embedded: Boolean = false, prog
                         trailing = { app.rufin.rufin.ui.CopyIconButton("Copy invitation", sensitive = true,
                             clipboardLabel = translate("Device invitation")) { copy -> copy(invitation) } })
                 }
-                if (state.devices.any { it.enrolled }) SettingsRow(translate("Disconnect this device"),
-                    modifier = Modifier.clickable(enabled) { leave = true })
             }
+            ReachRow(state.settings.reach, onRelay)
+            if (state.settings.profile != null && state.devices.any { it.enrolled }) SettingsRow(translate("Disconnect this device"),
+                modifier = Modifier.clickable(enabled) { leave = true })
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -124,13 +133,16 @@ internal fun ConnectPage(model: RufinConnection, embedded: Boolean = false, prog
                 }
             }
             val nearby = state.devices.filter { !it.enrolled }
-            if (nearby.isEmpty()) Text(translate("No network devices found"), Modifier.padding(horizontal = 12.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            SettingsGroup { nearby.forEach { device ->
-                key(device.id) { ConnectDeviceRow(device, connect, { controlDevice = device }, { removeDevice = device }) }
-            } }
+            SettingsGroup {
+                if (nearby.isEmpty()) SettingsRow(translate("No network devices found"),
+                    summary = translate("A device on another network needs a relay and an invitation"))
+                nearby.forEach { device ->
+                    key(device.id) { ConnectDeviceRow(device, connect, { controlDevice = device }, { removeDevice = device }) }
+                }
+            }
         }
         val connected = state.devices.filter { it.enrolled }
-        if (connected.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (!setup && connected.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(translate("Connected devices"), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 IconButton({ connect.action(ConnectAction.Refresh) }, enabled = enabled) { RufinIcon("rufin-view-refresh-symbolic", translate("Refresh")) }
@@ -139,12 +151,12 @@ internal fun ConnectPage(model: RufinConnection, embedded: Boolean = false, prog
                 key(device.id) { ConnectDeviceRow(device, connect, { controlDevice = device }, { removeDevice = device }) }
             } }
         }
-        SettingsGroup(translate("Connection settings")) {
+        if (!setup) SettingsGroup(translate("Connection settings")) {
             SettingsRow(translate("Nearby discovery"),
                 trailing = { Switch(state.settings.nearby, { connect.action(ConnectAction.Nearby(it)) }, enabled = enabled) })
         }
         }
-        if (!progressOnly && state.settings.profile != null) {
+        if (!progressOnly && !setup && state.settings.profile != null) {
         SettingsGroup {
             SettingsRow(translate("Sync folder"), summary = syncFolderSummary(state.settings.folder, connect.fileSources),
                 modifier = Modifier.clickable(enabled) { syncFolder = true })
@@ -152,6 +164,13 @@ internal fun ConnectPage(model: RufinConnection, embedded: Boolean = false, prog
         }
     }
     if (join) ConnectJoinDialog(connect, { join = false }) { connect.join(it); join = false }
+    if (enable) model.preferences?.irohRelay?.let { saved ->
+        ConnectEnableSheet(saved, { enable = false }) { relay ->
+            if (relay != saved) preferences.changePreference { setIrohRelay(relay) }
+            connect.action(ConnectAction.Enable(true))
+            enable = false
+        }
+    }
     if (rename) ConnectTextDialog(translate("Device name"), translate("Name"), state.settings.name, { rename = false }) { connect.action(ConnectAction.Rename(it)); rename = false }
     if (disable) AlertDialog(onDismissRequest = { disable = false }, title = { Text(translate("Rufin Connect")) },
         text = { Text(translate("This will remove all configured state. Do you want to continue?")) },

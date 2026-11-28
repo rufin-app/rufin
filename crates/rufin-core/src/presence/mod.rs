@@ -76,7 +76,7 @@ pub(crate) fn follow(
         return;
     }
     let shown = |stored: &crate::settings::StoredSettings| {
-        stored.ui.rich_presence.enabled && !stored.ui.application.private_mode
+        stored.ui.rich_presence.enabled && !stored.ui.private()
     };
     let mut running = shown(&settings.load()).then(|| Running::start(runtime, settings, playback));
     let (handle, file) = (runtime.clone(), settings.clone());
@@ -87,7 +87,7 @@ pub(crate) fn follow(
         move |playback, previous, current| {
             let (before, after) = (&previous.ui, &current.ui);
             if before.rich_presence != after.rich_presence
-                || before.application.private_mode != after.application.private_mode
+                || before.private() != after.private()
                 || before.lookup_policy() != after.lookup_policy()
             {
                 match (shown(current), &running) {

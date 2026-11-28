@@ -103,6 +103,11 @@ class RufinConnection(application: Application) : AndroidViewModel(application) 
         return sourceSetup!!
     }
     internal fun closeSourceSetup() { sourceSetup?.close(); sourceSetup = null; sourceSetupId = null }
+    /** Ends the first run's setup: what core held back from going online starts. */
+    internal fun finishSetup() {
+        val owner = sourceOwner ?: return
+        runAction { withContext(Dispatchers.IO) { owner.finishSetup() } }
+    }
     var service by mutableStateOf<RufinService?>(null)
         private set
     var ready by mutableStateOf(false)

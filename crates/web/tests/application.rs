@@ -38,6 +38,8 @@ fn controller_http_api_and_browser_share_application_operations() {
             .unwrap()
             .unwrap();
         inputs.products.playback.set_muted(true);
+        // The queue checks count rows: Auto DJ, on by default, would add its own.
+        inputs.products.playback.toggle_auto_dj();
         let mut playback = inputs.products.playback.updates.subscribe();
         runtime.block_on(async {
             tokio::time::timeout(Duration::from_secs(5), async {

@@ -7,23 +7,10 @@
   <div class="connect-body">
     <p id="connect-error" role="alert" hidden></p>
     <button id="connect-retry" hidden>{{ localization::tr("Retry") }}</button>
-    <section data-connect-section="start">
-      <div class="connect-inline"><label for="connect-name">{{ localization::tr("Device name") }}</label><input id="connect-name" /><button id="connect-rename">{{ localization::tr("Save") }}</button><div id="connect-choices" class="connect-role" role="group" aria-label="{{ localization::tr("Connect a device") }}"><button data-connect-mode="join" aria-pressed="false">{{ localization::tr("Join") }}</button><button data-connect-mode="invite" aria-pressed="true">{{ localization::tr("Invite") }}</button></div><button id="connect-leave" class="icon-button" title="{{ localization::tr("Disconnect this device") }}" aria-label="{{ localization::tr("Disconnect this device") }}">{% call m::icon("rufin-application-exit-symbolic") %}{% endcall %}</button></div>
-    <div data-connect-section="invite" hidden>
-      <div class="connect-inline"><div class="connect-invitation-copy"><strong>{{ localization::tr("Connect a device") }}</strong><p>{{ localization::tr("Open Rufin Connect on another device, connect via Join button or by copying invitation code") }}</p></div><button id="connect-copy" class="icon-button" title="{{ localization::tr("Copy invitation") }}" aria-label="{{ localization::tr("Copy invitation") }}">{% call m::icon("rufin-edit-copy-symbolic") %}{% endcall %}</button></div>
-      <div id="connect-share-invitation" hidden><label class="visually-hidden" for="connect-invitation">{{ localization::tr("Device invitation") }}</label><input id="connect-invitation" readonly hidden /></div>
-    </div>
-    </section>
-    <section data-connect-section="nearby" hidden>
-      <h3>{{ localization::tr("Nearby devices") }}</h3>
-      <div id="connect-nearby-devices" class="connect-card-list"></div>
-    </section>
+    {% call m::connect_start("connect") %}{% endcall %}
     <section data-connect-section="devices" hidden>
       <div class="connect-section-heading"><h3>{{ localization::tr("Connected devices") }}</h3><button id="connect-refresh" class="text-button">{{ localization::tr("Refresh") }}</button></div>
       <div id="connect-devices" class="connect-card-list"></div>
-    </section>
-    <section data-connect-section="join" hidden>
-      <div class="connect-inline"><label class="visually-hidden" for="connect-peer">{{ localization::tr("Device invitation") }}</label><input id="connect-peer" placeholder="{{ localization::tr("Device invitation") }}" /><button id="connect-join">{{ localization::tr("Join profile") }}</button></div>
     </section>
     <section data-connect-section="connecting" class="connect-operation" hidden>
       <p id="connect-connecting-status" role="status"></p>
@@ -52,6 +39,25 @@
       </div>
     </section>
   </div>
+</dialog>
+<dialog id="connect-intro-dialog" aria-labelledby="connect-intro-title">
+  <form id="connect-intro-form">
+    <button type="button" class="icon-button dialog-close" data-close="connect-intro-dialog" aria-label="{{ localization::tr("Close") }}">{% call m::icon("rufin-window-close-symbolic") %}{% endcall %}</button>
+    <header class="welcome-header">{% call m::icon("rufin-network-hotspot-symbolic") %}{% endcall %}<h2 id="connect-intro-title">{{ localization::tr("Rufin Connect") }}</h2></header>
+    <div class="pref-group">
+      <div class="pref-row">{% call m::icon("rufin-arrows-circle-symbolic") %}{% endcall %}<span class="pref-label"><span>{{ localization::tr("Keeps your devices in sync") }}</span><small>{{ localization::tr("Sources, sign-ins, playlists, favorites, history and preferences") }}</small></span></div>
+      <div class="pref-row">{% call m::icon("rufin-waves-and-screen-symbolic") %}{% endcall %}<span class="pref-label"><span>{{ localization::tr("Moves playback between them") }}</span><small>{{ localization::tr("Continue where another device left off, or control what it plays") }}</small></span></div>
+      <div class="pref-row">{% call m::icon("rufin-library-symbolic") %}{% endcall %}<span class="pref-label"><span>{{ localization::tr("Plays this device's music on the others") }}</span></span></div>
+    </div>
+    <h4 id="connect-intro-reach">{{ localization::tr("Where are your devices?") }}</h4>
+    <div class="pref-group" role="radiogroup" aria-labelledby="connect-intro-reach">
+      <label class="pref-row"><input type="radio" name="relay" value="off" /><span class="pref-label"><span>{{ localization::tr("On this network only") }}</span><small>{{ localization::tr("The same Wi-Fi or wired network") }}</small></span></label>
+      <label class="pref-row"><input type="radio" name="relay" value="public" /><span class="pref-label"><span>{{ localization::tr("Anywhere") }}</span><small>{{ localization::tr("Through public relays, which help devices find each other. They see who connects to whom, never what is sent.") }}</small></span></label>
+      <label class="pref-row"><input type="radio" name="relay" value="custom" /><span class="pref-label"><span>{{ localization::tr("Anywhere, through your own relay") }}</span></span></label>
+      <label class="pref-row" id="connect-intro-address-row" hidden><span class="pref-label">{{ localization::tr("Relay address") }}</span><input id="connect-intro-address" type="url" autocomplete="off" /></label>
+    </div>
+    <div class="dialog-actions"><button id="connect-intro-enable" class="primary">{{ localization::tr("Enable Rufin Connect") }}</button></div>
+  </form>
 </dialog>
 <dialog id="connect-disable-dialog" aria-labelledby="connect-disable-title" aria-describedby="connect-disable-help">
   <form method="dialog">

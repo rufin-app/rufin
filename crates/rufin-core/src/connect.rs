@@ -37,6 +37,9 @@ pub struct ConnectSettings {
     pub profile: Option<String>,
     pub nearby: bool,
     pub relay: Option<String>,
+    /// Where the other devices are reached, in words.
+    #[serde(default)]
+    pub reach: String,
     pub folder: Option<SyncFolder>,
 }
 
@@ -460,8 +463,9 @@ impl ConnectOwner {
                     if changed {
                         let _action = owner.actions.lock().await;
                         owner.status.send_modify(|status| {
-                            status.settings.relay =
-                                owner.settings.iroh_relay().custom_url().map(str::to_owned);
+                            let relay = owner.settings.iroh_relay();
+                            status.settings.relay = relay.custom_url().map(str::to_owned);
+                            status.settings.reach = crate::room::reach(&relay);
                         });
                         if let Err(error) = owner.configure_network().await {
                             owner.failed(error);
@@ -1813,6 +1817,7 @@ fn settings_of(
         profile,
         nearby: config.nearby,
         relay: relay.custom_url().map(str::to_owned),
+        reach: crate::room::reach(relay),
         folder,
     }
 }

@@ -109,7 +109,7 @@ impl ScrobblingOwner {
                 if owner.scrobbler.stale(current) {
                     owner.reload_credentials();
                 }
-                if previous.ui.application.private_mode != current.ui.application.private_mode
+                if previous.ui.private() != current.ui.private()
                     || previous.scrobbling != current.scrobbling
                 {
                     owner.scrobbler.wake();

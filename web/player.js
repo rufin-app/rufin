@@ -72,7 +72,7 @@ function showRefill(refilling) {
 function showModes() {
   const live = !!state.playback?.current?.live;
   for (const id of ["previous", "next", "mix", "shuffle", "repeat"]) $(id).disabled = live;
-  $("auto-dj").disabled = live || (!!state.room && !state.room.hosting);
+  for (const id of ["auto-dj", "welcome-auto-dj"]) $(id).disabled = live || (!!state.room && !state.room.hosting);
 }
 
 function showPlayback(value) {
@@ -131,6 +131,7 @@ function showPlayback(value) {
   }[value?.repeat || "off"];
   $("repeat").title = repeatLabel;
   $("auto-dj").setAttribute("aria-pressed", String(value?.auto_dj || false));
+  $("welcome-auto-dj").checked = value?.auto_dj || false;
   showSleepTimer(value?.sleep_timer || null);
   $("repeat").setAttribute("aria-label", repeatLabel);
   $("mute").setAttribute("aria-pressed", String(value?.muted || false));
@@ -654,9 +655,9 @@ function init() {
     if (!document.hidden) updatePosition();
   }, 200);
   initSleepTimer();
-  $("auto-dj").addEventListener("click", () =>
-    run(() => api("/playback/auto-dj", "POST", {})),
-  );
+  // The bar's button and the first run's switch.
+  for (const [id, event] of [["auto-dj", "click"], ["welcome-auto-dj", "change"]])
+    $(id).addEventListener(event, () => run(() => api("/playback/auto-dj", "POST", {})));
 }
 
 // The sleep timer runs in the player; the page shows it as GTK's popover does and counts the

@@ -217,8 +217,8 @@ pub struct RoomStatus {
     pub joining: bool,
 }
 
-/// Where a room on `relay` is reached, in words.
-fn reach(relay: &IrohRelay) -> String {
+/// Where a room or a device on `relay` is reached, in words.
+pub(crate) fn reach(relay: &IrohRelay) -> String {
     match relay {
         IrohRelay::Off => localization::tr("On this network only"),
         IrohRelay::Public => localization::tr("Through public relays"),

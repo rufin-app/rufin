@@ -48,6 +48,7 @@ import app.rufin.rufin.player.SidebarPlayer
 import app.rufin.rufin.more.MoreDestination
 import app.rufin.rufin.more.MoreContent
 import app.rufin.rufin.settings.IntegrationPage
+import app.rufin.rufin.settings.relayPage
 import app.rufin.rufin.browse.PinsContent
 import app.rufin.rufin.player.PlayerConnection
 import app.rufin.rufin.player.rememberPlayerConnection
@@ -213,7 +214,7 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
     if (model.connect.operationActive && connectState != null && connectState.pairing == null && (connectState.connecting || model.connect.visibleError != null)) {
         BackHandler { model.connect.dismissOperation() }
         FeedbackToast(model, 0.dp)
-        ConnectProgressScreen(model)
+        ConnectProgressScreen(model, preferences)
         return
     }
     SideEffect { model.controlNotifications = preferences.applicationSettings?.controlNotificationsEnabled != false }
@@ -748,7 +749,7 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
     if (model.room.sheet) app.rufin.rufin.room.RoomsSheet(model, onRelay = {
         model.room.sheet = false
         fullPlayer = false
-        integration = IntegrationPage("iroh_relay", translate("Iroh relay"))
+        integration = relayPage()
         openMore(MoreDestination.Integration)
     }) { model.room.sheet = false }
     if (sleepTimer) SleepTimerSheet(player) { sleepTimer = false }

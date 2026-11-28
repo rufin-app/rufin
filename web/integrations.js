@@ -1,7 +1,7 @@
 // Integrations, as GTK's page: the list of services beside the open one's page on wide
 // windows; narrow windows open each page from the list, with Back.
 import { api, browserHeaders } from "./connection.js";
-import { listRows, set } from "./preferences.js";
+import { listRows, openPreferences, set } from "./preferences.js";
 import { openSource } from "./sources.js";
 import { $, el, run, tr } from "./ui.js";
 
@@ -47,11 +47,12 @@ function open(id) {
   }
 }
 
+// A service's row, in the list and in the first run's dialog.
 function showRow(id, status, active) {
-  const row = rowOf(id);
-  if (!row) return;
-  row.querySelector("[data-integration-status]").textContent = status;
-  row.querySelector(".integration-active").hidden = !active;
+  for (const row of document.querySelectorAll(`[data-integration="${CSS.escape(id)}"]`)) {
+    row.querySelector("[data-integration-status]").textContent = status;
+    row.querySelector(".integration-active").hidden = !active;
+  }
 }
 
 const accountStatus = (connected, username) =>
@@ -134,7 +135,7 @@ function showServer() {
   const action = hero("server").querySelector("[data-hero-action]");
   showAccount(hero("server"), server.connected, `${connectionSubtitle(server.connected, server.username)} · ${protocolTitle(server.protocol)}`);
   $("server-protocol").textContent = protocolTitle(server.protocol);
-  $("server-url").textContent = server.url;
+  $("scrobbling-server-url").textContent = server.url;
   $("server-token-row").hidden = server.protocol !== "listenbrainz";
   // An Audioscrobbler server signs in again with its username and password once its session stops working.
   const audioscrobbler = server.protocol === "audioscrobbler";
@@ -205,6 +206,12 @@ async function loadScrobbling() {
   showScrobbling(await api("/scrobbling"));
 }
 
+// Reads the accounts and connections the rows show.
+function loadIntegrations() {
+  run(loadScrobbling);
+  run(loadFolders);
+}
+
 function showScrobbling(preferences) {
   const first = !scrobbling;
   scrobbling = preferences;
@@ -221,6 +228,18 @@ function showRelay(relay) {
   $("integration-relay-address").value = relay.url || "";
   $("integration-relay-address-row").hidden = relay.mode !== "custom";
   showRow("iroh_relay", relay.mode === "custom" ? tr("Custom URL") : relay.mode === "public" ? tr("Public relays") : tr("Off"), relay.mode !== "off");
+}
+
+// Saves the relay Rufin's devices and rooms reach each other through.
+async function saveRelay(choice) {
+  await api("/integrations/iroh-relay", "POST", choice);
+  showRelay(choice);
+}
+
+// Opens Preferences at a service's page.
+function openIntegrationPage(id) {
+  openPreferences("integrations");
+  open(id);
 }
 
 // The Preferences values reached the page: what Integrations shows from them.
@@ -377,17 +396,13 @@ function init() {
   // Off and the public relays are saved as they are chosen; a custom relay once its address
   // is saved.
   const mode = $("integration-relay-mode");
-  const saveRelay = (choice) => run(async () => {
-    await api("/integrations/iroh-relay", "POST", choice);
-    showRelay(choice);
-  });
   mode.addEventListener("change", () => {
     $("integration-relay-address-row").hidden = mode.value !== "custom";
-    if (mode.value !== "custom") saveRelay({ mode: mode.value });
+    if (mode.value !== "custom") run(() => saveRelay({ mode: mode.value }));
   });
   $("integration-relay-save").addEventListener("click", (event) => {
     event.preventDefault();
-    saveRelay({ mode: "custom", url: $("integration-relay-address").value.trim() });
+    run(() => saveRelay({ mode: "custom", url: $("integration-relay-address").value.trim() }));
   });
   for (const row of document.querySelectorAll(".integration-row")) row.addEventListener("click", () => open(row.dataset.integration));
   for (const input of document.querySelectorAll("[data-scrobbling-switch]"))
@@ -426,13 +441,10 @@ function init() {
   for (const input of document.querySelectorAll('[name="add-server-protocol"]')) input.addEventListener("change", showProtocol);
   for (const node of document.querySelectorAll("[data-file-connection]"))
     node.addEventListener("click", () => openSource(null, { kind: node.dataset.fileConnection, saved: () => run(loadFolders) }));
-  // Opening Integrations reads the accounts and connections again.
   document.querySelector('.pref-tab[data-page="integrations"]').addEventListener("click", () => {
     open(selected);
     closeIntegration();
-    run(loadScrobbling);
-    run(loadFolders);
   });
 }
 
-export { closeIntegration, init, integrationOpen, open as openIntegration, showIntegrations };
+export { closeIntegration, init, integrationOpen, loadIntegrations, openIntegrationPage, saveRelay, showIntegrations };

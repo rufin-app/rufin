@@ -20,6 +20,7 @@ pub(super) fn routes() -> Router<ProductHandles> {
         .route("/api/sources/rating-writes", post(rating_writes))
         .route("/api/sources/edit", get(editable))
         .route("/api/sources/refresh", post(select))
+        .route("/api/sources/finish-setup", post(finish_setup))
         .route(
             "/api/downloads/cache-settings",
             get(cache_settings).post(cache_settings),
@@ -409,6 +410,12 @@ pub(super) async fn select(
         let selected = source.select_source(id).await.map_err(bad_request)?;
         Ok(json_response(StatusCode::OK, json!({"id":selected})))
     }
+}
+
+/// The first run's dialog closed: what it kept from going online starts.
+async fn finish_setup(State(products): State<ProductHandles>) -> Response<Body> {
+    products.source.finish_setup();
+    accepted()
 }
 
 async fn cache_settings(

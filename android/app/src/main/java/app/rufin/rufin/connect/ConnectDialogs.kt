@@ -20,6 +20,12 @@ import app.rufin.rufin.core.*
 import app.rufin.rufin.shared.rufin_core.*
 import app.rufin.rufin.shared.rufin_core.Action as ConnectAction
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import app.rufin.rufin.settings.SettingsGroup
+import app.rufin.rufin.settings.SettingsRow
+import app.rufin.rufin.settings.settingsTextFieldColors
+import app.rufin.rufin.shared.rufin_connect.IrohRelay
 import app.rufin.rufin.ui.SourceIcon
 import app.rufin.rufin.ui.RufinIcon
 
@@ -50,6 +56,45 @@ internal fun ConnectJoinDialog(connect: ConnectConnection, dismiss: () -> Unit, 
         }
     }, confirmButton = { TextButton({ join(invitation) }, enabled = invitation.isNotBlank() && !connect.pending) { Text(translate("Join profile")) } },
         dismissButton = { TextButton(dismiss) { Text(translate("Cancel")) } })
+}
+
+/** What Rufin Connect does and where its devices are, before it is enabled: `enable` gets the relay chosen. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun ConnectEnableSheet(saved: IrohRelay, dismiss: () -> Unit, enable: (IrohRelay) -> Unit) {
+    val custom = IrohRelay.Custom("")
+    var mode by remember { mutableStateOf(if (saved is IrohRelay.Custom) custom else saved) }
+    var address by rememberSaveable { mutableStateOf((saved as? IrohRelay.Custom)?.url.orEmpty()) }
+    ModalBottomSheet(onDismissRequest = dismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                RufinIcon("rufin-network-hotspot-symbolic", null, Modifier.size(32.dp), MaterialTheme.colorScheme.primary)
+                Text(translate("Rufin Connect"), style = MaterialTheme.typography.titleLarge)
+            }
+            SettingsGroup {
+                SettingsRow(translate("Keeps your devices in sync"),
+                    summary = translate("Sources, sign-ins, playlists, favorites, history and preferences"),
+                    leading = { RufinIcon("rufin-arrows-circle-symbolic", null) })
+                SettingsRow(translate("Moves playback between them"),
+                    summary = translate("Continue where another device left off, or control what it plays"),
+                    leading = { RufinIcon("rufin-waves-and-screen-symbolic", null) })
+                SettingsRow(translate("Plays this device's music on the others"), leading = { RufinIcon("rufin-library-symbolic", null) })
+            }
+            SettingsGroup(translate("Where are your devices?")) {
+                listOf(Triple(IrohRelay.Off, "On this network only", "The same Wi-Fi or wired network"),
+                    Triple(IrohRelay.Public, "Anywhere", "Through public relays, which help devices find each other. They see who connects to whom, never what is sent."),
+                    Triple(custom, "Anywhere, through your own relay", null)).forEach { (relay, title, summary) ->
+                    SettingsRow(translate(title), summary = summary?.let(::translate), leading = { RadioButton(mode == relay, null) },
+                        modifier = Modifier.selectable(mode == relay, role = Role.RadioButton) { mode = relay })
+                }
+            }
+            if (mode is IrohRelay.Custom) OutlinedTextField(address, { address = it }, Modifier.fillMaxWidth(), singleLine = true,
+                label = { Text(translate("Relay address")) }, colors = settingsTextFieldColors())
+            Button({ enable(if (mode is IrohRelay.Custom) IrohRelay.Custom(address.trim()) else mode) }, Modifier.fillMaxWidth(),
+                enabled = mode !is IrohRelay.Custom || address.isNotBlank()) { Text(translate("Enable Rufin Connect")) }
+        }
+    }
 }
 
 @Composable

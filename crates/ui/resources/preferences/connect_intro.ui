@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface domain="rufin">
+  <requires lib="gtk" version="4.20"/>
+  <requires lib="libadwaita" version="1.9"/>
+  <object class="AdwDialog" id="dialog">
+    <property name="title" translatable="yes">Rufin Connect</property>
+    <property name="follows-content-size">true</property>
+    <property name="child"><object class="AdwToolbarView">
+      <child type="top"><object class="AdwHeaderBar" id="header"><property name="show-title">false</property></object></child>
+      <property name="content"><object class="GtkScrolledWindow">
+        <!-- The dialog follows this size: as wide as its text may run, as tall as it is. -->
+        <property name="hscrollbar-policy">external</property>
+        <property name="propagate-natural-height">true</property>
+        <property name="propagate-natural-width">true</property>
+        <property name="max-content-width">500</property>
+        <property name="child"><object class="AdwClamp">
+          <property name="maximum-size">460</property><property name="tightening-threshold">360</property>
+          <property name="margin-start">24</property><property name="margin-end">24</property>
+          <property name="margin-bottom">24</property>
+          <property name="child"><object class="GtkBox">
+            <property name="orientation">vertical</property><property name="spacing">22</property>
+            <child><object class="GtkBox">
+              <property name="orientation">vertical</property><property name="spacing">6</property>
+              <child><object class="GtkImage">
+                <property name="icon-name">rufin-network-hotspot-symbolic</property>
+                <property name="pixel-size">32</property>
+                <property name="accessible-role">presentation</property>
+                <style><class name="accent"/></style>
+              </object></child>
+              <child><object class="GtkLabel">
+                <property name="label" translatable="yes">Rufin Connect</property>
+                <property name="justify">center</property><property name="wrap">true</property>
+                <style><class name="title-1"/></style>
+              </object></child>
+            </object></child>
+            <child><object class="AdwPreferencesGroup">
+              <child><object class="AdwActionRow">
+                <property name="title" translatable="yes">Keeps your devices in sync</property>
+                <property name="subtitle" translatable="yes">Sources, sign-ins, playlists, favorites, history and preferences</property>
+                <child type="prefix"><object class="GtkImage"><property name="icon-name">rufin-arrows-circle-symbolic</property><property name="accessible-role">presentation</property></object></child>
+              </object></child>
+              <child><object class="AdwActionRow">
+                <property name="title" translatable="yes">Moves playback between them</property>
+                <property name="subtitle" translatable="yes">Continue where another device left off, or control what it plays</property>
+                <child type="prefix"><object class="GtkImage"><property name="icon-name">rufin-waves-and-screen-symbolic</property><property name="accessible-role">presentation</property></object></child>
+              </object></child>
+              <child><object class="AdwActionRow">
+                <property name="title" translatable="yes">Plays this device's music on the others</property>
+                <child type="prefix"><object class="GtkImage"><property name="icon-name">rufin-library-symbolic</property><property name="accessible-role">presentation</property></object></child>
+              </object></child>
+            </object></child>
+            <child><object class="AdwPreferencesGroup">
+              <property name="title" translatable="yes">Where are your devices?</property>
+              <child><object class="AdwActionRow">
+                <property name="title" translatable="yes">On this network only</property>
+                <property name="subtitle" translatable="yes">The same Wi-Fi or wired network</property>
+                <property name="activatable-widget">local</property>
+                <child type="prefix"><object class="GtkCheckButton" id="local"><property name="valign">center</property><property name="active">true</property></object></child>
+              </object></child>
+              <child><object class="AdwActionRow">
+                <property name="title" translatable="yes">Anywhere</property>
+                <property name="subtitle" translatable="yes">Through public relays, which help devices find each other. They see who connects to whom, never what is sent.</property>
+                <property name="activatable-widget">public</property>
+                <child type="prefix"><object class="GtkCheckButton" id="public"><property name="valign">center</property><property name="group">local</property></object></child>
+              </object></child>
+              <child><object class="AdwActionRow">
+                <property name="title" translatable="yes">Anywhere, through your own relay</property>
+                <property name="activatable-widget">custom</property>
+                <child type="prefix"><object class="GtkCheckButton" id="custom"><property name="valign">center</property><property name="group">local</property></object></child>
+              </object></child>
+              <child><object class="AdwEntryRow" id="address">
+                <property name="title" translatable="yes">Relay address</property>
+                <property name="visible">false</property>
+              </object></child>
+            </object></child>
+            <child><object class="GtkButton" id="enable">
+              <property name="label" translatable="yes">Enable Rufin Connect</property>
+              <property name="halign">center</property>
+              <style><class name="pill"/><class name="suggested-action"/></style>
+            </object></child>
+          </object></property>
+        </object></property>
+      </object></property>
+    </object></property>
+  </object>
+</interface>

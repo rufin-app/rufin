@@ -69,7 +69,8 @@
         </div>
         <div id="topbar-search" role="search">
           {% call m::icon("rufin-search-symbolic") %}{% endcall %}
-          <input type="search" id="search" name="q" form="library-toolbar" value="{{ page.query() }}" placeholder="{{ localization::tr("Search") }}" aria-label="{{ localization::tr("Search") }}" autocomplete="off" />
+          <input type="search" id="search" name="q" form="library-toolbar" value="{{ page.query() }}" placeholder="{{ localization::tr("Search") }}" aria-label="{{ localization::tr("Search") }}" aria-keyshortcuts="Control+K" autocomplete="off" />
+          <span id="search-shortcut" aria-hidden="true"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>
         </div>
         <strong id="mini-title" hidden></strong>
         <div class="topbar-end">
@@ -97,10 +98,15 @@
       </header>
       <div id="rooms-popover" popover="auto" aria-label="{{ localization::tr("Rooms") }}">
         <div id="rooms-start">
-          <label class="rooms-field"><span>{{ localization::tr("Your name") }}</span><input id="rooms-name" type="text" autocomplete="off" maxlength="40" /></label>
-          <button id="rooms-create" class="primary" type="button">{{ localization::tr("Create room") }}</button>
-          <p class="rooms-caption">{{ localization::tr("Shares your queue. Your music keeps playing.") }}</p>
-          <p class="rooms-caption"><span id="rooms-reach"></span> <button id="rooms-reach-change" class="text-button" type="button">{{ localization::tr("Change") }}</button></p>
+          <header class="rooms-header">{% call m::icon("rufin-people-symbolic") %}{% endcall %}<h2>{{ localization::tr("Rooms") }}</h2></header>
+          <div class="pref-group">
+            <div class="pref-row">{% call m::icon("rufin-music-queue-symbolic") %}{% endcall %}<span class="pref-label"><span>{{ localization::tr("Shares your queue") }}</span><small>{{ localization::tr("Your music keeps playing") }}</small></span></div>
+            <div class="pref-row">{% call m::icon("rufin-globe-symbolic") %}{% endcall %}<span class="pref-label"><span id="rooms-reach"></span></span><button id="rooms-reach-change" class="text-button" type="button">{{ localization::tr("Change") }}</button></div>
+          </div>
+          <div class="rooms-join">
+            <label class="rooms-field"><span>{{ localization::tr("Your name") }}</span><input id="rooms-name" type="text" autocomplete="off" maxlength="40" /></label>
+            <button id="rooms-create" class="primary" type="button">{{ localization::tr("Create room") }}</button>
+          </div>
           <h3>{{ localization::tr("Join a room") }}</h3>
           <div class="rooms-join">
             <input id="rooms-invite" type="text" autocomplete="off" placeholder="{{ localization::tr("Invite link") }}" aria-label="{{ localization::tr("Invite link") }}" />
@@ -500,10 +506,7 @@
         <label class="menu-switch">{{ localization::tr("Show lyrics") }}<input type="checkbox" role="switch" data-setting="/lyrics_panel_visible" /></label>
         <hr />
         <div class="menu-heading">{{ localization::tr("Transition mode") }}</div>
-        <div class="segmented" role="radiogroup" aria-label="{{ localization::tr("Transition mode") }}">
-          <label><input type="radio" name="transition-mode" value='"Gapless"' data-setting="/playback/transition_mode" />{{ localization::tr("Gapless") }}</label>
-          <label><input type="radio" name="transition-mode" value='"Crossfade"' data-setting="/playback/transition_mode" />{{ localization::tr("Crossfade") }}</label>
-        </div>
+        {% call m::transition_mode("transition-mode") %}{% endcall %}
         </div>
         <div id="playback-equalizer-page" hidden><button type="button" class="icon-button" id="eq-back" title="{{ localization::tr("Back") }}" aria-label="{{ localization::tr("Back") }}">{% call m::icon("rufin-go-previous-symbolic") %}{% endcall %}</button></div>
       </div>
@@ -658,6 +661,7 @@
       </form>
     </dialog>
     <dialog id="welcome-dialog" aria-labelledby="welcome-title">
+      <button type="button" class="icon-button dialog-close" data-close="welcome-dialog" aria-label="{{ localization::tr("Close") }}">{% call m::icon("rufin-window-close-symbolic") %}{% endcall %}</button>
       <div id="welcome-choices">
         <header class="welcome-header">
           <img class="welcome-icon" src="/icons/rufin.svg" alt="" />
@@ -669,22 +673,51 @@
         <div class="pref-group-header"><h4>{{ localization::tr("Add Manually") }}</h4></div>
         <div id="welcome-kinds"></div>
       </div>
-      <div id="welcome-loading" hidden>
-        <header class="welcome-header">
-          <h2 id="welcome-loading-title"></h2>
-          <p id="welcome-progress" role="status"></p>
-        </header>
-        <div class="pref-group-header"><h4>{{ localization::tr("Online Lookups") }}</h4></div>
-        <p>{{ localization::tr("Rufin asks these services about the music you play. All of this can be changed later in Preferences.") }}</p>
-        <div class="pref-group">
-          {% call m::switch("/external_metadata_enabled", localization::tr("External metadata lookup"), localization::tr("Artist pictures, covers and tags from MusicBrainz, Last.fm and Wikidata")) %}{% endcall %}
-          {% call m::switch("/external_lyrics_enabled", localization::tr("External lyrics lookup"), localization::tr("Lyrics from LRCLIB, NetEase, Genius and SimpMusic when a track has none")) %}{% endcall %}
-          {% call m::switch("/discord_presence_enabled", localization::tr("Discord Rich Presence"), localization::tr("Shows what you are playing on your Discord profile")) %}{% endcall %}
-          {% call m::switch("/private_mode", localization::tr("Private mode"), localization::tr("Turns off lookups, scrobbling, play reporting and update checks")) %}{% endcall %}
+      <div id="welcome-setup" hidden>
+        <div id="welcome-pages">
+          <section>
+            <h4>{{ localization::tr("Online Lookups") }}</h4>
+            <p class="pref-note">{{ localization::tr("Rufin asks these services about the music you play. All of this can be changed later in Preferences.") }}</p>
+            <div class="pref-group">
+              {% call m::switch("/external_metadata_enabled", localization::tr("External metadata lookup"), localization::tr("Artist pictures, covers and tags from MusicBrainz, Last.fm and Wikidata")) %}{% endcall %}
+              {% call m::switch("/external_lyrics_enabled", localization::tr("External lyrics lookup"), localization::tr("Lyrics from LRCLIB, NetEase, Genius and SimpMusic when a track has none")) %}{% endcall %}
+              {% call m::switch("/karaoke_mode", localization::tr("Karaoke mode"), localization::tr("Uses available karaoke lyrics or fetches them from the internet")) %}{% endcall %}
+              {% call m::update_interval(localization::tr("New Rufin releases from GitHub")) %}{% endcall %}
+              {% call m::switch("/discord_presence_enabled", localization::tr("Discord Rich Presence"), localization::tr("Shows what you are playing on your Discord profile")) %}{% endcall %}
+              {% call m::switch("/private_mode", localization::tr("Private mode"), localization::tr("Turns off lookups, scrobbling, play reporting and update checks")) %}{% endcall %}
+            </div>
+            <h4>{{ localization::tr("Scrobbling") }}</h4>
+            <div class="pref-group" id="welcome-scrobbling">
+              {% call m::integration_row("lastfm", "Last.fm", "pref-row pref-link") %}{% endcall %}
+              {% call m::integration_row("listenbrainz", "ListenBrainz", "pref-row pref-link") %}{% endcall %}
+              {% call m::integration_row("librefm", "Libre.fm", "pref-row pref-link") %}{% endcall %}
+            </div>
+          </section>
+          <section hidden>
+            <h4>{{ localization::tr("Playback") }}</h4>
+            <div class="pref-group">
+              <label class="pref-row"><span class="pref-label"><span>{{ localization::tr("Auto DJ") }}</span></span><input type="checkbox" role="switch" id="welcome-auto-dj" /></label>
+              {% call m::switch("/auto_dj_similar_artists", localization::tr("Similar artists from ListenBrainz"), localization::tr("Look up the artists that listeners play alongside the current one")) %}{% endcall %}
+              <div class="pref-row"><span class="pref-label"><span>{{ localization::tr("Transition mode") }}</span></span>{% call m::transition_mode("welcome-transition") %}{% endcall %}</div>
+              {% call m::loudness_normalization() %}{% endcall %}
+            </div>
+            <h4>{{ localization::tr("Rufin Connect") }}</h4>
+            <div id="welcome-connect">{% call m::connect_start("welcome-connect") %}{% endcall %}</div>
+          </section>
+          <section hidden>
+            <h4>{{ localization::tr("Theme") }}</h4>
+            {% call m::theme_picker() %}{% endcall %}
+          </section>
         </div>
-        <div class="dialog-actions welcome-start">
-          <button type="button" class="primary" data-close="welcome-dialog">{{ localization::tr("Start Listening") }}</button>
-        </div>
+        <footer id="welcome-footer">
+          <p id="welcome-library" role="status">{% call m::icon("rufin-object-select-symbolic") %}{% endcall %}<span id="welcome-progress"></span></p>
+          <progress id="welcome-bar" max="1" aria-labelledby="welcome-progress"></progress>
+          <div id="welcome-steps">
+            <button type="button" id="welcome-back">{{ localization::tr("Back") }}</button>
+            <span id="welcome-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+            <button type="button" class="primary" id="welcome-next"></button>
+          </div>
+        </footer>
       </div>
     </dialog>
     <dialog id="playlist-transfer-dialog" aria-labelledby="playlist-transfer-title">

@@ -287,6 +287,43 @@ fn set_preferences_back_visible(button: &gtk::Button, visible: bool) {
 /// The categories as icons only: a row's icon with the list's and the row's own padding.
 const COMPACT_CATEGORIES_WIDTH: f64 = 52.0;
 
+/// Shows the saved update check interval on `row` and saves each choice; `saved` hears its
+/// hours.
+fn bind_release_check_interval(
+    shell: &Rc<Shell>,
+    row: &adw::ComboRow,
+    saved: impl Fn(u32) + 'static,
+) {
+    let intervals = [0, 1, 6, 12, 24];
+    let current = shell
+        .settings
+        .current
+        .borrow()
+        .application
+        .release_check_interval_hours;
+    row.set_selected(
+        intervals
+            .iter()
+            .position(|hours| *hours == current)
+            .unwrap_or(2) as u32,
+    );
+    let weak = Rc::downgrade(shell);
+    row.connect_selected_notify(move |row| {
+        let Some(shell) = weak.upgrade() else {
+            return;
+        };
+        let Some(&hours) = intervals.get(row.selected() as usize) else {
+            return;
+        };
+        saved(hours);
+        shell
+            .settings
+            .set_app_setting("release check interval", hours, |settings| {
+                &mut settings.application.release_check_interval_hours
+            });
+    });
+}
+
 fn present_preferences_dialog_with_page(
     shell: &Rc<Shell>,
     initial_page: PreferencesPageKind,
@@ -907,13 +944,13 @@ fn build_preferences_page(
     match kind {
         PreferencesPageKind::General => general_page(shell, navigation_controls),
         PreferencesPageKind::Customization => customization::page(shell),
-        PreferencesPageKind::Theme => themes::page(shell).upcast(),
+        PreferencesPageKind::Theme => themes::page(shell, false).upcast(),
         PreferencesPageKind::Privacy => privacy::page(shell, dialog, navigation_controls),
         PreferencesPageKind::Equalizer => equalizer_page(shell).upcast(),
         PreferencesPageKind::Downloads => library::downloads_page(shell, dialog).upcast(),
         PreferencesPageKind::Storage => storage::page(shell, navigation_controls),
         PreferencesPageKind::Controller => controller::page(shell).upcast(),
-        PreferencesPageKind::Connect => connect::page(shell, dialog),
+        PreferencesPageKind::Connect => connect::page(shell, dialog, false),
         PreferencesPageKind::Integrations => {
             integrations::page(shell, credential_drafts, navigation_controls)
         }
@@ -1145,29 +1182,10 @@ fn general_page(
         }
     }
 
-    let intervals = [0, 1, 6, 12, 24];
-    release_check_interval_row.set_selected(
-        intervals
-            .iter()
-            .position(|hours| *hours == settings.application.release_check_interval_hours)
-            .unwrap_or(2) as u32,
-    );
     // Automatic updates install what a startup check finds; "Off" makes no such check.
     automatic_updates_row.set_sensitive(settings.application.release_check_interval_hours != 0);
-    let interval_shell = Rc::downgrade(shell);
-    release_check_interval_row.connect_selected_notify(move |row| {
-        let Some(shell) = interval_shell.upgrade() else {
-            return;
-        };
-        let Some(&hours) = intervals.get(row.selected() as usize) else {
-            return;
-        };
+    bind_release_check_interval(shell, &release_check_interval_row, move |hours| {
         automatic_updates_row.set_sensitive(hours != 0);
-        shell
-            .settings
-            .set_app_setting("release check interval", hours, |settings| {
-                &mut settings.application.release_check_interval_hours
-            });
     });
 
     shell.settings.bind_switch(

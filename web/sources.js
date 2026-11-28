@@ -1,3 +1,4 @@
+import { loadIntegrations, openIntegrationPage } from "./integrations.js";
 import { openPreferences, showRatingWrites, showSettings } from "./preferences.js";
 import { tr } from "./ui.js";
 import { api, state } from "./connection.js";
@@ -97,7 +98,7 @@ function showSourceProgress(value) {
         ? tr("{stage}: {completed} / {total}", { stage, completed: progress.completed, total: progress.total })
         : tr("{stage}: {completed}", { stage, completed: progress.completed });
   }
-  loadingLibrary = active;
+  libraryProgress = active ? value.progress : null;
   showFirstLibrary();
   if (value.state === "failed") notice(value.message);
   if (
@@ -124,7 +125,8 @@ let firstSource = null;
 let integrationSaved = null;
 
 // The first run: the source list with what the Rufin machine found, then, while the first
-// library loads, the lookup switches. It follows GTK's first-run dialog.
+// library loads, pages of what to set up over the library's progress. It follows GTK's
+// first-run dialog.
 const sourceKinds = [
   ["local", "Local"], ["jellyfin", "Jellyfin"], ["emby", "Emby"], ["navidrome", "Navidrome"],
   ["open_subsonic", "OpenSubsonic"], ["web_dav", "WebDAV"], ["smb", "SMB / Samba"],
@@ -167,7 +169,7 @@ async function findSources() {
 
 function openWelcome() {
   $("welcome-choices").hidden = false;
-  $("welcome-loading").hidden = true;
+  $("welcome-setup").hidden = true;
   $("welcome-kinds").replaceChildren(...sourceKinds.map(([kind, title]) => {
     const tile = el("button", "welcome-kind");
     tile.type = "button";
@@ -179,23 +181,43 @@ function openWelcome() {
   run(findSources);
 }
 
-// Whether the first source is still being added, and whether its library is loading.
+// Whether the first source is still being added, and the progress of the library that loads.
 let addingFirst = false;
-let loadingLibrary = false;
+let libraryProgress = null;
 function showFirstLibrary() {
-  const loading = addingFirst || loadingLibrary;
-  $("welcome-loading-title").textContent = tr(loading ? "While your library loads" : "Your library is ready");
-  $("welcome-progress").textContent = loadingLibrary ? $("source-progress-label").textContent : loading ? tr("Preparing library...") : "";
+  const loading = addingFirst || !!libraryProgress;
+  $("welcome-library").classList.toggle("ready", !loading);
+  $("welcome-progress").textContent = libraryProgress ? $("source-progress-label").textContent
+    : loading ? tr("Preparing library...") : tr("Your library is ready");
+  const bar = $("welcome-bar");
+  bar.hidden = !loading;
+  if (libraryProgress?.total > 0 && !["connecting", "finalizing"].includes(libraryProgress.stage))
+    bar.value = Math.min(1, libraryProgress.completed / libraryProgress.total);
+  else bar.removeAttribute("value");
 }
 
-// Shows the loading page while `add` runs: its switches are the only thing to read meanwhile.
+// One setup page at a time; the last one's Next starts listening.
+let setupPage = 0;
+function showSetupPage(page) {
+  const pages = [...$("welcome-pages").children];
+  setupPage = page;
+  pages.forEach((shown, index) => (shown.hidden = index !== page));
+  [...$("welcome-dots").children].forEach((dot, index) => dot.setAttribute("aria-current", String(index === page)));
+  $("welcome-back").hidden = page === 0;
+  $("welcome-next").textContent = page === pages.length - 1 ? tr("Start Listening") : tr("Next");
+  $("welcome-pages").scrollTop = 0;
+}
+
+// Shows the setup pages while `add` runs: they are the only thing to read meanwhile.
 async function addFirstSource(add) {
   $("welcome-choices").hidden = true;
-  $("welcome-loading").hidden = false;
+  $("welcome-setup").hidden = false;
+  showSetupPage(0);
   addingFirst = true;
   showFirstLibrary();
   if (!$("welcome-dialog").open) $("welcome-dialog").showModal();
   run(showSettings);
+  loadIntegrations();
   try {
     const result = await add();
     state.source = result.id;
@@ -424,6 +446,15 @@ function init() {
   document.addEventListener("click", (event) => {
     if (event.target.closest("[data-open-source]")) openWelcome();
   });
+  $("welcome-back").addEventListener("click", () => showSetupPage(setupPage - 1));
+  $("welcome-next").addEventListener("click", () => {
+    if (setupPage === $("welcome-pages").children.length - 1) $("welcome-dialog").close();
+    else showSetupPage(setupPage + 1);
+  });
+  for (const row of $("welcome-scrobbling").children)
+    row.addEventListener("click", () => openIntegrationPage(row.dataset.integration));
+  // The first run's setup ends when its dialog closes, however it does.
+  $("welcome-dialog").addEventListener("close", () => run(() => api("/sources/finish-setup", "POST")));
   $("source-form").addEventListener("htmx:afterRequest", (event) =>
     run(async () => {
       const xhr = event.detail.xhr;

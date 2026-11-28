@@ -368,7 +368,7 @@ impl AndroidPlayer {
                 state.writable = self.products.lyrics.current_writable(media_id);
                 state.clearable = media.as_ref().is_some_and(|media| {
                     settings.can_suppress_auto_lyrics(
-                        stored.application.private_mode,
+                        stored.private(),
                         &media.row.track.media_uri,
                         *origin,
                     )
