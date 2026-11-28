@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: Rufin\n"
 "Report-Msgid-Bugs-To: https://github.com/rufin-app/rufin/issues\n"
 "POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"PO-Revision-Date: 2026-11-28 13:03+0000\n"
+"PO-Revision-Date: 2026-11-28 15:55+0000\n"
 "Last-Translator: Arnaud Constantin <ahc@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/rufin/app/fr/>\n"
 "Language: fr\n"
@@ -584,7 +584,7 @@ msgid "All Playlists"
 msgstr "Toutes les playlists"
 
 msgid "All time"
-msgstr "Tout le temps"
+msgstr "Depuis toujours"
 
 msgid "All"
 msgstr "Tout"
@@ -599,7 +599,7 @@ msgid "Allow remote connections"
 msgstr "Autoriser les connexions à distance"
 
 msgid "Also album types and tag suggestions"
-msgstr "Aussi les types d’album et les suggestions de tags"
+msgstr "Aussi les types d’album et les suggestions de balises"
 
 msgid "Alternate addresses"
 msgstr "Adresses alternatives"
@@ -814,13 +814,13 @@ msgid "Bar spacing (px)"
 msgstr "Espacement des barres (px)"
 
 msgid "Bass"
-msgstr "Basse"
+msgstr "Basses"
 
 msgid "Bearer token (WebDAV)"
-msgstr "Bearer token (WebDAV)"
+msgstr "Jeton Bearer (WebDAV)"
 
 msgid "Bearer token"
-msgstr "Bearer token"
+msgstr "Jeton Bearer"
 
 msgid "Behavior"
 msgstr "Comportement"
@@ -859,7 +859,7 @@ msgid "CUE file"
 msgstr "Fichier CUE"
 
 msgid "Cache streamed tracks"
-msgstr "Mettre en cache les morceaux streamés"
+msgstr "Mettre en cache les morceaux lus en streaming"
 
 msgid "Cache"
 msgstr "Cache"
@@ -910,7 +910,7 @@ msgid "Change Profile"
 msgstr "Changer de profil"
 
 msgid "Change Secret Storage"
-msgstr "Modifier le stockage secret"
+msgstr "Modifier le stockage des identifiants"
 
 msgid "Change Source"
 msgstr "Changer de source"
@@ -967,8 +967,8 @@ msgstr "Choisir un dossier"
 
 msgid "Choose one or more folders to scan and play directly from this computer"
 msgstr ""
-"Choisissez un ou plusieurs dossiers à analyser et jouer directement à partir "
-"de cet ordinateur"
+"Choisissez un ou plusieurs dossiers à analyser et à lire directement depuis "
+"cet ordinateur"
 
 msgid "Choose playback output"
 msgstr "Choisir la sortie de lecture"
@@ -1200,7 +1200,7 @@ msgid "Connection settings"
 msgstr "Paramètres de connexion"
 
 msgid "Connection test has failed"
-msgstr "L'essai de connexion a échoué"
+msgstr "Le test de connexion a échoué"
 
 msgid "Connection"
 msgstr "Connexion"
@@ -1256,7 +1256,7 @@ msgid "Could not load page"
 msgstr "Impossible de charger la page"
 
 msgid "Could not load related tracks"
-msgstr "Impossible de charger des morceaux correspondants"
+msgstr "Impossible de charger les morceaux associés"
 
 msgid "Could not load this page"
 msgstr "Impossible de charger cette page"
@@ -1319,7 +1319,7 @@ msgid "Covers and artist images your library doesn't have"
 msgstr "Pochettes et images d’artistes absentes de votre bibliothèque"
 
 msgid "Covers, artist images, tags"
-msgstr "Pochettes, images d’artistes, tags"
+msgstr "Illustrations, images d’artistes, balises"
 
 msgid "Create API keys"
 msgstr "Créer les clés API"
@@ -1360,7 +1360,7 @@ msgid "Crossfade"
 msgstr "Fondu enchaîné"
 
 msgid "Crossfeed"
-msgstr "Fondu enchaîné"
+msgstr "Crossfeed"
 
 msgid "Current artwork"
 msgstr "Illustration actuelle"
@@ -1485,7 +1485,7 @@ msgid "Demos"
 msgstr "Démos"
 
 msgid "Descending"
-msgstr "Descendant"
+msgstr "Décroissant"
 
 msgid "Description"
 msgstr "Description"
@@ -1574,9 +1574,9 @@ msgstr "Ne pas chiffrer"
 msgid "Do you want to apply metadata changes to {count} track?"
 msgid_plural "Do you want to apply metadata changes to {count} tracks?"
 msgstr[0] ""
-"Voulez-vous appliquer les modifications de métadonnées sur {count} morceau ?"
+"Voulez-vous appliquer les modifications de métadonnées à {count} morceau ?"
 msgstr[1] ""
-"Voulez-vous appliquer les modifications de métadonnées sur {count} morceaux ?"
+"Voulez-vous appliquer les modifications de métadonnées à {count} morceaux ?"
 
 msgid "Do you want to use the existing configuration?"
 msgstr "Voulez-vous utiliser la configuration existante ?"
@@ -1745,7 +1745,7 @@ msgid "Enable caching lyrics"
 msgstr "Activer la mise en cache des paroles"
 
 msgid "Enable partial star ratings"
-msgstr "Activer les notes par demi-étoiles"
+msgstr "Activer les notes par étoiles partielles"
 
 msgid "Enable private mode"
 msgstr "Activer le mode privé"
@@ -1818,7 +1818,7 @@ msgid "Ever played"
 msgstr "Déjà écouté"
 
 msgid "Every track of your favorite albums"
-msgstr "Tous les titres de vos albums préférés"
+msgstr "Tous les morceaux de vos albums préférés"
 
 msgid "Every track of your favorite artists"
 msgstr "Tous les morceaux de vos artistes préférés"
@@ -2007,7 +2007,7 @@ msgid "Fit to height"
 msgstr "Adapter à la hauteur"
 
 msgid "Fit wide and tall covers inside their frames instead of cropping them"
-msgstr "Ajuste les grandes illustrations au cadre au lieu de les rogner"
+msgstr "Ajuste les illustrations trop grandes au cadre au lieu de les rogner"
 
 msgid "Fixed position"
 msgstr "Position fixe"
@@ -2270,8 +2270,8 @@ msgstr "Importer"
 
 msgid "Imported {count} listen."
 msgid_plural "Imported {count} listens."
-msgstr[0] "Importé {count} écoute."
-msgstr[1] "Importé {count} écoutes."
+msgstr[0] "{count} écoute importée."
+msgstr[1] "{count} écoutes importées."
 
 msgid "Imports files into the library, and watches added folders for changes."
 msgstr ""
@@ -2525,7 +2525,7 @@ msgid "Loading cached lookups..."
 msgstr "Chargement des recherches en cache…"
 
 msgid "Loading related tracks..."
-msgstr "Chargement des morceaux correspondants…"
+msgstr "Chargement des morceaux associés…"
 
 msgid "Loading..."
 msgstr "Chargement..."
@@ -2613,7 +2613,7 @@ msgstr ""
 "Rechercher les artistes que les auditeurs écoutent avec l’artiste en cours"
 
 msgid "Lookup"
-msgstr "Chercher"
+msgstr "Recherche"
 
 msgid "Lookups"
 msgstr "Recherches"
@@ -2798,7 +2798,7 @@ msgid "Most Played"
 msgstr "Le plus écouté"
 
 msgid "Most Skipped"
-msgstr "Le plus sauté"
+msgstr "Le plus ignoré"
 
 msgid "Most played"
 msgstr "Le plus écouté"
@@ -2840,7 +2840,7 @@ msgid "Music"
 msgstr "Musique"
 
 msgid "MusicBrainz album artist ID"
-msgstr "ID artiste de l’album MusicBrainz"
+msgstr "ID d’artiste de l’album MusicBrainz"
 
 msgid "MusicBrainz artist ID"
 msgstr "ID d’artiste MusicBrainz"
@@ -3176,7 +3176,7 @@ msgid "On"
 msgstr "On"
 
 msgid "One Name: Value header per line"
-msgstr "Un nom : En-tête de valeur par ligne"
+msgstr "Un en-tête « Nom : Valeur » par ligne"
 
 msgid "One address per line, pointing to the same collection"
 msgstr "Une adresse par ligne, pointant vers la même collection"
@@ -3657,7 +3657,7 @@ msgid "Rating"
 msgstr "Note"
 
 msgid "Reading tags..."
-msgstr "Lecture des tags..."
+msgstr "Lecture des balises..."
 
 msgid "Ready"
 msgstr "Prêt"
@@ -3720,7 +3720,7 @@ msgid "Regenerate"
 msgstr "Régénérer"
 
 msgid "Related"
-msgstr "Correspondant"
+msgstr "Associés"
 
 msgid "Relative"
 msgstr "Relatif"
@@ -4201,7 +4201,7 @@ msgid "Seek to {time}"
 msgstr "Aller à {time}"
 
 msgid "Seekbar"
-msgstr "Bar de recherche"
+msgstr "Barre de progression"
 
 msgid "Segment end"
 msgstr "Fin du segment"
@@ -4750,7 +4750,7 @@ msgid "System"
 msgstr "Système"
 
 msgid "Tags"
-msgstr "Étiquettes"
+msgstr "Balises"
 
 msgid "Target loudness"
 msgstr "Volume sonore cible"
@@ -4802,8 +4802,8 @@ msgstr "Le serveur est inaccessible"
 
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr ""
-"La feuille qui s’ouvre avec un appui long. Touchez une entrée pour "
-"l’afficher ou la masquer."
+"Le menu qui s’ouvre lors d’un appui long. Touchez une entrée pour l’afficher "
+"ou la masquer."
 
 msgid "TheAudioDB album ID"
 msgstr "ID d’album TheAudioDB"
@@ -4895,7 +4895,7 @@ msgid "Thursday"
 msgstr "Jeudi"
 
 msgid "Time"
-msgstr "Temps"
+msgstr "Heure"
 
 msgid "Title (merged)"
 msgstr "Titre (fusionné)"
@@ -4994,7 +4994,7 @@ msgid "Treble"
 msgstr "Aigus"
 
 msgid "Trust self-signed certificate"
-msgstr "Certificat auto-signé de confiance"
+msgstr "Faire confiance au certificat auto-signé"
 
 msgid "Tuesday"
 msgstr "Mardi"
@@ -5189,7 +5189,7 @@ msgid "Volume scale"
 msgstr "Échelle du volume"
 
 msgid "Volume step"
-msgstr "Réglage du volume"
+msgstr "Pas de volume"
 
 msgid "Volume"
 msgstr "Volume"
@@ -5207,7 +5207,7 @@ msgid "Warnings"
 msgstr "Avertissements"
 
 msgid "Waveform seekbar"
-msgstr "Barre de recherche de forme d’onde"
+msgstr "Barre de progression en forme d’onde"
 
 msgid "Waveforms"
 msgstr "Formes d’onde"
@@ -5225,7 +5225,7 @@ msgid "Wednesday"
 msgstr "Mercredi"
 
 msgid "Weekday"
-msgstr "Jours de la semaine"
+msgstr "Jour de la semaine"
 
 msgid "Weekly"
 msgstr "Hebdomadaire"
@@ -5258,13 +5258,13 @@ msgid "Without genres and descriptions"
 msgstr "Sans genres ni descriptions"
 
 msgid "Write EBU R128 tags to files"
-msgstr "Écrire les tags EBU R128 dans les fichiers"
+msgstr "Écrire les balises EBU R128 dans les fichiers"
 
 msgid "Write Ratings to Files?"
 msgstr "Écrire les notes dans les fichiers ?"
 
 msgid "Write ratings to files"
-msgstr "Écriture des notes dans les fichiers"
+msgstr "Écrire les notes dans les fichiers"
 
 msgid "Write to Files"
 msgstr "Écrire dans les fichiers"
@@ -5349,10 +5349,10 @@ msgid "does not contain"
 msgstr "ne contient pas"
 
 msgid "does not equal"
-msgstr "n'est pas égal"
+msgstr "n’est pas égal à"
 
 msgid "equals"
-msgstr "égaux"
+msgstr "est égal à"
 
 msgid "excludes"
 msgstr "exclut"
@@ -5546,11 +5546,11 @@ msgid ""
 "\n"
 "Click Next to continue."
 msgstr ""
-"Rufin est lecteur de musique natif pour les serveurs Jellyfin, Navidrome/"
+"Rufin est un lecteur de musique natif pour les serveurs Jellyfin, Navidrome/"
 "OpenSubsonic, Plex et Emby ; dossiers locaux, WebDAV comprenant un chemin de "
-"connexion de navigateur Nextcloud direct, Samba et NAS.\n"
+"connexion de navigateur Nextcloud direct, partages Samba et NAS.\n"
 "\n"
-"Cette programme installera Rufin sur votre ordinateur.\n"
+"Ce programme installera Rufin sur votre ordinateur.\n"
 "\n"
 "Cliquez sur Suivant pour continuer."
 
