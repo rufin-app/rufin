@@ -24,6 +24,8 @@ pub(crate) enum FileInput {
     Link {
         peer: crate::peer::PeerSource,
         encoding: Option<library::AudioEncoding>,
+        /// Where what the link sends is kept, sealed, while it plays.
+        kept: Option<std::path::PathBuf>,
     },
 }
 
@@ -194,7 +196,11 @@ async fn serve(
         FileInput::Smb(client) => smb_response(client, &path, &request).await,
         FileInput::WebDav(client) => dav_response(client, &path, &request).await,
         FileInput::Documents(access) => document_response(access, &path, &request).await,
-        FileInput::Link { peer, encoding } => link_response(peer, *encoding, &path, &request).await,
+        FileInput::Link {
+            peer,
+            encoding,
+            kept,
+        } => link_response(peer, *encoding, kept.as_deref(), &path, &request).await,
     };
     result.unwrap_or_else(|error| {
         tracing::warn!(%error, "file input request failed");
@@ -215,6 +221,7 @@ async fn serve(
 async fn link_response(
     peer: &crate::peer::PeerSource,
     encoding: Option<library::AudioEncoding>,
+    kept: Option<&std::path::Path>,
     object: &str,
     request: &Request<hyper::body::Incoming>,
 ) -> SourceResult<Response<Body>> {
@@ -326,8 +333,16 @@ async fn link_response(
         headers.insert(header::ETAG, etag.parse().unwrap());
     }
     if request.method() != Method::HEAD {
-        let stream = tokio_util::io::ReaderStream::new(audio.reader).map_ok(Frame::data);
-        *response.body_mut() = StreamBody::new(stream).boxed_unsync();
+        *response.body_mut() = match kept {
+            Some(directory) => {
+                let stream = super::sealed::kept(audio.reader, directory).map_err(io_error)?;
+                StreamBody::new(stream.map_ok(Frame::data)).boxed_unsync()
+            }
+            None => {
+                let stream = tokio_util::io::ReaderStream::new(audio.reader);
+                StreamBody::new(stream.map_ok(Frame::data)).boxed_unsync()
+            }
+        };
     }
     Ok(response)
 }

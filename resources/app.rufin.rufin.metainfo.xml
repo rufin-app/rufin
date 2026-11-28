@@ -23,6 +23,7 @@
       <li>Supports Jellyfin, Navidrome, Plex and Emby servers, local folders, Nextcloud and network shares</li>
       <li>Internet radio stations with artwork and lyrics where available</li>
       <li>Rufin Connect securely syncs your sources, playlists, favorites and listening history across devices, lets you continue or control playback on another device, and play your local music library on all of them</li>
+      <li>Rooms let you listen together with friends: share an invite link and everyone controls the same queue, each on their own device</li>
       <li>Gapless playback or crossfade, and even volume across songs</li>
       <li>Graphic and parametric equalizer with presets, and surround sound output</li>
       <li>Next track recommendations with Auto DJ, Mix with filters and sleep timer</li>

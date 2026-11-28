@@ -90,6 +90,7 @@ class RufinConnection(application: Application) : AndroidViewModel(application) 
     internal val browse: BrowseConnection
     internal val more: MoreConnection
     internal val connect: ConnectConnection
+    internal val room: app.rufin.rufin.room.RoomConnection
     internal val downloads: DownloadsConnection
     private var sourceSetup: SourceSetupConnection? = null
     private var sourceSetupId: String? = null
@@ -154,10 +155,12 @@ class RufinConnection(application: Application) : AndroidViewModel(application) 
 
     init {
         connect = ConnectConnection(this)
+        room = app.rufin.rufin.room.RoomConnection(this)
         downloads = DownloadsConnection(this, viewModelScope)
         browse = BrowseConnection(this, viewModelScope)
         more = MoreConnection(this, viewModelScope)
         viewModelScope.launch { connect.observe() }
+        viewModelScope.launch { room.observe() }
         application.bindService(Intent(application, RufinService::class.java)
             .setAction(RufinService.ACTION_BIND_RUNTIME), connection, Context.BIND_AUTO_CREATE)
     }

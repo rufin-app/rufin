@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeSet, HashMap},
     sync::{Arc, OnceLock, Weak},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result, bail, ensure};
@@ -49,6 +49,11 @@ pub(crate) const MAX_FRAME: usize = 16 * 1024 * 1024;
 pub(crate) const TRUSTED_FRAME: usize = u32::MAX as usize;
 // A device that removed this one closes its connections with this code.
 const REMOVED: VarInt = VarInt::from_u32(2);
+// A media response waits this long for a path that may carry it.
+const MEDIA_WAIT: Duration = Duration::from_secs(10);
+// A device that had no such path is answered at once for this long; one request then waits
+// again, in case a path opened since.
+const MEDIA_RETRY: Duration = Duration::from_secs(30);
 
 pub const INCOMPATIBLE: &str = localization::msgid(
     "Devices using Rufin Connect are no longer compatible. Please update Rufin.",
@@ -63,7 +68,11 @@ pub fn install_dns_resolver(resolver: fn() -> iroh::dns::DnsResolver) {
     let _ = DNS_RESOLVER.set(resolver);
 }
 
-pub(super) fn canonical_relay(relay: iroh::RelayUrl) -> iroh::RelayUrl {
+pub(crate) fn dns_resolver() -> Option<iroh::dns::DnsResolver> {
+    DNS_RESOLVER.get().map(|resolver| resolver())
+}
+
+pub(crate) fn canonical_relay(relay: iroh::RelayUrl) -> iroh::RelayUrl {
     let mut url = (*relay).clone();
     if let Some(domain) = url.domain().map(str::to_owned) {
         url.set_host(Some(domain.trim_end_matches('.')))
@@ -72,7 +81,7 @@ pub(super) fn canonical_relay(relay: iroh::RelayUrl) -> iroh::RelayUrl {
     url.into()
 }
 
-fn canonical_address(mut address: EndpointAddr) -> EndpointAddr {
+pub(crate) fn canonical_address(mut address: EndpointAddr) -> EndpointAddr {
     address.addrs = address
         .addrs
         .into_iter()
@@ -272,6 +281,9 @@ pub struct ConnectNetwork {
     pairing_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
     // The devices already reported as incompatible.
     incompatible: std::sync::Mutex<BTreeSet<EndpointId>>,
+    // The devices whose last media request found no path that may carry media, and when one
+    // of their requests waits for a path again.
+    media_refused: std::sync::Mutex<HashMap<EndpointId, Instant>>,
 }
 
 impl ConnectNetwork {
@@ -285,8 +297,8 @@ impl ConnectNetwork {
             .secret_key(credentials.clone())
             .address_lookup(routes.clone())
             .relay_mode(relay.mode()?);
-        if let Some(resolver) = DNS_RESOLVER.get() {
-            builder = builder.dns_resolver(resolver());
+        if let Some(resolver) = dns_resolver() {
+            builder = builder.dns_resolver(resolver);
         }
         let mut nearby_error = None;
         let discoveries = if config.nearby {
@@ -322,6 +334,7 @@ impl ConnectNetwork {
             router: Mutex::new(None),
             pairing_task: Mutex::new(None),
             incompatible: Default::default(),
+            media_refused: Default::default(),
         });
         let weak = Arc::downgrade(&network);
         let router = Router::builder(network.endpoint.clone())
@@ -745,6 +758,29 @@ impl ConnectNetwork {
         self.request_stream(peer, body, MEDIA_PROTOCOL).await
     }
 
+    /// How long a media response to `peer` waits for a path that may carry it.
+    fn media_wait(&self, peer: EndpointId) -> Duration {
+        let mut refused = self.media_refused.lock().unwrap_or_else(|p| p.into_inner());
+        let now = Instant::now();
+        match refused.get_mut(&peer) {
+            Some(retry) if *retry > now => Duration::ZERO,
+            Some(retry) => {
+                *retry = now + MEDIA_RETRY;
+                MEDIA_WAIT
+            }
+            None => MEDIA_WAIT,
+        }
+    }
+
+    fn media_answered(&self, peer: EndpointId, carried: bool) {
+        let mut refused = self.media_refused.lock().unwrap_or_else(|p| p.into_inner());
+        if carried {
+            refused.remove(&peer);
+        } else {
+            refused.insert(peer, Instant::now() + MEDIA_RETRY);
+        }
+    }
+
     pub async fn fetch_media(&self, peer: &str, body: Vec<u8>) -> Result<PeerByteResponse> {
         let protocol = if self.relay != IrohRelay::Off && self.relay.custom_media_relay()?.is_none()
         {
@@ -832,9 +868,10 @@ impl Drop for ConnectNetwork {
     }
 }
 
-struct MediaReader {
-    _connection: Connection,
-    recv: iroh::endpoint::RecvStream,
+/// Audio as its sender streams it, read while the connection it came over lasts.
+pub(crate) struct MediaReader {
+    pub(crate) _connection: Connection,
+    pub(crate) recv: iroh::endpoint::RecvStream,
 }
 
 impl tokio::io::AsyncRead for MediaReader {
@@ -878,7 +915,13 @@ impl ProtocolHandler for MediaProtocol {
                         } else {
                             &network.relay
                         };
-                        relay.send_media(&connection, &mut send, response).await
+                        let peer = connection.remote_id();
+                        let wait = network.media_wait(peer);
+                        let carried = relay
+                            .send_media(&connection, &mut send, response, wait)
+                            .await?;
+                        network.media_answered(peer, carried);
+                        Ok(())
                     }
                     Ok(StreamReply::Control(response)) => send_response(&mut send, response).await,
                     Err(error) => send_error(&mut send, &error).await,

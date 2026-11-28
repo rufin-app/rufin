@@ -230,7 +230,32 @@ struct ScrobblingValue {
 
 #[derive(Serialize, Deserialize)]
 struct RelayValue {
+    /// The custom relay's address: all an older client reads and writes, as it cannot name
+    /// the built-in relay.
     relay: Option<String>,
+    /// The profile's relay.
+    #[serde(default)]
+    choice: Option<rufin_connect::IrohRelay>,
+}
+
+impl RelayValue {
+    fn of(choice: rufin_connect::IrohRelay) -> Self {
+        Self {
+            relay: choice.custom_url().map(str::to_owned),
+            choice: Some(choice),
+        }
+    }
+
+    /// The relay a device that saved `saved` takes from this record.
+    fn choice(self, saved: &rufin_connect::IrohRelay) -> rufin_connect::IrohRelay {
+        match self.choice {
+            Some(choice) => choice,
+            // An older client's record has only a custom address, so it leaves a choice of
+            // the public relays as it is.
+            None if saved.custom_url() == self.relay.as_deref() => saved.clone(),
+            None => rufin_connect::IrohRelay::from_custom(self.relay),
+        }
+    }
 }
 
 /// Rows of one pull or one folder read that wait for their parent, by the device they came
@@ -1292,13 +1317,7 @@ impl Records {
             items.push(Item::new(
                 "setting:relay".into(),
                 None,
-                &RelayValue {
-                    relay: stored
-                        .iroh_relay
-                        .as_ref()
-                        .and_then(rufin_connect::IrohRelay::custom_url)
-                        .map(str::to_owned),
-                },
+                &RelayValue::of(stored.iroh_relay.clone().unwrap_or_default()),
             )?);
             Ok::<_, String>(items)
         })
@@ -1870,12 +1889,12 @@ impl Records {
                 }
                 "relay" if !row.deleted => {
                     let value: RelayValue = decode(row)?;
-                    // The legacy record shares custom addresses. A device's explicit choice
-                    // of the built-in relay has no address to publish to older clients.
-                    if owner.settings.iroh_relay().custom_url() != value.relay.as_deref() {
+                    let saved = owner.settings.iroh_relay();
+                    let shared = value.choice(&saved);
+                    if shared != saved {
                         owner
                             .settings
-                            .set_iroh_relay(rufin_connect::IrohRelay::from_custom(value.relay))
+                            .set_iroh_relay(shared)
                             .map_err(string_error)?;
                     }
                 }
@@ -2353,10 +2372,7 @@ pub(super) fn shared_settings(stored: &crate::settings::StoredSettings) -> Optio
     store::digest(&(
         &stored.sources.configured,
         &stored.sources.integrations,
-        stored
-            .iroh_relay
-            .as_ref()
-            .and_then(rufin_connect::IrohRelay::custom_url),
+        &stored.iroh_relay,
         preferences,
         &stored.scrobbling,
         &stored.scrobbling_credentials,
@@ -2428,4 +2444,37 @@ fn scrobbling_value(
             .transpose()
             .map_err(string_error)?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RelayValue;
+    use rufin_connect::IrohRelay;
+
+    #[test]
+    fn a_relay_record_names_the_choice_and_an_older_one_only_a_custom_address() {
+        let custom = |url: &str| IrohRelay::Custom { url: url.into() };
+        for choice in [
+            IrohRelay::Off,
+            IrohRelay::Public,
+            custom("https://a.example"),
+        ] {
+            let sent = serde_json::to_value(RelayValue::of(choice.clone())).unwrap();
+            let received: RelayValue = serde_json::from_value(sent).unwrap();
+            assert_eq!(received.choice(&custom("https://b.example")), choice);
+        }
+        let older = |record: &str| serde_json::from_str::<RelayValue>(record).unwrap();
+        assert_eq!(
+            older(r#"{"relay":null}"#).choice(&IrohRelay::Public),
+            IrohRelay::Public
+        );
+        assert_eq!(
+            older(r#"{"relay":null}"#).choice(&custom("https://a.example")),
+            IrohRelay::Off
+        );
+        assert_eq!(
+            older(r#"{"relay":"https://a.example"}"#).choice(&IrohRelay::Public),
+            custom("https://a.example")
+        );
+    }
 }

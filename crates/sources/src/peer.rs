@@ -91,6 +91,16 @@ pub struct PeerSource {
 }
 
 impl PeerSource {
+    /// A source whose audio `link` gives, with no catalog behind it: a room's songs as the
+    /// members who have them send them. `device` names who is asked.
+    pub fn over(device: String, source: SourceId, link: Arc<dyn PeerLink>) -> Self {
+        Self {
+            device,
+            source,
+            link,
+        }
+    }
+
     pub(crate) fn open(
         configuration: &SourceConfiguration,
         link: Option<Arc<dyn PeerLink>>,
@@ -252,13 +262,28 @@ impl PeerSource {
         encoding: Option<AudioEncoding>,
     ) -> SourceResult<ResolvedStream> {
         let object = playable.object_id.as_deref().ok_or(SourceError::NotFound)?;
+        self.object_stream(object, &playable.media_uri, playable.window, encoding, None)
+            .await
+    }
+
+    /// The audio the link gives for `object`, through the loopback server. With `kept` it
+    /// is held in a sealed file in that directory while it plays.
+    pub async fn object_stream(
+        &self,
+        object: &str,
+        media_uri: &str,
+        window: Option<(u64, u64)>,
+        encoding: Option<AudioEncoding>,
+        kept: Option<std::path::PathBuf>,
+    ) -> SourceResult<ResolvedStream> {
         let input = FileInputServer::start(FileInput::Link {
             peer: self.clone(),
             encoding,
+            kept,
         })
         .await?;
-        let stream = input.stream(object, &playable.media_uri);
-        let stream = match playable.window {
+        let stream = input.stream(object, media_uri);
+        let stream = match window {
             Some((start, end)) => stream.with_window(start, end),
             None => stream,
         };

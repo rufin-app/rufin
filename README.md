@@ -18,7 +18,7 @@
 <p align="left">
   Rufin is a fast, native music player for local folders, network shares and music servers, on <a href="#installation">Linux</a>, <a href="#windows">Windows</a>, <a href="#macos">macOS</a> and <a href="#android">Android</a>. It offers deep customization for its appearance and behavior, rich library browsing and management experience with in-app lyrics/metadata/artwork searching & editing, and a careful playback engine powered by GStreamer.
 
-  Rufin Connect securely syncs your devices and moves playback between them; Rufin can also run headless, be scripted, or be controlled from its Web UI.
+  Rufin Connect securely syncs your devices and moves playback between them, and Rooms let you listen together with friends; Rufin can also run headless, be scripted, or be controlled from its Web UI.
 </p>
 
 <br clear="all">
@@ -50,6 +50,21 @@ Downloaded tracks, and tracks of a server matched to local folders, play from di
 - **Output**: audio device selection, multichannel output and Dolby/DTS bitstream passthrough, casting to UPnP and Chromecast
 - **Formats**: broad codec support [^codecs], and CUE sheets as separate playable tracks
 
+## 🎧 Rooms
+
+- Listen together: create a room and invite people with a link
+- Everyone can controls songs, and contribute to the queue
+- Each listener plays their own copy of a song, from whichever source they have it in; with "Share songs" on, members who have a song play it for listeners who don't
+- No account: every room has a new identity, its invite stops working when the room ends
+- Connections between devices are end-to-end encrypted ([Iroh](https://www.iroh.computer/)) and go directly where possible; a relay the host chooses helps devices find each other, and music never passes through a public relay
+
+## ✨ Rufin Connect
+
+- Syncs sources, credentials, playlists, favorites, pins, preferences and listening history between your devices; queues, downloads and local paths stay per device
+- Continue playback where another device left off, or control what another device is playing
+- Stream your local music library to another device
+- Devices pair with emoji verification (like Matrix); connections between them are end-to-end encrypted ([Iroh](https://www.iroh.computer/)) and go directly where possible, and a relay you choose helps devices find each other; an encrypted sync folder (local, WebDAV or SMB) covers devices that are never online together
+
 ## 📚 Library
 
 - **Browsing**: a customizable Home, Folders, Genres, Moods, History and pins; details pages for tracks, albums and artists
@@ -64,13 +79,6 @@ Downloaded tracks, and tracks of a server matched to local folders, play from di
 - **Sharing**: Share server links of your tracks, or share the song or selected lyrics as an elagant card for social media on Android
 - **Backups**: granular import/export including credentials; scheduled and password-protected backups
 - **Files**: open audio files and playlists as the default player, from the CLI with `rufin track.mp4`, or by dragging them into the window
-
-## ✨ Rufin Connect
-
-- Syncs sources, credentials, playlists, favorites, pins, preferences and listening history between your devices; queues, downloads and local paths stay per device
-- Continue playback where another device left off, or control what another device is playing
-- Stream your local music library to another device
-- Devices pair with emoji verification (like Matrix) and connect over encrypted [Iroh](https://github.com/n0-computer/iroh) links, directly or through a relay you choose; an encrypted sync folder (local, WebDAV or SMB) covers devices that are never online together
 
 ## 🧩 Integrations
 

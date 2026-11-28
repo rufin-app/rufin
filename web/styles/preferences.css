@@ -307,6 +307,10 @@ button.pref-row {
 button.pref-row:hover {
   background: var(--hover);
 }
+/* A link's second line says what it leads to, however long. */
+.pref-link {
+  white-space: normal;
+}
 .pref-link > .icon,
 .pref-link > .source-icon {
   width: 16px;

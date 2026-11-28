@@ -590,14 +590,16 @@
                         <property name="title" translatable="yes">Iroh relay</property>
                         <child>
                           <object class="AdwPreferencesGroup">
+                            <property name="description" translatable="yes">A relay helps your devices and rooms reach each other when they cannot connect directly.</property>
                             <child>
                               <object class="AdwComboRow" id="relay_mode">
                                 <property name="title" translatable="yes">Relay</property>
+                                <property name="tooltip-text" translatable="yes">Music never passes through a public relay. A relay of your own may carry it.</property>
                                 <property name="model">
                                   <object class="GtkStringList">
                                     <items>
                                       <item translatable="yes">Off</item>
-                                      <item>Rufin</item>
+                                      <item translatable="yes">Public relays</item>
                                       <item translatable="yes">Custom URL</item>
                                     </items>
                                   </object>
@@ -607,32 +609,53 @@
                             <child>
                               <object class="AdwEntryRow" id="relay_address">
                                 <property name="title" translatable="yes">Relay address</property>
+                                <property name="show-apply-button">true</property>
                                 <property name="visible">false</property>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkButton" id="relay_save">
-                                <property name="label" translatable="yes">Save</property>
-                                <property name="halign">end</property>
-                                <property name="margin-top">6</property>
                               </object>
                             </child>
                           </object>
                         </child>
                         <child>
                           <object class="AdwPreferencesGroup">
+                            <property name="title" translatable="yes">Public relays</property>
                             <child>
-                              <object class="GtkLinkButton">
-                                <property name="label" translatable="yes">Self-host an Iroh Relay</property>
-                                <property name="uri">https://docs.iroh.computer/iroh-services/relays/self-hosted</property>
-                                <property name="halign">start</property>
+                              <object class="AdwActionRow" id="relay_public_link">
+                                <property name="title" translatable="yes">About the public relays</property>
+                                <property name="subtitle" translatable="yes">Run by the Iroh project. They see who connects to whom, never what is sent.</property>
+                                <property name="activatable">true</property>
+                                <child type="suffix">
+                                  <object class="GtkImage">
+                                    <property name="icon-name">rufin-external-link-symbolic</property>
+                                  </object>
+                                </child>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkLinkButton">
-                                <property name="label" translatable="yes">Use a public relay</property>
-                                <property name="uri">https://github.com/n0-computer/iroh/blob/v1.5.0/iroh/src/defaults.rs</property>
-                                <property name="halign">start</property>
+                              <object class="AdwActionRow" id="relay_privacy_link">
+                                <property name="title" translatable="yes">Privacy policy</property>
+                                <property name="activatable">true</property>
+                                <child type="suffix">
+                                  <object class="GtkImage">
+                                    <property name="icon-name">rufin-external-link-symbolic</property>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwPreferencesGroup">
+                            <property name="title" translatable="yes">Your own relay</property>
+                            <child>
+                              <object class="AdwActionRow" id="relay_host_link">
+                                <property name="title" translatable="yes">Self-host an Iroh Relay</property>
+                                <property name="subtitle" translatable="yes">A relay locked with a token takes it at the end of its address: ?token=...</property>
+                                <property name="activatable">true</property>
+                                <child type="suffix">
+                                  <object class="GtkImage">
+                                    <property name="icon-name">rufin-external-link-symbolic</property>
+                                  </object>
+                                </child>
                               </object>
                             </child>
                           </object>

@@ -57,12 +57,22 @@ let toastParent;
 
 // A modal dialog draws over the page, so the toast shows inside the topmost one, in the same
 // place. Work in progress stays until its result replaces it.
-function notice(message, { working = false } = {}) {
+// `action` offers one thing to do about the message: its label and what runs.
+function notice(message, { working = false, action = null } = {}) {
   const toast = $("toast");
   toastParent ??= toast.parentElement;
   const dialogs = document.querySelectorAll("dialog:modal");
   (dialogs[dialogs.length - 1] || toastParent).append(toast);
   toast.textContent = message;
+  if (action) {
+    const offer = el("button", "text-button", action.label);
+    offer.type = "button";
+    offer.addEventListener("click", () => {
+      toast.hidden = true;
+      run(action.run);
+    });
+    toast.append(offer);
+  }
   toast.hidden = false;
   clearTimeout(toastTimer);
   if (!working) toastTimer = setTimeout(() => {

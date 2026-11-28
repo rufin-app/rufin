@@ -21,6 +21,8 @@ pub(crate) struct Topbar {
     actions: gtk::Box,
     source: gtk::MenuButton,
     controller: gtk::MenuButton,
+    rooms: gtk::MenuButton,
+    room_offer: std::cell::RefCell<Option<Box<dyn Fn(&str)>>>,
     playback_targets: gtk::Box,
     pub casting_host: gtk::Box,
     mini_title: adw::WindowTitle,
@@ -102,6 +104,7 @@ impl Topbar {
             actions: gtk::Box,
             source: gtk::MenuButton,
             controller: gtk::MenuButton,
+            rooms: gtk::MenuButton,
             playback_targets: gtk::Box,
             casting_host: gtk::Box,
             mini_title: adw::WindowTitle,
@@ -128,10 +131,19 @@ impl Topbar {
             actions,
             source,
             controller,
+            rooms,
+            room_offer: std::cell::RefCell::new(None),
             playback_targets,
             casting_host,
             mini_title,
             mini: std::cell::Cell::new(false),
+        }
+    }
+
+    /// An invite link was opened: the app asks whether to join its room.
+    pub fn offer_room(&self, invite: &str) {
+        if let Some(offer) = self.room_offer.borrow().as_ref() {
+            offer(invite);
         }
     }
 
@@ -188,6 +200,8 @@ impl Topbar {
             )));
         super::navigation::install_primary_menu(&self.menu, shell);
         crate::preferences::preferences::controller::bind_popover(&shell, &self.controller);
+        let offer = crate::preferences::preferences::rooms::bind_popover(shell, &self.rooms);
+        self.room_offer.replace(Some(Box::new(offer)));
         let weak = Rc::downgrade(shell);
         self.source.set_create_popup_func(move |button| {
             if let Some(shell) = weak.upgrade() {

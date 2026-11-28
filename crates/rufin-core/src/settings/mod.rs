@@ -166,6 +166,13 @@ pub struct StoredSettings {
     pub(crate) sources: SourceSettings,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) iroh_relay: Option<rufin_connect::IrohRelay>,
+    /// What the listener is called in rooms.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub(crate) room_name: String,
+    /// The rooms this device hosts share songs with listeners who don't have them: what
+    /// the host last chose.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) room_shares: bool,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub(crate) secret_scope_id: String,
     #[serde(default)]
@@ -195,6 +202,8 @@ impl Default for StoredSettings {
             scrobbling_credentials: Default::default(),
             sources: SourceSettings::default(),
             iroh_relay: None,
+            room_name: String::new(),
+            room_shares: false,
             secret_scope_id: String::new(),
             jellyfin_device_id: String::new(),
             visualizer_preset_bar_counts_updated: true,

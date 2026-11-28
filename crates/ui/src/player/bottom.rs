@@ -1320,6 +1320,10 @@ impl crate::player::PlayerUi {
         ] {
             button.set_sensitive(!live);
         }
+        // A room's Auto DJ is its host's to turn on and off.
+        if (self.room.borrow().as_ref()).is_some_and(|room| !room.hosting) {
+            controls.dj_button.set_sensitive(false);
+        }
 
         set_play_icon(
             &controls.play_icon,

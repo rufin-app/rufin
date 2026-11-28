@@ -8,6 +8,7 @@ import { init as mix } from "./mix.js";
 import { init as connection } from "./connection.js";
 import { initPins } from "./pins.js";
 import { init as connect } from "./connect.js";
+import { init as rooms } from "./rooms.js";
 
 import { init as equalizer } from "./equalizer.js";
 import { init as preferences } from "./preferences.js";
@@ -25,6 +26,7 @@ mix();
 initPins();
 connection();
 connect();
+rooms();
 
 equalizer();
 preferences();

@@ -12,6 +12,46 @@ use crate::{
     network::{canonical_relay, send_error, send_response},
 };
 
+/// The relay an address names and the token that opens it. A relay that is locked with a
+/// shared token is given as its address ending in `?token=…`, the form the relay itself
+/// reads; the token goes to the relay and is no part of what devices tell each other.
+fn locked(address: &str) -> Result<(iroh::RelayUrl, Option<String>)> {
+    let mut url: url::Url = address.parse().context("Invalid Iroh relay address")?;
+    let token = url
+        .query_pairs()
+        .find(|(name, _)| name == "token")
+        .map(|(_, token)| token.into_owned())
+        .filter(|token| !token.is_empty());
+    url.set_query(None);
+    url.set_fragment(None);
+    Ok((canonical_relay(url.into()), token))
+}
+
+/// Iroh's public relays, each under the one name a relay goes by here. A device that knew a
+/// relay under two names would connect to it twice, and the relay hears only the newer one.
+fn public_relays() -> Vec<iroh::RelayUrl> {
+    (RelayMode::Default.relay_map().urls::<Vec<_>>().into_iter())
+        .map(canonical_relay)
+        .collect()
+}
+
+/// Whether `relay` is one of Iroh's public relays.
+fn public(relay: &iroh::RelayUrl) -> bool {
+    public_relays().contains(&canonical_relay(relay.clone()))
+}
+
+/// The relays a device connects through, opened with their token.
+pub(crate) fn opened(
+    relays: impl IntoIterator<Item = iroh::RelayUrl>,
+    token: Option<String>,
+) -> RelayMode {
+    let relays = RelayMode::custom(relays).relay_map();
+    RelayMode::Custom(match token {
+        Some(token) => relays.with_auth_token(token),
+        None => relays,
+    })
+}
+
 /// The relay selected in Integrations for connections between Rufin devices.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "bindings", derive(uniffi::Enum))]
@@ -19,7 +59,8 @@ use crate::{
 pub enum IrohRelay {
     #[default]
     Off,
-    Rufin,
+    /// Iroh's public relays.
+    Public,
     Custom {
         url: String,
     },
@@ -41,43 +82,70 @@ impl IrohRelay {
         self.mode().map(drop)
     }
 
+    /// The choice that names the relay a room is reached through, as its invite gives it.
+    pub fn of(relay: &iroh::RelayUrl, token: Option<&str>) -> Self {
+        let relay = canonical_relay(relay.clone());
+        if public(&relay) {
+            return Self::Public;
+        }
+        let mut url = (*relay).clone();
+        if let Some(token) = token {
+            url.query_pairs_mut().append_pair("token", token);
+        }
+        Self::Custom { url: url.into() }
+    }
+
+    /// The token that opens the selected relay, for an invite to carry.
+    pub fn token(&self) -> Option<String> {
+        locked(self.custom_url()?).ok()?.1
+    }
+
+    /// The selected custom relay's host, to name it by.
+    pub fn host(&self) -> Option<String> {
+        let (relay, _) = locked(self.custom_url()?).ok()?;
+        relay.host_str().map(str::to_owned)
+    }
+
+    /// Whether both choices connect through the same relay with the same token.
+    pub fn same(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Custom { url }, Self::Custom { url: other }) => {
+                matches!((locked(url), locked(other)), (Ok(one), Ok(other)) if one == other)
+            }
+            _ => self == other,
+        }
+    }
+
     pub(crate) fn custom_media_relay(&self) -> Result<Option<iroh::RelayUrl>> {
         let Some(url) = self.custom_url() else {
             return Ok(None);
         };
-        let custom = canonical_relay(url.parse()?);
-        // Pasting the published Rufin address as a custom URL keeps its media policy.
-        let hosted = option_env!("RUFIN_RELAY_URL")
-            .map(str::parse)
-            .transpose()?
-            .map(canonical_relay);
-        Ok((hosted.as_ref() != Some(&custom)).then_some(custom))
+        let (custom, _) = locked(url)?;
+        // A public relay entered as a custom address stays a public relay: it carries no media.
+        Ok((!public(&custom)).then_some(custom))
     }
 
     pub(crate) fn mode(&self) -> Result<RelayMode> {
-        let url = match self {
-            Self::Off => return Ok(RelayMode::Disabled),
-            Self::Custom { url } => url.as_str(),
-            Self::Rufin => match option_env!("RUFIN_RELAY_URL") {
-                Some(url) => url,
-                None if app_identity::APP_ID == app_identity::DEVELOPMENT_APP_ID => {
-                    return Ok(RelayMode::Default);
-                }
-                None => anyhow::bail!("The Rufin relay is not configured in this build"),
-            },
-        };
-        let relay: iroh::RelayUrl = url.parse().context("Invalid Iroh relay address")?;
-        Ok(RelayMode::custom([canonical_relay(relay)]))
+        Ok(match self {
+            Self::Off => RelayMode::Disabled,
+            Self::Public => opened(public_relays(), None),
+            Self::Custom { url } => {
+                let (relay, token) = locked(url)?;
+                opened([relay], token)
+            }
+        })
     }
 
     /// Only an explicitly selected custom relay may carry media. The stream stays pinned
-    /// through its final acknowledgment, including any retransmissions.
+    /// through its final acknowledgment, including any retransmissions. Answers whether a
+    /// path that may carry it showed up within `wait`.
     pub(crate) async fn send_media(
         &self,
         connection: &Connection,
         send: &mut SendStream,
         response: PeerByteResponse,
-    ) -> Result<()> {
+        wait: Duration,
+    ) -> Result<bool> {
         let custom = self.custom_media_relay()?;
         let permitted = |addr: &TransportAddr| match addr {
             TransportAddr::Ip(_) => true,
@@ -87,13 +155,11 @@ impl IrohRelay {
             _ => false,
         };
         let mut paths = connection.paths_stream();
-        let path = tokio::time::timeout(
-            Duration::from_secs(10),
-            paths.wait_any(|path| permitted(path.remote_addr())),
-        )
-        .await;
+        let path =
+            tokio::time::timeout(wait, paths.wait_any(|path| permitted(path.remote_addr()))).await;
         let Ok(Some(path)) = path else {
-            return send_error(send, "No media connection is available").await;
+            send_error(send, "No media connection is available").await?;
+            return Ok(false);
         };
         let mut id = path.id();
         send.set_affinity(noq::StreamAffinity::Sticky(id))?;
@@ -102,7 +168,7 @@ impl IrohRelay {
         tokio::pin!(sending);
         loop {
             tokio::select! {
-                result = &mut sending => return result,
+                result = &mut sending => return result.map(|()| true),
                 remaining = paths.wait_closed(id) => {
                     let Some(next) = remaining.and_then(|paths| paths.iter().find(|p| permitted(p.remote_addr()))) else {
                         bail!("Media connection closed");
@@ -146,7 +212,7 @@ mod tests {
             });
             let (tx, rx) = (tx.unwrap(), rx.unwrap());
             for choice in [
-                IrohRelay::Rufin,
+                IrohRelay::Public,
                 IrohRelay::Custom {
                     url: url.to_string(),
                 },
@@ -158,7 +224,11 @@ mod tests {
                         metadata: serde_json::Value::Null,
                         reader: Box::pin(&b"recording"[..]),
                     };
-                    choice.send_media(&tx, &mut send, payload).await.unwrap();
+                    let carried = choice
+                        .send_media(&tx, &mut send, payload, Duration::from_secs(10))
+                        .await
+                        .unwrap();
+                    assert_eq!(carried, allowed);
                 };
                 let read = async {
                     let (mut send, mut recv) = rx.open_bi().await.unwrap();

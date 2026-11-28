@@ -64,6 +64,8 @@ pub use playable::{Gains, Playable, PlayableDownload, PlayableFile, PlayableName
 mod playlists;
 pub use pins::{CollectionShown, SidebarPin};
 mod queue;
+mod room;
+pub use room::{OwnSongs, RoomServers, RoomSong};
 pub mod rank;
 mod waveform;
 pub use downloads::{DownloadFile, STREAM_CACHE_OWNERS, media_encoding_key};

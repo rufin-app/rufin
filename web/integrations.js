@@ -220,7 +220,7 @@ function showRelay(relay) {
   $("integration-relay-mode").value = relay.mode;
   $("integration-relay-address").value = relay.url || "";
   $("integration-relay-address-row").hidden = relay.mode !== "custom";
-  showRow("iroh_relay", relay.mode === "custom" ? tr("Custom URL") : relay.mode === "rufin" ? "Rufin" : tr("Off"), relay.mode !== "off");
+  showRow("iroh_relay", relay.mode === "custom" ? tr("Custom URL") : relay.mode === "public" ? tr("Public relays") : tr("Off"), relay.mode !== "off");
 }
 
 // The Preferences values reached the page: what Integrations shows from them.
@@ -374,18 +374,20 @@ async function addServer() {
 }
 
 function init() {
+  // Off and the public relays are saved as they are chosen; a custom relay once its address
+  // is saved.
   const mode = $("integration-relay-mode");
-  mode.addEventListener("change", () => { $("integration-relay-address-row").hidden = mode.value !== "custom"; });
+  const saveRelay = (choice) => run(async () => {
+    await api("/integrations/iroh-relay", "POST", choice);
+    showRelay(choice);
+  });
+  mode.addEventListener("change", () => {
+    $("integration-relay-address-row").hidden = mode.value !== "custom";
+    if (mode.value !== "custom") saveRelay({ mode: mode.value });
+  });
   $("integration-relay-save").addEventListener("click", (event) => {
-    const button = event.currentTarget;
-    const choice = mode.value === "custom" ? { mode: "custom", url: $("integration-relay-address").value.trim() } : { mode: mode.value };
-    button.disabled = true;
-    run(async () => {
-      try {
-        await api("/integrations/iroh-relay", "POST", choice);
-        showRelay(choice);
-      } finally { button.disabled = false; }
-    });
+    event.preventDefault();
+    saveRelay({ mode: "custom", url: $("integration-relay-address").value.trim() });
   });
   for (const row of document.querySelectorAll(".integration-row")) row.addEventListener("click", () => open(row.dataset.integration));
   for (const input of document.querySelectorAll("[data-scrobbling-switch]"))
@@ -433,4 +435,4 @@ function init() {
   });
 }
 
-export { closeIntegration, init, integrationOpen, showIntegrations };
+export { closeIntegration, init, integrationOpen, open as openIntegration, showIntegrations };

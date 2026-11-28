@@ -10,6 +10,7 @@ mod connect;
 mod continuation;
 mod plex;
 mod queue;
+mod room;
 mod sleep_timer;
 pub(crate) mod state;
 pub use commands::*;
@@ -86,6 +87,12 @@ pub struct PlaybackOwner {
     plex_targets: Mutex<std::collections::HashMap<String, playback_cast::plex::PlexPlayer>>,
     plex: Mutex<Option<Arc<plex::PlexPlayback>>>,
     rufin: Mutex<Option<Arc<connect::RufinPlayback>>>,
+    /// The room this player follows.
+    room: Mutex<Option<Arc<crate::room::Session>>>,
+    /// The songs this library has, while a room asks for them.
+    room_songs: Mutex<Option<Arc<library::OwnSongs>>>,
+    /// The songs this device gave the room it follows, each by the track it gave.
+    room_mine: Mutex<std::collections::HashMap<library::RoomSong, String>>,
     /// The songs the playing radio station announced.
     heard: Mutex<crate::stations::Heard>,
     /// The announced song whose cover was last looked for.
@@ -368,6 +375,9 @@ impl PlaybackOwner {
             plex_targets: Mutex::new(std::collections::HashMap::new()),
             plex: Mutex::new(None),
             rufin: Mutex::new(None),
+            room: Mutex::new(None),
+            room_songs: Mutex::new(None),
+            room_mine: Mutex::default(),
             heard: Mutex::default(),
             sought_cover: Mutex::default(),
             station_feed: Mutex::default(),
@@ -635,8 +645,24 @@ impl PlaybackOwner {
         }
         let seed = library::RadioSeed::Track(request.anchor_media_uri.clone());
         let candidates = self.candidates(seed, request.requested_count, Default::default());
+        let (room, this) = (self.room(), self.this.clone());
         self.runtime.spawn(async move {
-            let candidates = candidates.await;
+            let mut candidates = candidates.await;
+            // A room's host fills the room's queue, which its player follows: the songs go
+            // to the room and reach this player from there.
+            if let (Some(room), Ok(keys), Some(owner)) = (room, &mut candidates, this.upgrade()) {
+                keys.truncate(request.requested_count);
+                let songs = owner.room_gives(keys).await.unwrap_or_default();
+                keys.clear();
+                if !songs.is_empty() {
+                    let (last, held) = room.read(|shared| {
+                        let last = shared.entries.last().map(|entry| entry.id);
+                        (last, shared.entries.len())
+                    });
+                    room.ask(crate::room::Ask::Add { songs, after: last });
+                    owner.queue_holds(|now| now > held).await;
+                }
+            }
             playback.post(move |player, sample| match candidates {
                 Ok(candidates) => {
                     if let Err(error) = player.complete_auto_dj_candidates(
@@ -692,7 +718,25 @@ impl PlaybackOwner {
                 self.settings.load().ui.artwork_policy(),
             )
         });
+        let room = self.room();
         self.runtime.spawn(async move {
+            // A room's song this library has no copy of plays as a member who has it sends
+            // it.
+            if occurrence.track.media_uri.starts_with("rufin-room:") {
+                let uri = &occurrence.track.media_uri;
+                let kept = stream_buffer_directory();
+                let result = room::lacking_stream(room, uri, request.quality, kept)
+                    .await
+                    .map(|stream| {
+                        let loudness = playback::TrackLoudness::default();
+                        prepare_media_stream(stream, loudness, Arc::clone(&occurrence))
+                    });
+                playback.post(move |player, sample| match result {
+                    Ok(stream) => player.stream_resolved(run, stream),
+                    Err(error) => player.stream_failed(run, error, sample),
+                });
+                return;
+            }
             // A radio station plays the stream its address leads to, whatever its source.
             if let Some(address) = library::station_stream(&occurrence.track.media_uri) {
                 let result = crate::stations::resolve_stream(&address)
@@ -1027,6 +1071,9 @@ impl PlaybackOwner {
         })
     }
     fn send(&self, command: Command) {
+        let Some(command) = self.send_room(command) else {
+            return;
+        };
         let command = if command.addresses_occurrence() {
             command
         } else {
@@ -1149,6 +1196,9 @@ impl PlaybackOwner {
 
 impl PlaybackOwner {
     pub fn play_selection(&self, request: PlayRequest) {
+        if self.play_room(&request) {
+            return;
+        }
         if self.play_rufin(&request) {
             return;
         }
@@ -1244,6 +1294,9 @@ impl PlaybackOwner {
     }
 
     pub fn play_radio(&self, request: RadioPlayRequest) {
+        if self.send_room(Command::Radio(request.clone())).is_none() {
+            return;
+        }
         if self.radio_rufin(&request) {
             return;
         }
@@ -1261,6 +1314,14 @@ impl PlaybackOwner {
     }
     pub fn play(&self) {
         self.send(Command::Play)
+    }
+    /// Pauses this device alone, as the system does for a call: a room it follows plays on.
+    pub fn pause_here(&self) {
+        if self.room().is_some() {
+            self.own(Command::Pause);
+        } else {
+            self.pause();
+        }
     }
     pub fn pause(&self) {
         self.send(Command::Pause)
@@ -1290,10 +1351,13 @@ impl PlaybackOwner {
         self.send(Command::SetMuted(muted))
     }
     pub fn set_shuffle(&self, enabled: bool) {
-        if let Err(error) = self.settings.edit(|stored| {
-            stored.ui.shuffle_enabled = enabled;
-            Ok(())
-        }) {
+        // A room's modes are the room's: this device keeps its own for after.
+        if self.room().is_none()
+            && let Err(error) = self.settings.edit(|stored| {
+                stored.ui.shuffle_enabled = enabled;
+                Ok(())
+            })
+        {
             warn!(%error, "could not save shuffle setting");
         }
         self.send(Command::SetShuffle {
@@ -1309,15 +1373,28 @@ impl PlaybackOwner {
         ));
     }
     pub fn set_repeat(&self, repeat: QueueRepeatMode) {
-        if let Err(error) = self.settings.edit(|stored| {
-            stored.ui.repeat_mode = repeat;
-            Ok(())
-        }) {
+        if self.room().is_none()
+            && let Err(error) = self.settings.edit(|stored| {
+                stored.ui.repeat_mode = repeat;
+                Ok(())
+            })
+        {
             warn!(%error, "could not save repeat setting");
         }
         self.send(Command::SetRepeat(repeat))
     }
     pub fn toggle_auto_dj(&self) {
+        // In a room Auto DJ is the room's, turned on and off by its host.
+        if let Some(room) = self.room() {
+            return match room.hosting {
+                true => room.ask(crate::room::Ask::AutoDj {
+                    on: !room.read(|shared| shared.modes.auto_dj),
+                }),
+                false => self.own(Command::OperationFailed(localization::tr(
+                    "Only the host turns Auto DJ on or off",
+                ))),
+            };
+        }
         if self
             .rufin
             .lock()
@@ -1447,6 +1524,10 @@ where
     };
     // Only playback opens a radio station, which has no end to read to.
     if library::station_stream(&request.media_uri).is_some() {
+        return Err(unavailable());
+    }
+    // A room's song this library has no copy of.
+    if request.media_uri.starts_with("rufin-room:") {
         return Err(unavailable());
     }
     let granted_uri = |uri: &str| {
@@ -1687,7 +1768,8 @@ pub(crate) fn track_loudness(playable: &library::Playable) -> playback::TrackLou
     }
 }
 
-/// Where the playing stream is kept whole while it plays; the player removes each file itself.
+/// Where a playing stream is kept while it plays: a server's whole, by the player, which
+/// removes each file itself; a room member's sealed, in a file without a name.
 fn stream_buffer_directory() -> Option<std::path::PathBuf> {
     crate::paths::project_cache_dir().map(|cache| cache.join("stream-buffer"))
 }

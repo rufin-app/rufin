@@ -41,6 +41,8 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import app.rufin.rufin.core.translate
@@ -72,12 +74,22 @@ internal fun PlayerIconButton(
 private data class MiniMedia(val uri: String, val title: String, val subtitle: String,
     val playing: Boolean, val duration: ULong, val live: Boolean)
 
-/** A player bar's second text row. A station has no seek row to say Live in: the row ends with it. */
+/** A player bar's second text row. A station has no seek row to say Live in: the row ends with it. In a
+ *  room it starts with how many listen, [listeners]. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun BarSubtitle(text: String, live: Boolean, style: androidx.compose.ui.text.TextStyle, modifier: Modifier = Modifier) {
+private fun BarSubtitle(text: String, live: Boolean, style: androidx.compose.ui.text.TextStyle, modifier: Modifier = Modifier,
+    listeners: Int? = null) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
-    if (!live) Text(text, modifier.basicMarquee(), maxLines = 1, style = style, color = color)
+    if (listeners != null) Row(modifier, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        val accent = MaterialTheme.colorScheme.primary
+        val listening = translate("{count} listening").replace("{count}", listeners.toString())
+        RufinIcon("rufin-people-symbolic", null, Modifier.size(16.dp), accent)
+        Text(listeners.toString(), Modifier.semantics { contentDescription = listening }, maxLines = 1, style = style, color = accent,
+            fontWeight = FontWeight.SemiBold)
+        if (text.isNotBlank()) Text("· $text", Modifier.weight(1f).basicMarquee(), maxLines = 1, style = style, color = color)
+    }
+    else if (!live) Text(text, modifier.basicMarquee(), maxLines = 1, style = style, color = color)
     else Row(modifier, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         if (text.isNotBlank()) Text(text, Modifier.weight(1f, fill = false).basicMarquee(), maxLines = 1, style = style, color = color)
         LiveMark(style)
@@ -138,7 +150,8 @@ internal fun MiniPlayer(player: PlayerConnection, onOpen: () -> Unit, onOutput: 
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(metadata.first, Modifier.fillMaxWidth().basicMarquee(), maxLines = 1,
                             fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
-                        BarSubtitle(metadata.second, metadata.third, MaterialTheme.typography.bodyMedium, Modifier.fillMaxWidth())
+                        BarSubtitle(metadata.second, metadata.third, MaterialTheme.typography.bodyMedium, Modifier.fillMaxWidth(),
+                            listeners = player.model.room.room?.members?.size)
                     }
                 }
                 // Folded into the dock, the mini player keeps only Play.
@@ -279,7 +292,8 @@ internal fun SidebarPlayer(player: PlayerConnection, onOpen: () -> Unit, onOutpu
                 Column(Modifier.weight(1f).padding(start = 12.dp).trackSlide(offset.value)) {
                     Text(player.currentItem?.metadata?.title.orEmpty(), Modifier.basicMarquee(), maxLines = 1, fontWeight = FontWeight.SemiBold,
                         style = MaterialTheme.typography.bodyMedium)
-                    BarSubtitle(player.currentItem?.metadata?.artist.orEmpty(), player.live, MaterialTheme.typography.bodySmall)
+                    BarSubtitle(player.currentItem?.metadata?.artist.orEmpty(), player.live, MaterialTheme.typography.bodySmall,
+                        listeners = player.model.room.room?.members?.size)
                 }
                 val favorite = player.favorite
                 PlayerIconButton("rufin-heart-outline-symbolic", "Favorite current track", player::favorite,

@@ -7,6 +7,7 @@ mod nearby;
 pub mod network;
 pub mod pairing;
 mod relay;
+pub mod room;
 pub mod store;
 pub mod sync;
 

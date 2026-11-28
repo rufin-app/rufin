@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface domain="rufin">
+  <requires lib="gtk" version="4.20"/>
+  <requires lib="libadwaita" version="1.9"/>
+  <object class="GtkPopover" id="popover">
+    <property name="autohide">true</property>
+    <property name="position">bottom</property>
+    <property name="halign">start</property>
+    <!-- The stack clips what it holds: each page carries the margins, so its groups' outlines show. -->
+    <property name="child"><object class="GtkStack" id="pages">
+      <property name="width-request">356</property>
+      <property name="vhomogeneous">false</property>
+      <property name="interpolate-size">true</property>
+      <child><object class="GtkStackPage">
+        <property name="name">start</property>
+        <property name="child"><object class="GtkBox">
+          <property name="orientation">vertical</property>
+          <property name="spacing">12</property>
+          <property name="margin-start">8</property><property name="margin-end">8</property>
+          <property name="margin-top">8</property><property name="margin-bottom">8</property>
+          <child><object class="AdwPreferencesGroup">
+            <property name="description" translatable="yes">Shares your queue. Your music keeps playing.</property>
+            <child><object class="AdwEntryRow" id="name">
+              <property name="title" translatable="yes">Your name</property>
+              <child type="suffix"><object class="GtkButton" id="create">
+                <property name="label" translatable="yes">Create room</property>
+                <property name="valign">center</property>
+                <style><class name="suggested-action"/></style>
+              </object></child>
+            </object></child>
+            <child><object class="AdwActionRow" id="reach">
+              <property name="use-markup">false</property>
+              <child type="suffix"><object class="GtkButton" id="reach_change">
+                <property name="icon-name">rufin-applications-system-symbolic</property>
+                <property name="tooltip-text" translatable="yes">Change</property>
+                <property name="valign">center</property>
+                <accessibility><property name="label" translatable="yes">Change</property></accessibility>
+                <style><class name="flat"/></style>
+              </object></child>
+            </object></child>
+          </object></child>
+          <child><object class="AdwPreferencesGroup">
+            <property name="title" translatable="yes">Join a room</property>
+            <child><object class="AdwEntryRow" id="invite">
+              <property name="title" translatable="yes">Invite link</property>
+              <child type="suffix"><object class="GtkButton" id="join">
+                <property name="label" translatable="yes">Join</property>
+                <property name="valign">center</property>
+                <property name="sensitive">false</property>
+              </object></child>
+            </object></child>
+          </object></child>
+          <child><object class="GtkLabel" id="invite_note">
+            <property name="visible">false</property>
+            <property name="wrap">true</property>
+            <property name="xalign">0</property>
+            <property name="max-width-chars">10</property>
+            <style><class name="dim-label"/><class name="caption"/></style>
+          </object></child>
+          <child><object class="GtkLabel" id="failure">
+            <property name="visible">false</property>
+            <property name="wrap">true</property>
+            <property name="xalign">0</property>
+            <property name="max-width-chars">10</property>
+            <style><class name="error"/><class name="caption"/></style>
+          </object></child>
+        </object></property>
+      </object></child>
+      <child><object class="GtkStackPage">
+        <property name="name">room</property>
+        <property name="child"><object class="GtkBox">
+          <property name="orientation">vertical</property>
+          <property name="spacing">12</property>
+          <property name="margin-start">8</property><property name="margin-end">8</property>
+          <property name="margin-top">8</property><property name="margin-bottom">8</property>
+          <!-- The room, then who listens in it. -->
+          <child><object class="AdwPreferencesGroup" id="room_group">
+            <child><object class="AdwActionRow" id="room">
+              <property name="use-markup">false</property>
+              <property name="title-lines">1</property>
+              <child type="suffix"><object class="GtkButton" id="copy_invite">
+                <property name="tooltip-text" translatable="yes">Copy invite</property>
+                <property name="valign">center</property>
+                <property name="child"><object class="GtkImage" id="copy_invite_icon">
+                  <property name="icon-name">rufin-edit-copy-symbolic</property>
+                </object></property>
+                <accessibility><property name="label" translatable="yes">Copy invite</property></accessibility>
+                <style><class name="flat"/></style>
+              </object></child>
+              <child type="suffix"><object class="GtkButton" id="leave">
+                <property name="icon-name">rufin-application-exit-symbolic</property>
+                <property name="valign">center</property>
+                <style><class name="flat"/><class name="error"/></style>
+              </object></child>
+            </object></child>
+          </object></child>
+          <child><object class="AdwPreferencesGroup">
+            <child><object class="AdwSwitchRow" id="share">
+              <property name="title" translatable="yes">Share songs</property>
+              <property name="subtitle" translatable="yes">Members who have a song play it for listeners who don't</property>
+            </object></child>
+            <child><object class="AdwActionRow" id="room_reach">
+              <property name="use-markup">false</property>
+              <child type="suffix"><object class="GtkButton" id="use_relay">
+                <property name="label" translatable="yes">Use for my rooms</property>
+                <property name="valign">center</property>
+              </object></child>
+            </object></child>
+          </object></child>
+        </object></property>
+      </object></child>
+    </object></property>
+  </object>
+</interface>

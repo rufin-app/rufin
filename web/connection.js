@@ -312,6 +312,8 @@ function init() {
 const state = {
   source: "",
   playback: null,
+  // The room this device listens in.
+  room: null,
   currentMediaUri: null,
   currentRun: null,
   selectedLibrary: null,

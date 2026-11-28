@@ -39,6 +39,12 @@
           <style><class name="flat"/><class name="topbar-button"/></style>
         </object></child>
         <child><object class="GtkBox" id="casting_host"/></child>
+        <child><object class="GtkMenuButton" id="rooms">
+          <property name="icon-name">rufin-people-symbolic</property>
+          <property name="tooltip-text" translatable="yes">Rooms</property>
+          <accessibility><property name="label" translatable="yes">Rooms</property></accessibility>
+          <style><class name="flat"/><class name="topbar-button"/></style>
+        </object></child>
       </object></child>
     </object></child>
     <property name="title-widget"><object class="GtkOverlay" id="search_host">

@@ -416,32 +416,14 @@ impl ConnectOwner {
             validator: None,
         };
         if let Some(encoding) = encoding {
-            let mut stream = if path.is_some() {
+            let stream = if path.is_some() {
                 audio_processing::ResolvedStream::new(location)
             } else {
                 sources::resolve_document_stream(&location)
                     .await
                     .map_err(string_error)?
             };
-            if let Some((start, end)) = window {
-                // An empty interval must never widen into the whole recording.
-                if end.is_some_and(|end| end <= start) {
-                    return Err(format!(
-                        "requested audio interval {start}..{end:?} is empty"
-                    ));
-                }
-                stream = stream.with_window(start, end.unwrap_or(u64::MAX / 1_000_000));
-            }
-            let reader = tokio::task::spawn_blocking(move || {
-                audio_processing::TranscodedAudioReader::new(&stream, encoding.into(), || false)
-                    .map_err(string_error)
-            })
-            .await
-            .map_err(string_error)??;
-            return Ok(PeerByteResponse {
-                metadata: serde_json::to_value(metadata).map_err(string_error)?,
-                reader: blocking_reader(reader),
-            });
+            return transcoded(stream, encoding, window).await;
         }
         let start = range.map_or(0, |(start, _)| start);
         let end = move |length: u64| range.and_then(|(_, end)| end).unwrap_or(length).min(length);
@@ -494,6 +476,40 @@ impl ConnectOwner {
             reader,
         })
     }
+}
+
+/// `stream` from `window` on, encoded as `encoding`: what another device plays of it.
+pub(crate) async fn transcoded(
+    mut stream: audio_processing::ResolvedStream,
+    encoding: library::AudioEncoding,
+    window: Option<(u64, Option<u64>)>,
+) -> Result<PeerByteResponse, String> {
+    if let Some((start, end)) = window {
+        // An empty interval must never widen into the whole recording.
+        if end.is_some_and(|end| end <= start) {
+            return Err(format!(
+                "requested audio interval {start}..{end:?} is empty"
+            ));
+        }
+        // To the recording's end: the latest time a GStreamer segment takes.
+        stream = stream.with_window(start, end.unwrap_or(i64::MAX as u64 / 1_000_000));
+    }
+    let reader = tokio::task::spawn_blocking(move || {
+        audio_processing::TranscodedAudioReader::new(&stream, encoding.into(), || false)
+            .map_err(string_error)
+    })
+    .await
+    .map_err(string_error)??;
+    let metadata = PeerByteMetadata {
+        length: None,
+        offset: 0,
+        content_type: Some(encoding.codec.content_type().into()),
+        validator: None,
+    };
+    Ok(PeerByteResponse {
+        metadata: serde_json::to_value(metadata).map_err(string_error)?,
+        reader: blocking_reader(reader),
+    })
 }
 
 /// A blocking reader served from a blocking thread.

@@ -255,6 +255,10 @@ impl AndroidRuntime {
         self.products.connect.clone()
     }
 
+    pub fn room(&self) -> Arc<rufin_core::room::RoomOwner> {
+        self.products.room.clone()
+    }
+
     pub fn library(&self) -> Arc<crate::library::AndroidLibrary> {
         Arc::new(crate::library::AndroidLibrary::new(&self.products))
     }

@@ -647,6 +647,7 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
                                 Text(label("Home"), Modifier.weight(1f).padding(start = if (tabs) 2.dp else 16.dp), maxLines = 1,
                                     style = MaterialTheme.typography.titleLarge)
                                 if (width == ShellWidth.Tv && hasMedia) NowPlayingChip(player) { fullPlayer = true }
+                                app.rufin.rufin.room.RoomsButton(model.room)
                                 PlayerIconButton("rufin-mix-symbolic", "Mix", { mix = true })
                                 queueToggle()
                             }
@@ -743,6 +744,13 @@ internal fun LibraryScreen(model: RufinConnection, preferences: PreferencesConne
     if (outputs) PlayerOutputSheet(player) { outputs = false }
     if (sort) BrowseSortSheet(browse, { sort = false }, sortPage, beside = splitShown && sortPage != null && sortPage === rootPages[browse.rootId])
     if (mix) MixSheet(model, browse) { mix = false }
+    app.rufin.rufin.room.RoomInviteDialog(model.room)
+    if (model.room.sheet) app.rufin.rufin.room.RoomsSheet(model, onRelay = {
+        model.room.sheet = false
+        fullPlayer = false
+        integration = IntegrationPage("iroh_relay", translate("Iroh relay"))
+        openMore(MoreDestination.Integration)
+    }) { model.room.sheet = false }
     if (sleepTimer) SleepTimerSheet(player) { sleepTimer = false }
     (playerMenu ?: menu)?.let { item ->
         val close = { menu = null; playerMenu = null }

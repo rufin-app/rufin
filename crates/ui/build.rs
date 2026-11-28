@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Icons only Android draws, and the notes beside the icons.
-const NOT_DESKTOP_ICONS: [&str; 9] = [
+const NOT_DESKTOP_ICONS: [&str; 8] = [
     "source-icons.md",
     "hicolor/scalable/actions/rufin-chat-bubble-symbolic.svg",
     "hicolor/scalable/actions/rufin-coffee-mug-symbolic.svg",
@@ -10,7 +10,6 @@ const NOT_DESKTOP_ICONS: [&str; 9] = [
     "hicolor/scalable/actions/rufin-dots-horizontal-symbolic.svg",
     "hicolor/scalable/actions/rufin-globe-symbolic.svg",
     "hicolor/scalable/actions/rufin-issue-symbolic.svg",
-    "hicolor/scalable/actions/rufin-people-symbolic.svg",
     "hicolor/scalable/actions/rufin-translate-symbolic.svg",
 ];
 
