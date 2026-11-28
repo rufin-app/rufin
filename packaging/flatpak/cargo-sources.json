@@ -2758,14 +2758,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/fast_image_resize/fast_image_resize-6.1.0.crate",
-        "sha256": "e9c50201dc184ba6553da1695aac20a042efffbe2d84542cee31917c86c3ab1e",
-        "dest": "cargo/vendor/fast_image_resize-6.1.0"
+        "url": "https://static.crates.io/crates/fast_image_resize/fast_image_resize-6.2.0.crate",
+        "sha256": "f056f6b866ac980e0ebf973c6579170fa03285cb79d448435bd4d8fa2a74b511",
+        "dest": "cargo/vendor/fast_image_resize-6.2.0"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"e9c50201dc184ba6553da1695aac20a042efffbe2d84542cee31917c86c3ab1e\", \"files\": {}}",
-        "dest": "cargo/vendor/fast_image_resize-6.1.0",
+        "contents": "{\"package\": \"f056f6b866ac980e0ebf973c6579170fa03285cb79d448435bd4d8fa2a74b511\", \"files\": {}}",
+        "dest": "cargo/vendor/fast_image_resize-6.2.0",
         "dest-filename": ".cargo-checksum.json"
     },
     {
