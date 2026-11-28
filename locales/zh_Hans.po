@@ -24,6 +24,15 @@ msgid ""
 msgstr "将下载日语词典以提供假名注音和罗马音。此设置会增加资源占用。"
 
 msgid ""
+"A relay helps your devices and rooms reach each other when they cannot "
+"connect directly."
+msgstr ""
+
+msgid ""
+"A relay locked with a token takes it at the end of its address: ?token=..."
+msgstr ""
+
+msgid ""
 "Approving gives this device access to your profile and saved source logins."
 msgstr "授权后此设备可访问你的配置文件及登录凭据。"
 
@@ -69,8 +78,8 @@ msgid ""
 "If Discord is not installed as a flatpak, you need to give socket access to "
 "Rufin. If it is installed as a flatpak, this is not needed."
 msgstr ""
-"如果 Discord 未通过 Flatpak 安装，需要为 Rufin 授予 socket 访问权限。否则无需"
-"。"
+"如果 Discord 未通过 Flatpak 安装，需要为 Rufin 授予 socket 访问权限。否则无"
+"需。"
 
 msgid ""
 "List shared folders on this server using the entered credentials or guest "
@@ -87,13 +96,18 @@ msgid ""
 "to review the logs before sharing them"
 msgstr "日志中敏感信息和绝对路径已脱敏，但分享前仍建议自行检查"
 
+msgid ""
+"Music never passes through a public relay. A relay of your own may carry it."
+msgstr ""
+
 msgid "No results ¯\\_(°╭╮°)_/¯"
 msgstr "没有结果 ¯\\_(°╭╮°)_/¯"
 
 msgid ""
 "No secret service found. Rufin will use a file to store its credentials. "
 "Cancelling will not save credentials at all."
-msgstr "未找到 Secret Service。Rufin 将使用文件存储凭据。取消则不会保存任何凭据。"
+msgstr ""
+"未找到 Secret Service。Rufin 将使用文件存储凭据。取消则不会保存任何凭据。"
 
 #, python-brace-format
 msgid ""
@@ -183,6 +197,10 @@ msgstr ""
 "并耗电。"
 
 msgid ""
+"Run by the Iroh project. They see who connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Some changes were saved. Close this editor and reopen it to review the "
 "result."
 msgstr "部分更改已保存。请重新打开编辑器以查看结果。"
@@ -243,6 +261,10 @@ msgstr "Rufin 已设为自动下载整个媒体库，这会消耗大量流量。
 msgid ""
 "You will need to reconnect through the clients you use with the new API key."
 msgstr "需要使用新 API 密钥在各客户端重新连接。"
+
+msgid ""
+"{room} shares songs: members who have a song play it for listeners who don't"
+msgstr ""
 
 msgid "(hold to shuffle)"
 msgstr "(长按随机播放)"
@@ -306,6 +328,11 @@ msgstr "API 密钥"
 
 msgid "About Rufin"
 msgstr "关于 Rufin"
+
+#, fuzzy
+#| msgid "Use a public relay"
+msgid "About the public relays"
+msgstr "使用公共中继"
 
 msgid "Absolute"
 msgstr "绝对"
@@ -414,6 +441,11 @@ msgstr "低于此数时补充曲目"
 
 msgid "Add"
 msgstr "添加"
+
+#, fuzzy
+#| msgid "Find in {name}"
+msgid "Added by {name}"
+msgstr "在 {name} 中查找"
 
 msgid "Added to"
 msgstr "已添加到"
@@ -645,6 +677,9 @@ msgstr "自动"
 
 msgid "BPM"
 msgstr "BPM"
+
+msgid "Back in the room"
+msgstr ""
 
 msgid "Back"
 msgstr "返回"
@@ -1100,10 +1135,18 @@ msgstr "控制端地址"
 msgid "Controller"
 msgstr "控制端"
 
+msgid "Copied"
+msgstr ""
+
 msgid "Copy access token"
 msgstr "复制访问令牌"
 
 msgid "Copy invitation"
+msgstr "复制邀请码"
+
+#, fuzzy
+#| msgid "Copy invitation"
+msgid "Copy invite"
 msgstr "复制邀请码"
 
 msgid "Copy link"
@@ -1201,6 +1244,11 @@ msgstr "创建播放列表"
 
 msgid "Create playlist"
 msgstr "创建播放列表"
+
+#, fuzzy
+#| msgid "Create"
+msgid "Create room"
+msgstr "创建"
 
 msgid "Create"
 msgstr "创建"
@@ -1623,6 +1671,14 @@ msgstr "加密备份"
 msgid "End of this track"
 msgstr "播完当前曲目"
 
+msgid "End room"
+msgstr ""
+
+#, fuzzy
+#| msgid "Edit theme"
+msgid "End the room?"
+msgstr "编辑主题"
+
 msgid "Ends around {time}"
 msgstr "约在 {time} 结束"
 
@@ -1667,6 +1723,9 @@ msgstr "已收藏专辑中的所有曲目"
 
 msgid "Every track of your favorite artists"
 msgstr "所有已收藏艺人的曲目"
+
+msgid "Everyone stops listening together"
+msgstr ""
 
 msgid "Everything, including new tracks"
 msgstr "所有内容，包括新增曲目"
@@ -2061,6 +2120,9 @@ msgstr "首页"
 msgid "Homepage"
 msgstr "首页"
 
+msgid "Host"
+msgstr ""
+
 msgid "Hour"
 msgstr "时间"
 
@@ -2131,6 +2193,11 @@ msgstr "纯音乐"
 msgid "Integrations"
 msgstr "集成"
 
+#, fuzzy
+#| msgid "Invite"
+msgid "Invite link"
+msgstr "邀请"
+
 msgid "Invite"
 msgstr "邀请"
 
@@ -2158,11 +2225,19 @@ msgstr "日语词典"
 msgid "Jellyfin"
 msgstr "Jellyfin"
 
+#, fuzzy
+#| msgid "Join profile"
+msgid "Join a room"
+msgstr "加入配置文件"
+
 msgid "Join profile"
 msgstr "加入配置文件"
 
 msgid "Join to copy its sources and sign-ins"
 msgstr "加入以复制其音源与登录凭据"
+
+msgid "Join {room}?"
+msgstr ""
 
 msgid "Join"
 msgstr "加入"
@@ -2248,8 +2323,14 @@ msgstr "留空则不加密。"
 msgid "Leave out tracks rated two stars or lower"
 msgstr "排除两星及以下曲目"
 
+msgid "Leave room"
+msgstr ""
+
 msgid "Leave the password empty to keep the saved credential"
 msgstr "留空以保留现有凭据"
+
+msgid "Leave this room first"
+msgstr ""
 
 msgid "Left sidebar"
 msgstr "左侧栏"
@@ -2310,6 +2391,11 @@ msgstr "ListenBrainz API"
 
 msgid "ListenBrainz or Audioscrobbler API"
 msgstr "ListenBrainz 或 Audioscrobbler API"
+
+#, fuzzy
+#| msgid "Listening"
+msgid "Listener"
+msgstr "收听"
 
 msgid "Listening overview"
 msgstr "收听概览"
@@ -2411,6 +2497,11 @@ msgstr "查询"
 msgid "Lookups"
 msgstr "查询"
 
+#, fuzzy
+#| msgid "Connection lost. Reconnecting..."
+msgid "Lost the room. Reconnecting..."
+msgstr "连接中断。正在重新连接…"
+
 msgid "Loudness normalization"
 msgstr "响度标准化"
 
@@ -2479,6 +2570,9 @@ msgstr "最大值"
 
 msgid "May {year}"
 msgstr "{year} 年 5 月"
+
+msgid "Members who have a song play it for listeners who don't"
+msgstr ""
 
 msgid "Menu"
 msgstr "菜单"
@@ -2855,14 +2949,28 @@ msgstr ""
 msgid "No"
 msgstr "否"
 
+msgid "Nobody in the room can send this song"
+msgstr ""
+
 msgid "None"
 msgstr "无"
 
 msgid "Normalization scope"
 msgstr "标准化范围"
 
+msgid "Not available while listening together"
+msgstr ""
+
 msgid "Not connected"
 msgstr "未连接"
+
+#, fuzzy
+#| msgid "While your library loads"
+msgid "Not in your library"
+msgstr "正在加载媒体库"
+
+msgid "Not in your library. Sitting this one out."
+msgstr ""
 
 msgid "Not needed for most servers"
 msgstr "通常不需要"
@@ -2930,6 +3038,11 @@ msgstr "离线"
 msgid "On repeat"
 msgstr "循环播放"
 
+#, fuzzy
+#| msgid "Search this network"
+msgid "On this network only"
+msgstr "扫描网络"
+
 msgid "On"
 msgstr "启用"
 
@@ -2953,6 +3066,9 @@ msgstr "在线查询"
 
 msgid "Only fill missing information"
 msgstr "仅填充缺失信息"
+
+msgid "Only the host turns Auto DJ on or off"
+msgstr ""
 
 msgid "Opacity (%)"
 msgstr "不透明度 (%)"
@@ -3320,6 +3436,11 @@ msgstr "上一首"
 msgid "Privacy & Security"
 msgstr "隐私与安全"
 
+#, fuzzy
+#| msgid "Privacy & Security"
+msgid "Privacy policy"
+msgstr "隐私与安全"
+
 msgid "Private mode is off"
 msgstr "无痕模式已禁用"
 
@@ -3346,6 +3467,11 @@ msgstr "数据源"
 
 msgid "Proxy casting through Rufin"
 msgstr "投放由 Rufin 代理"
+
+#, fuzzy
+#| msgid "Use a public relay"
+msgid "Public relays"
+msgstr "使用公共中继"
 
 msgid "Public"
 msgstr "公开"
@@ -3566,6 +3692,11 @@ msgstr ""
 msgid "Remove from folder"
 msgstr "从文件夹中移除"
 
+#, fuzzy
+#| msgid "Removed from"
+msgid "Remove from room"
+msgstr "已移除出"
+
 msgid "Remove group"
 msgstr ""
 
@@ -3697,6 +3828,12 @@ msgstr "摇滚"
 
 msgid "Romaji"
 msgstr "罗马音"
+
+msgid "Room"
+msgstr ""
+
+msgid "Rooms"
+msgstr ""
 
 msgid "Rounded bars"
 msgstr "圆角柱形"
@@ -4041,6 +4178,14 @@ msgstr "设置"
 msgid "Shadow"
 msgstr "阴影"
 
+msgid "Share invite"
+msgstr ""
+
+#, fuzzy
+#| msgid "Share"
+msgid "Share songs"
+msgstr "分享"
+
 msgid "Share"
 msgstr "分享"
 
@@ -4049,6 +4194,9 @@ msgstr ""
 
 msgid "Shared secret"
 msgstr "共享密钥"
+
+msgid "Shares your queue. Your music keeps playing."
+msgstr ""
 
 msgid "Show Rufin in headline"
 msgstr ""
@@ -4190,6 +4338,11 @@ msgstr "单曲"
 
 msgid "Singles"
 msgstr "单曲"
+
+#, fuzzy
+#| msgid "Settings and sources"
+msgid "Sitting this one out"
+msgstr "设置与数据源"
 
 msgid "Size in gigabytes"
 msgstr "缓存大小 (GB)"
@@ -4353,6 +4506,9 @@ msgstr "有损格式转为立体声"
 msgid "Stereo"
 msgstr "立体声"
 
+msgid "Stop casting to listen together"
+msgstr ""
+
 msgid "Stop"
 msgstr "停止"
 
@@ -4476,6 +4632,18 @@ msgstr ""
 msgid "The files are deleted where they are stored. This cannot be undone."
 msgstr ""
 
+msgid "The room ended"
+msgstr ""
+
+msgid "The room is full"
+msgstr ""
+
+msgid "The room is not playing this song"
+msgstr ""
+
+msgid "The room is unreachable"
+msgstr ""
+
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr ""
 
@@ -4500,6 +4668,14 @@ msgstr "此设备已从配置文件中移除"
 msgid "This device"
 msgstr "本设备"
 
+#, fuzzy
+#| msgid "Item is no longer available"
+msgid "This invite is no longer valid"
+msgstr "条目不可用"
+
+msgid "This is not a room invite"
+msgstr ""
+
 msgid "This is owned by {source} and synced to it."
 msgstr ""
 
@@ -4512,6 +4688,26 @@ msgstr ""
 msgid "This playlist only accepts {source} tracks"
 msgstr ""
 
+msgid "This room does not share songs"
+msgstr ""
+
+msgid "This room no longer shares songs"
+msgstr ""
+
+msgid "This room shares songs with listeners who don't have them"
+msgstr ""
+
+msgid "This room uses another version of Rufin. Please update Rufin."
+msgstr ""
+
+msgid "This room uses no relay"
+msgstr ""
+
+#, fuzzy
+#| msgid "Disconnect this device"
+msgid "This song is not on this device"
+msgstr "断开此设备连接"
+
 msgid "This source cannot edit this field"
 msgstr ""
 
@@ -4520,6 +4716,16 @@ msgstr "去年今日"
 
 msgid "This will remove all configured state. Do you want to continue?"
 msgstr "将清除全部已配置状态。是否继续？"
+
+#, fuzzy
+#| msgid "Use a public relay"
+msgid "Through public relays"
+msgstr "使用公共中继"
+
+#, fuzzy
+#| msgid "Iroh relay"
+msgid "Through {relay}"
+msgstr "Iroh 中继"
 
 msgid "Thursday"
 msgstr "周四"
@@ -4719,9 +4925,6 @@ msgstr "使用此数据源"
 msgid "Use a number above zero"
 msgstr ""
 
-msgid "Use a public relay"
-msgstr "使用公共中继"
-
 msgid "Use accent color"
 msgstr "使用强调色"
 
@@ -4742,6 +4945,9 @@ msgstr "尽量使用各曲目专属封面"
 
 msgid "Use existing"
 msgstr "使用现有"
+
+msgid "Use for my rooms"
+msgstr ""
 
 msgid "Use for this output"
 msgstr "应用到此输出"
@@ -4910,7 +5116,13 @@ msgstr "黄色"
 msgid "Yes"
 msgstr "是"
 
+msgid "You have {have} of {songs} songs"
+msgstr ""
+
 msgid "You need to configure a local address"
+msgstr ""
+
+msgid "You"
 msgstr ""
 
 msgid "Your library is ready"
@@ -4919,7 +5131,17 @@ msgstr "你的媒体库已就绪"
 msgid "Your music belongs here"
 msgstr ""
 
+#, fuzzy
+#| msgid "Sort name"
+msgid "Your name"
+msgstr "名称 (排序)"
+
 msgid "Your own API key"
+msgstr "你的 API 密钥"
+
+#, fuzzy
+#| msgid "Your own API key"
+msgid "Your own relay"
 msgstr "你的 API 密钥"
 
 msgid "Your queue is empty."
@@ -5044,9 +5266,18 @@ msgid "{count} listen was already in Rufin."
 msgid_plural "{count} listens were already in Rufin."
 msgstr[0] "{count} 条播放记录已存在于 Rufin 中。"
 
+#, fuzzy
+#| msgid "Imported {count} listen."
+#| msgid_plural "Imported {count} listens."
+msgid "{count} listening"
+msgstr "已导入 {count} 条播放记录。"
+
 msgid "{count} month ago"
 msgid_plural "{count} months ago"
 msgstr[0] "{count} 月前"
+
+msgid "{count} of {members} can play this"
+msgstr ""
 
 msgid "{count} play"
 msgid_plural "{count} plays"
@@ -5081,6 +5312,18 @@ msgstr[0] "{field} · {count} 首曲目不一致"
 
 msgid "{minutes} min"
 msgstr "{minutes} 分钟"
+
+msgid "{name} added {count} songs"
+msgstr ""
+
+msgid "{name} added {title}"
+msgstr ""
+
+msgid "{name} played {title}"
+msgstr ""
+
+msgid "{name}'s room"
+msgstr ""
 
 msgid "{stage} ({completed} of {total}, {cached} cached)"
 msgstr ""

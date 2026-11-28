@@ -23,6 +23,15 @@ msgid ""
 msgstr ""
 
 msgid ""
+"A relay helps your devices and rooms reach each other when they cannot "
+"connect directly."
+msgstr ""
+
+msgid ""
+"A relay locked with a token takes it at the end of its address: ?token=..."
+msgstr ""
+
+msgid ""
 "Approving gives this device access to your profile and saved source logins."
 msgstr ""
 
@@ -86,6 +95,10 @@ msgstr ""
 msgid ""
 "Logs have secrets and absolute folder paths redacted, but you may still want "
 "to review the logs before sharing them"
+msgstr ""
+
+msgid ""
+"Music never passes through a public relay. A relay of your own may carry it."
 msgstr ""
 
 msgid "No results ¯\\_(°╭╮°)_/¯"
@@ -183,6 +196,10 @@ msgid ""
 msgstr ""
 
 msgid ""
+"Run by the Iroh project. They see who connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Some changes were saved. Close this editor and reopen it to review the "
 "result."
 msgstr ""
@@ -241,6 +258,10 @@ msgstr ""
 
 msgid ""
 "You will need to reconnect through the clients you use with the new API key."
+msgstr ""
+
+msgid ""
+"{room} shares songs: members who have a song play it for listeners who don't"
 msgstr ""
 
 #, fuzzy
@@ -308,6 +329,9 @@ msgstr "API-avain"
 
 msgid "About Rufin"
 msgstr "Tietoja - Rufin"
+
+msgid "About the public relays"
+msgstr ""
 
 msgid "Absolute"
 msgstr ""
@@ -424,6 +448,9 @@ msgstr ""
 
 msgid "Add"
 msgstr "Lisää"
+
+msgid "Added by {name}"
+msgstr ""
 
 msgid "Added to"
 msgstr ""
@@ -690,6 +717,9 @@ msgid "Automatic"
 msgstr "Automaattinen"
 
 msgid "BPM"
+msgstr ""
+
+msgid "Back in the room"
 msgstr ""
 
 msgid "Back"
@@ -1203,10 +1233,18 @@ msgstr "Ohjaimen tila"
 msgid "Controller"
 msgstr "Ohjain"
 
+msgid "Copied"
+msgstr ""
+
 msgid "Copy access token"
 msgstr "Kopioi pääsypoletti"
 
 msgid "Copy invitation"
+msgstr "Kopioi kutsu"
+
+#, fuzzy
+#| msgid "Copy invitation"
+msgid "Copy invite"
 msgstr "Kopioi kutsu"
 
 msgid "Copy link"
@@ -1310,6 +1348,11 @@ msgstr "Luo soittolista"
 
 msgid "Create playlist"
 msgstr "Luo soittolista"
+
+#, fuzzy
+#| msgid "Create"
+msgid "Create room"
+msgstr "Luo"
 
 msgid "Create"
 msgstr "Luo"
@@ -1762,6 +1805,14 @@ msgstr "Salaa varmuuskopiot"
 msgid "End of this track"
 msgstr "Tätä kansiota ei voitu ladata"
 
+msgid "End room"
+msgstr ""
+
+#, fuzzy
+#| msgid "Edit theme"
+msgid "End the room?"
+msgstr "Muokkaa teemaa"
+
 #, fuzzy
 #| msgid "Enable background image"
 msgid "Ends around {time}"
@@ -1814,6 +1865,9 @@ msgstr "Kappaleet viideltä uusimmalta albumilta"
 #| msgid "No favorite artists yet"
 msgid "Every track of your favorite artists"
 msgstr "Ei suosikkiesittäjiä vielä"
+
+msgid "Everyone stops listening together"
+msgstr ""
 
 msgid "Everything, including new tracks"
 msgstr "Kaikki, mukaan lukien uudet kappaleet"
@@ -2230,6 +2284,9 @@ msgstr "Koti"
 msgid "Homepage"
 msgstr "Koti"
 
+msgid "Host"
+msgstr ""
+
 msgid "Hour"
 msgstr "Tunti"
 
@@ -2317,6 +2374,11 @@ msgstr "Instrumentaalinen"
 msgid "Integrations"
 msgstr "Integraatiot"
 
+#, fuzzy
+#| msgid "Invite"
+msgid "Invite link"
+msgstr "Kutsu"
+
 msgid "Invite"
 msgstr "Kutsu"
 
@@ -2354,10 +2416,18 @@ msgstr "Jellyfin"
 
 #, fuzzy
 #| msgid "Home Profile"
+msgid "Join a room"
+msgstr "Kotiprofiili"
+
+#, fuzzy
+#| msgid "Home Profile"
 msgid "Join profile"
 msgstr "Kotiprofiili"
 
 msgid "Join to copy its sources and sign-ins"
+msgstr ""
+
+msgid "Join {room}?"
 msgstr ""
 
 msgid "Join"
@@ -2452,7 +2522,13 @@ msgstr ""
 msgid "Leave out tracks rated two stars or lower"
 msgstr ""
 
+msgid "Leave room"
+msgstr ""
+
 msgid "Leave the password empty to keep the saved credential"
+msgstr ""
+
+msgid "Leave this room first"
 msgstr ""
 
 msgid "Left sidebar"
@@ -2524,6 +2600,11 @@ msgstr "ListenBrainz"
 #| msgid "ListenBrainz scrobbling"
 msgid "ListenBrainz or Audioscrobbler API"
 msgstr "Kuuntelutiedon lähetys ListenBrainziin"
+
+#, fuzzy
+#| msgid "ListenBrainz"
+msgid "Listener"
+msgstr "ListenBrainz"
 
 msgid "Listening overview"
 msgstr "Kuuntelun yhteenveto"
@@ -2640,6 +2721,11 @@ msgstr ""
 msgid "Lookups"
 msgstr ""
 
+#, fuzzy
+#| msgid "Connection lost. Reconnecting..."
+msgid "Lost the room. Reconnecting..."
+msgstr "Yhteys katkesi. Yhdistetään uudelleen…"
+
 msgid "Loudness normalization"
 msgstr ""
 
@@ -2718,6 +2804,9 @@ msgstr "Vuosi enintään"
 
 msgid "May {year}"
 msgstr "toukokuu {year}"
+
+msgid "Members who have a song play it for listeners who don't"
+msgstr ""
 
 msgid "Menu"
 msgstr "Valikko"
@@ -3165,14 +3254,28 @@ msgstr "Täällä ei ole kappaleita vielä"
 msgid "No"
 msgstr ""
 
+msgid "Nobody in the room can send this song"
+msgstr ""
+
 msgid "None"
 msgstr ""
 
 msgid "Normalization scope"
 msgstr ""
 
+msgid "Not available while listening together"
+msgstr ""
+
 msgid "Not connected"
 msgstr "Ei yhdistetty"
+
+#, fuzzy
+#| msgid "Add to library"
+msgid "Not in your library"
+msgstr "Lisää kirjastoon"
+
+msgid "Not in your library. Sitting this one out."
+msgstr ""
 
 msgid "Not needed for most servers"
 msgstr "Ei tarvita useimpien palvelinten kanssa"
@@ -3250,6 +3353,11 @@ msgstr ""
 msgid "On repeat"
 msgstr "Kertaa"
 
+#, fuzzy
+#| msgid "Show artwork"
+msgid "On this network only"
+msgstr "Näytä kuvitus"
+
 msgid "On"
 msgstr ""
 
@@ -3274,6 +3382,9 @@ msgid "Online Lookups"
 msgstr ""
 
 msgid "Only fill missing information"
+msgstr ""
+
+msgid "Only the host turns Auto DJ on or off"
 msgstr ""
 
 msgid "Opacity (%)"
@@ -3698,6 +3809,11 @@ msgstr "Edellinen"
 msgid "Privacy & Security"
 msgstr "Tietosuoja ja turvallisuus"
 
+#, fuzzy
+#| msgid "Privacy & Security"
+msgid "Privacy policy"
+msgstr "Tietosuoja ja turvallisuus"
+
 msgid "Private mode is off"
 msgstr "Yksityinen tila on pois päältä"
 
@@ -3726,6 +3842,11 @@ msgstr "Kansiot"
 
 msgid "Proxy casting through Rufin"
 msgstr ""
+
+#, fuzzy
+#| msgid "Public"
+msgid "Public relays"
+msgstr "Julkinen"
 
 msgid "Public"
 msgstr "Julkinen"
@@ -3991,6 +4112,11 @@ msgid "Remove from folder"
 msgstr "Poista paikallinen kansio"
 
 #, fuzzy
+#| msgid "Remove Local Folder"
+msgid "Remove from room"
+msgstr "Poista paikallinen kansio"
+
+#, fuzzy
 #| msgid "Remove rule"
 msgid "Remove group"
 msgstr "Poista sääntö"
@@ -4146,6 +4272,12 @@ msgid "Rock"
 msgstr "Rock"
 
 msgid "Romaji"
+msgstr ""
+
+msgid "Room"
+msgstr ""
+
+msgid "Rooms"
 msgstr ""
 
 msgid "Rounded bars"
@@ -4555,6 +4687,14 @@ msgstr "Asetukset"
 msgid "Shadow"
 msgstr ""
 
+#, fuzzy
+#| msgid "Shared secret"
+msgid "Share invite"
+msgstr "Jaettu salaisuus"
+
+msgid "Share songs"
+msgstr ""
+
 msgid "Share"
 msgstr ""
 
@@ -4565,6 +4705,9 @@ msgstr "Jaettu salaisuus"
 
 msgid "Shared secret"
 msgstr "Jaettu salaisuus"
+
+msgid "Shares your queue. Your music keeps playing."
+msgstr ""
 
 #, fuzzy
 #| msgid "Show Rufin"
@@ -4734,6 +4877,11 @@ msgstr "Single"
 
 msgid "Singles"
 msgstr "Singlet"
+
+#, fuzzy
+#| msgid "Settings and sources"
+msgid "Sitting this one out"
+msgstr "Asetukset ja lähteet"
 
 msgid "Size in gigabytes"
 msgstr ""
@@ -4936,6 +5084,9 @@ msgstr ""
 msgid "Stereo"
 msgstr ""
 
+msgid "Stop casting to listen together"
+msgstr ""
+
 msgid "Stop"
 msgstr "Pysäytä"
 
@@ -5085,6 +5236,18 @@ msgstr ""
 msgid "The files are deleted where they are stored. This cannot be undone."
 msgstr ""
 
+msgid "The room ended"
+msgstr ""
+
+msgid "The room is full"
+msgstr ""
+
+msgid "The room is not playing this song"
+msgstr ""
+
+msgid "The room is unreachable"
+msgstr ""
+
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr ""
 
@@ -5109,6 +5272,16 @@ msgstr ""
 msgid "This device"
 msgstr "Tämä laite"
 
+#, fuzzy
+#| msgid "Metadata editing is no longer available"
+msgid "This invite is no longer valid"
+msgstr "Metatietojen muokkaaminen ei ole enää saatavilla"
+
+#, fuzzy
+#| msgid "This isn't available"
+msgid "This is not a room invite"
+msgstr "Tämä ei ole saatavilla"
+
 msgid "This is owned by {source} and synced to it."
 msgstr ""
 
@@ -5121,6 +5294,26 @@ msgstr ""
 msgid "This playlist only accepts {source} tracks"
 msgstr ""
 
+msgid "This room does not share songs"
+msgstr ""
+
+msgid "This room no longer shares songs"
+msgstr ""
+
+msgid "This room shares songs with listeners who don't have them"
+msgstr ""
+
+msgid "This room uses another version of Rufin. Please update Rufin."
+msgstr ""
+
+msgid "This room uses no relay"
+msgstr ""
+
+#, fuzzy
+#| msgid "Playing on this device"
+msgid "This song is not on this device"
+msgstr "Toistetaan tällä laitteella"
+
 msgid "This source cannot edit this field"
 msgstr "Lähde ei voi muokata tätä kenttää"
 
@@ -5128,6 +5321,12 @@ msgid "This time last year"
 msgstr ""
 
 msgid "This will remove all configured state. Do you want to continue?"
+msgstr ""
+
+msgid "Through public relays"
+msgstr ""
+
+msgid "Through {relay}"
 msgstr ""
 
 msgid "Thursday"
@@ -5366,9 +5565,6 @@ msgstr "Käytä tätä lähdettä"
 msgid "Use a number above zero"
 msgstr ""
 
-msgid "Use a public relay"
-msgstr ""
-
 #, fuzzy
 #| msgid "Accent color"
 msgid "Use accent color"
@@ -5399,6 +5595,9 @@ msgstr ""
 #| msgid "Lyrics settings"
 msgid "Use existing"
 msgstr "Sanoitusten asetukset"
+
+msgid "Use for my rooms"
+msgstr ""
 
 msgid "Use for this output"
 msgstr ""
@@ -5590,10 +5789,16 @@ msgstr "Keltainen"
 msgid "Yes"
 msgstr "Kyllä"
 
+msgid "You have {have} of {songs} songs"
+msgstr ""
+
 #, fuzzy
 #| msgid "No sources configured"
 msgid "You need to configure a local address"
 msgstr "Lähteitä ei ole määritetty"
+
+msgid "You"
+msgstr ""
 
 msgid "Your library is ready"
 msgstr ""
@@ -5602,8 +5807,18 @@ msgid "Your music belongs here"
 msgstr "Musiikkisi kuuluu tänne"
 
 #, fuzzy
+#| msgid "Artist name"
+msgid "Your name"
+msgstr "Esittäjän nimi"
+
+#, fuzzy
 #| msgid "API key"
 msgid "Your own API key"
+msgstr "API-avain"
+
+#, fuzzy
+#| msgid "API key"
+msgid "Your own relay"
 msgstr "API-avain"
 
 msgid "Your queue is empty."
@@ -5748,10 +5963,18 @@ msgid_plural "{count} listens were already in Rufin."
 msgstr[0] ""
 msgstr[1] ""
 
+#, fuzzy
+#| msgid "Delete Playlist"
+msgid "{count} listening"
+msgstr "Poista soittolista"
+
 msgid "{count} month ago"
 msgid_plural "{count} months ago"
 msgstr[0] "{count} kuukausi sitten"
 msgstr[1] "{count} kuukautta sitten"
+
+msgid "{count} of {members} can play this"
+msgstr ""
 
 #, fuzzy
 #| msgid "{count} day ago"
@@ -5798,6 +6021,20 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "{minutes} min"
+msgstr ""
+
+msgid "{name} added {count} songs"
+msgstr ""
+
+msgid "{name} added {title}"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select {title}"
+msgid "{name} played {title}"
+msgstr "Valitse {title}"
+
+msgid "{name}'s room"
 msgstr ""
 
 msgid "{stage} ({completed} of {total}, {cached} cached)"

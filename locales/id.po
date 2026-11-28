@@ -27,6 +27,15 @@ msgstr ""
 "romaji. Pengaturan ini dapat meningkatkan penggunaan sumber daya perangkat."
 
 msgid ""
+"A relay helps your devices and rooms reach each other when they cannot "
+"connect directly."
+msgstr ""
+
+msgid ""
+"A relay locked with a token takes it at the end of its address: ?token=..."
+msgstr ""
+
+msgid ""
 "Approving gives this device access to your profile and saved source logins."
 msgstr ""
 "Dengan menyetujui, perangkat ini bisa mengakses profil dan informasi masuk "
@@ -109,6 +118,10 @@ msgid ""
 msgstr ""
 "Data sensitif dan jalur folder lengkap dalam log telah disamarkan, tetapi "
 "Anda sebaiknya tetap memeriksa log sebelum membagikannya"
+
+msgid ""
+"Music never passes through a public relay. A relay of your own may carry it."
+msgstr ""
 
 msgid "No results ¯\\_(°╭╮°)_/¯"
 msgstr "Tidak ada hasil ¯\\_(°╭╮°)_/¯"
@@ -236,6 +249,10 @@ msgstr ""
 "jangka waktu lama."
 
 msgid ""
+"Run by the Iroh project. They see who connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Some changes were saved. Close this editor and reopen it to review the "
 "result."
 msgstr ""
@@ -317,6 +334,10 @@ msgstr ""
 "Anda perlu menghubungkan ulang lewat aplikasi yang Anda gunakan menggunakan "
 "kunci API baru."
 
+msgid ""
+"{room} shares songs: members who have a song play it for listeners who don't"
+msgstr ""
+
 msgid "(hold to shuffle)"
 msgstr "(tahan untuk mengacak)"
 
@@ -381,6 +402,9 @@ msgstr "Kunci API"
 
 msgid "About Rufin"
 msgstr "Tentang Rufin"
+
+msgid "About the public relays"
+msgstr ""
 
 msgid "Absolute"
 msgstr "Absolut"
@@ -507,6 +531,11 @@ msgstr "Tambah lagu jika sisa antrean kurang dari jumlah ini"
 
 msgid "Add"
 msgstr "Tambah"
+
+#, fuzzy
+#| msgid "Find in {name}"
+msgid "Added by {name}"
+msgstr "Cari di {name}"
 
 msgid "Added to"
 msgstr "Ditambahkan ke"
@@ -752,6 +781,9 @@ msgstr "Otomatis"
 #, fuzzy
 msgid "BPM"
 msgstr "BPM"
+
+msgid "Back in the room"
+msgstr ""
 
 msgid "Back"
 msgstr "Kembali"
@@ -1226,10 +1258,18 @@ msgstr "Status Pengendali"
 msgid "Controller"
 msgstr "Pengendali"
 
+msgid "Copied"
+msgstr ""
+
 msgid "Copy access token"
 msgstr "Salin token akses"
 
 msgid "Copy invitation"
+msgstr "Salin undangan"
+
+#, fuzzy
+#| msgid "Copy invitation"
+msgid "Copy invite"
 msgstr "Salin undangan"
 
 msgid "Copy link"
@@ -1335,6 +1375,11 @@ msgstr "Buat playlist"
 
 msgid "Create playlist"
 msgstr "Buat playlist"
+
+#, fuzzy
+#| msgid "Create"
+msgid "Create room"
+msgstr "Buat"
 
 msgid "Create"
 msgstr "Buat"
@@ -1793,6 +1838,14 @@ msgstr "Enkripsi cadangan"
 msgid "End of this track"
 msgstr "Akhir lagu ini"
 
+msgid "End room"
+msgstr ""
+
+#, fuzzy
+#| msgid "Edit theme"
+msgid "End the room?"
+msgstr "Edit tema"
+
 msgid "Ends around {time}"
 msgstr "Selesai sekitar {time}"
 
@@ -1842,6 +1895,9 @@ msgstr ""
 #| msgid "No favorite artists yet"
 msgid "Every track of your favorite artists"
 msgstr "Belum ada artis favorit"
+
+msgid "Everyone stops listening together"
+msgstr ""
 
 msgid "Everything, including new tracks"
 msgstr "Semuanya, termasuk lagu baru"
@@ -2270,6 +2326,9 @@ msgstr "Beranda"
 msgid "Homepage"
 msgstr "Beranda"
 
+msgid "Host"
+msgstr ""
+
 msgid "Hour"
 msgstr "Jam"
 
@@ -2350,6 +2409,11 @@ msgstr "Instrumen"
 msgid "Integrations"
 msgstr "Integrasi"
 
+#, fuzzy
+#| msgid "Invite"
+msgid "Invite link"
+msgstr "Undang"
+
 msgid "Invite"
 msgstr "Undang"
 
@@ -2382,11 +2446,19 @@ msgstr "Kamus bahasa Jepang"
 msgid "Jellyfin"
 msgstr "Jellyfin"
 
+#, fuzzy
+#| msgid "Join profile"
+msgid "Join a room"
+msgstr "Gabung ke profil"
+
 msgid "Join profile"
 msgstr "Gabung ke profil"
 
 msgid "Join to copy its sources and sign-ins"
 msgstr "Gabung untuk menyalin sumber dan informasi masuk"
+
+msgid "Join {room}?"
+msgstr ""
 
 msgid "Join"
 msgstr "Gabung"
@@ -2484,8 +2556,14 @@ msgstr "Biarkan kosong untuk arsip tanpa enkripsi."
 msgid "Leave out tracks rated two stars or lower"
 msgstr "Kecualikan lagu dengan penilaian 2 bintang atau lebih rendah"
 
+msgid "Leave room"
+msgstr ""
+
 msgid "Leave the password empty to keep the saved credential"
 msgstr "Biarkan kata sandi kosong untuk tetap memakai kredensial tersimpan"
+
+msgid "Leave this room first"
+msgstr ""
 
 #, fuzzy
 #| msgid "Hide sidebar"
@@ -2556,6 +2634,11 @@ msgstr "ListenBrainz"
 #, fuzzy
 msgid "ListenBrainz or Audioscrobbler API"
 msgstr "ListenBrainz scrobbling"
+
+#, fuzzy
+#| msgid "Listening"
+msgid "Listener"
+msgstr "Mendengarkan"
 
 msgid "Listening overview"
 msgstr "Ringkasan Mendengarkan"
@@ -2661,6 +2744,11 @@ msgstr "Pencarian"
 msgid "Lookups"
 msgstr "Pencarian"
 
+#, fuzzy
+#| msgid "Connection lost. Reconnecting..."
+msgid "Lost the room. Reconnecting..."
+msgstr "Koneksi terputus. Menyambungkan ulang..."
+
 msgid "Loudness normalization"
 msgstr "Penyamaan volume"
 
@@ -2735,6 +2823,9 @@ msgstr "Maksimum"
 
 msgid "May {year}"
 msgstr "Mei {year}"
+
+msgid "Members who have a song play it for listeners who don't"
+msgstr ""
 
 msgid "Menu"
 msgstr "Menu"
@@ -3130,14 +3221,28 @@ msgstr "Belum ada lagu di sini"
 msgid "No"
 msgstr "Tidak"
 
+msgid "Nobody in the room can send this song"
+msgstr ""
+
 msgid "None"
 msgstr "Tidak ada"
 
 msgid "Normalization scope"
 msgstr "Cakupan normalisasi"
 
+msgid "Not available while listening together"
+msgstr ""
+
 msgid "Not connected"
 msgstr "Tidak terhubung"
+
+#, fuzzy
+#| msgid "While your library loads"
+msgid "Not in your library"
+msgstr "Memuat pustaka anda"
+
+msgid "Not in your library. Sitting this one out."
+msgstr ""
 
 msgid "Not needed for most servers"
 msgstr "Tidak diperlukan untuk kebanyakan server"
@@ -3209,6 +3314,11 @@ msgstr "Offline"
 msgid "On repeat"
 msgstr "Ulangi"
 
+#, fuzzy
+#| msgid "Search this network"
+msgid "On this network only"
+msgstr "Cari di jaringan ini"
+
 msgid "On"
 msgstr "Nyala"
 
@@ -3233,6 +3343,9 @@ msgstr "Pencarian Online"
 
 msgid "Only fill missing information"
 msgstr "Hanya isi informasi yang kosong"
+
+msgid "Only the host turns Auto DJ on or off"
+msgstr ""
 
 msgid "Opacity (%)"
 msgstr "Opasitas (%)"
@@ -3614,6 +3727,11 @@ msgstr "Sebelumnya"
 msgid "Privacy & Security"
 msgstr "Privasi & Keamanan"
 
+#, fuzzy
+#| msgid "Privacy & Security"
+msgid "Privacy policy"
+msgstr "Privasi & Keamanan"
+
 msgid "Private mode is off"
 msgstr "Mode privat mati"
 
@@ -3642,6 +3760,11 @@ msgstr "Folder"
 
 msgid "Proxy casting through Rufin"
 msgstr "Proksi transmisi lewat Rufin"
+
+#, fuzzy
+#| msgid "Public"
+msgid "Public relays"
+msgstr "Publik"
 
 msgid "Public"
 msgstr "Publik"
@@ -3877,6 +4000,11 @@ msgstr "Hapus dari Tersimpan"
 msgid "Remove from folder"
 msgstr "Hapus dari folder"
 
+#, fuzzy
+#| msgid "Removed from"
+msgid "Remove from room"
+msgstr "Dihapus dari"
+
 msgid "Remove group"
 msgstr "Hapus grup"
 
@@ -4020,6 +4148,12 @@ msgstr "Rock"
 #, fuzzy
 msgid "Romaji"
 msgstr "Romaji"
+
+msgid "Room"
+msgstr ""
+
+msgid "Rooms"
+msgstr ""
 
 msgid "Rounded bars"
 msgstr "Bar membulat"
@@ -4383,6 +4517,12 @@ msgstr ""
 msgid "Shadow"
 msgstr ""
 
+msgid "Share invite"
+msgstr ""
+
+msgid "Share songs"
+msgstr ""
+
 msgid "Share"
 msgstr ""
 
@@ -4390,6 +4530,9 @@ msgid "Shared file size"
 msgstr ""
 
 msgid "Shared secret"
+msgstr ""
+
+msgid "Shares your queue. Your music keeps playing."
 msgstr ""
 
 msgid "Show Rufin in headline"
@@ -4537,6 +4680,9 @@ msgid "Single"
 msgstr ""
 
 msgid "Singles"
+msgstr ""
+
+msgid "Sitting this one out"
 msgstr ""
 
 msgid "Size in gigabytes"
@@ -4713,6 +4859,9 @@ msgstr ""
 msgid "Stereo"
 msgstr ""
 
+msgid "Stop casting to listen together"
+msgstr ""
+
 msgid "Stop"
 msgstr ""
 
@@ -4842,6 +4991,20 @@ msgstr ""
 msgid "The files are deleted where they are stored. This cannot be undone."
 msgstr ""
 
+msgid "The room ended"
+msgstr ""
+
+msgid "The room is full"
+msgstr ""
+
+msgid "The room is not playing this song"
+msgstr ""
+
+#, fuzzy
+#| msgid "Server is unreachable"
+msgid "The room is unreachable"
+msgstr "Server tidak dapat dijangkau"
+
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr ""
 
@@ -4866,6 +5029,14 @@ msgstr ""
 msgid "This device"
 msgstr ""
 
+#, fuzzy
+#| msgid "Item is no longer available"
+msgid "This invite is no longer valid"
+msgstr "Item ini sudah tidak tersedia"
+
+msgid "This is not a room invite"
+msgstr ""
+
 msgid "This is owned by {source} and synced to it."
 msgstr ""
 
@@ -4878,6 +5049,26 @@ msgstr ""
 msgid "This playlist only accepts {source} tracks"
 msgstr ""
 
+msgid "This room does not share songs"
+msgstr ""
+
+msgid "This room no longer shares songs"
+msgstr ""
+
+msgid "This room shares songs with listeners who don't have them"
+msgstr ""
+
+msgid "This room uses another version of Rufin. Please update Rufin."
+msgstr ""
+
+msgid "This room uses no relay"
+msgstr ""
+
+#, fuzzy
+#| msgid "Playing on this device"
+msgid "This song is not on this device"
+msgstr "Memutar di perangkat ini"
+
 msgid "This source cannot edit this field"
 msgstr ""
 
@@ -4887,6 +5078,12 @@ msgid "This time last year"
 msgstr "Selesaikan lagu terakhir"
 
 msgid "This will remove all configured state. Do you want to continue?"
+msgstr ""
+
+msgid "Through public relays"
+msgstr ""
+
+msgid "Through {relay}"
 msgstr ""
 
 msgid "Thursday"
@@ -5095,9 +5292,6 @@ msgstr ""
 msgid "Use a number above zero"
 msgstr ""
 
-msgid "Use a public relay"
-msgstr ""
-
 msgid "Use accent color"
 msgstr ""
 
@@ -5117,6 +5311,9 @@ msgid "Use each track's own cover when available"
 msgstr ""
 
 msgid "Use existing"
+msgstr ""
+
+msgid "Use for my rooms"
 msgstr ""
 
 msgid "Use for this output"
@@ -5284,10 +5481,16 @@ msgstr ""
 msgid "Yes"
 msgstr ""
 
+msgid "You have {have} of {songs} songs"
+msgstr ""
+
 #, fuzzy
 #| msgid "Add a source to configure downloads."
 msgid "You need to configure a local address"
 msgstr "Tambahkan sumber untuk mengatur unduhan."
+
+msgid "You"
+msgstr ""
 
 msgid "Your library is ready"
 msgstr "Pustaka anda siap"
@@ -5296,8 +5499,18 @@ msgid "Your music belongs here"
 msgstr ""
 
 #, fuzzy
+#| msgid "Folder name"
+msgid "Your name"
+msgstr "Nama folder"
+
+#, fuzzy
 #| msgid "API key"
 msgid "Your own API key"
+msgstr "Kunci API"
+
+#, fuzzy
+#| msgid "API key"
+msgid "Your own relay"
 msgstr "Kunci API"
 
 msgid "Your queue is empty."
@@ -5438,10 +5651,19 @@ msgid "{count} listen was already in Rufin."
 msgid_plural "{count} listens were already in Rufin."
 msgstr[0] ""
 
+#, fuzzy
+#| msgid "Delete {count} playlist?"
+#| msgid_plural "Delete {count} playlists?"
+msgid "{count} listening"
+msgstr "Hapus {count} playlist?"
+
 msgid "{count} month ago"
 msgid_plural "{count} months ago"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "{count} of {members} can play this"
+msgstr ""
 
 msgid "{count} play"
 msgid_plural "{count} plays"
@@ -5481,6 +5703,20 @@ msgstr[0] ""
 msgstr[1] ""
 
 msgid "{minutes} min"
+msgstr ""
+
+msgid "{name} added {count} songs"
+msgstr ""
+
+msgid "{name} added {title}"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select {title}"
+msgid "{name} played {title}"
+msgstr "Pilih {title}"
+
+msgid "{name}'s room"
 msgstr ""
 
 msgid "{stage} ({completed} of {total}, {cached} cached)"

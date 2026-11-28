@@ -23,6 +23,15 @@ msgid ""
 msgstr ""
 
 msgid ""
+"A relay helps your devices and rooms reach each other when they cannot "
+"connect directly."
+msgstr ""
+
+msgid ""
+"A relay locked with a token takes it at the end of its address: ?token=..."
+msgstr ""
+
+msgid ""
 "Approving gives this device access to your profile and saved source logins."
 msgstr ""
 
@@ -92,6 +101,10 @@ msgid ""
 msgstr ""
 "V protokolech jsou utajené údaje a absolutní cesty ke složkám začerněny, ale "
 "možná budete chtít protokoly před jejich sdílením přesto zkontrolovat"
+
+msgid ""
+"Music never passes through a public relay. A relay of your own may carry it."
+msgstr ""
 
 msgid "No results ¯\\_(°╭╮°)_/¯"
 msgstr "Žádné výsledky ¯\\_(°╭╮°)_/¯"
@@ -184,6 +197,10 @@ msgid ""
 msgstr ""
 
 msgid ""
+"Run by the Iroh project. They see who connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Some changes were saved. Close this editor and reopen it to review the "
 "result."
 msgstr ""
@@ -246,6 +263,10 @@ msgstr ""
 
 msgid ""
 "You will need to reconnect through the clients you use with the new API key."
+msgstr ""
+
+msgid ""
+"{room} shares songs: members who have a song play it for listeners who don't"
 msgstr ""
 
 #, fuzzy
@@ -318,6 +339,9 @@ msgstr "API klíč"
 
 msgid "About Rufin"
 msgstr "O aplikaci Rufin"
+
+msgid "About the public relays"
+msgstr ""
 
 msgid "Absolute"
 msgstr ""
@@ -466,6 +490,9 @@ msgstr "Přidat skladby, pokud jich zbývá méně než tento počet"
 
 msgid "Add"
 msgstr "Přidat"
+
+msgid "Added by {name}"
+msgstr ""
 
 msgid "Added to"
 msgstr "Přidáno do"
@@ -751,6 +778,9 @@ msgstr "Automatické aktualizace"
 
 msgid "BPM"
 msgstr "BPM"
+
+msgid "Back in the room"
+msgstr ""
 
 msgid "Back"
 msgstr "Zpět"
@@ -1356,11 +1386,19 @@ msgstr "Správa oznámení"
 msgid "Controller"
 msgstr ""
 
+msgid "Copied"
+msgstr ""
+
 msgid "Copy access token"
 msgstr ""
 
 msgid "Copy invitation"
 msgstr ""
+
+#, fuzzy
+#| msgid "Copy"
+msgid "Copy invite"
+msgstr "Kopírovat"
 
 #, fuzzy
 #| msgid "Copy"
@@ -1501,6 +1539,11 @@ msgstr "Chytré playlisty"
 #| msgid "Smart playlists"
 msgid "Create playlist"
 msgstr "Chytré playlisty"
+
+#, fuzzy
+#| msgid "Create"
+msgid "Create room"
+msgstr "Vytvořit"
 
 msgid "Create"
 msgstr "Vytvořit"
@@ -2025,6 +2068,14 @@ msgstr ""
 msgid "End of this track"
 msgstr "Nelze načíst tuto složku"
 
+msgid "End room"
+msgstr ""
+
+#, fuzzy
+#| msgid "Edit metadata"
+msgid "End the room?"
+msgstr "Upravit metadata"
+
 msgid "Ends around {time}"
 msgstr ""
 
@@ -2077,6 +2128,9 @@ msgstr "Skladby z vašich pěti nejnovějších alb"
 #| msgid "No favorites yet"
 msgid "Every track of your favorite artists"
 msgstr "Zatím žádné oblíbené položky"
+
+msgid "Everyone stops listening together"
+msgstr ""
 
 msgid "Everything, including new tracks"
 msgstr "Vše, včetně nových skladeb"
@@ -2551,6 +2605,9 @@ msgstr "Domovská stránka"
 msgid "Homepage"
 msgstr "Domovská stránka"
 
+msgid "Host"
+msgstr ""
+
 msgid "Hour"
 msgstr ""
 
@@ -2643,6 +2700,11 @@ msgstr "Instrumentální"
 msgid "Integrations"
 msgstr "Integrace"
 
+#, fuzzy
+#| msgid "External site links"
+msgid "Invite link"
+msgstr "Odkazy na externí stránky"
+
 msgid "Invite"
 msgstr ""
 
@@ -2678,10 +2740,18 @@ msgstr "Jellyfin"
 
 #, fuzzy
 #| msgid "Saved Sources"
+msgid "Join a room"
+msgstr "Uložené zdroje"
+
+#, fuzzy
+#| msgid "Saved Sources"
 msgid "Join profile"
 msgstr "Uložené zdroje"
 
 msgid "Join to copy its sources and sign-ins"
+msgstr ""
+
+msgid "Join {room}?"
 msgstr ""
 
 msgid "Join"
@@ -2782,7 +2852,13 @@ msgstr ""
 msgid "Leave out tracks rated two stars or lower"
 msgstr ""
 
+msgid "Leave room"
+msgstr ""
+
 msgid "Leave the password empty to keep the saved credential"
+msgstr ""
+
+msgid "Leave this room first"
 msgstr ""
 
 #, fuzzy
@@ -2858,6 +2934,11 @@ msgstr "ListenBrainz"
 #| msgid "ListenBrainz scrobbling"
 msgid "ListenBrainz or Audioscrobbler API"
 msgstr "Scrobblování na ListenBrainz"
+
+#, fuzzy
+#| msgid "ListenBrainz"
+msgid "Listener"
+msgstr "ListenBrainz"
 
 #, fuzzy
 #| msgid "Searching for devices..."
@@ -2985,6 +3066,11 @@ msgstr ""
 msgid "Lookups"
 msgstr ""
 
+#, fuzzy
+#| msgid "Connecting to {device}..."
+msgid "Lost the room. Reconnecting..."
+msgstr "Připojování k {device}..."
+
 msgid "Loudness normalization"
 msgstr "Normalizace hlasitosti"
 
@@ -3067,6 +3153,9 @@ msgstr "Maximální rok"
 #| msgid "Maximum year"
 msgid "May {year}"
 msgstr "Maximální rok"
+
+msgid "Members who have a song play it for listeners who don't"
+msgstr ""
 
 msgid "Menu"
 msgstr "Menu"
@@ -3539,14 +3628,28 @@ msgstr "Zatím tu nejsou žádné skladby"
 msgid "No"
 msgstr "Ne"
 
+msgid "Nobody in the room can send this song"
+msgstr ""
+
 msgid "None"
 msgstr "Žádné"
 
 msgid "Normalization scope"
 msgstr ""
 
+msgid "Not available while listening together"
+msgstr ""
+
 msgid "Not connected"
 msgstr "Není připojeno"
+
+#, fuzzy
+#| msgid "Add to Playlist"
+msgid "Not in your library"
+msgstr "Přidat do playlistu"
+
+msgid "Not in your library. Sitting this one out."
+msgstr ""
 
 msgid "Not needed for most servers"
 msgstr ""
@@ -3626,6 +3729,11 @@ msgstr ""
 msgid "On repeat"
 msgstr "Opakovat"
 
+#, fuzzy
+#| msgid "Search Lyrics"
+msgid "On this network only"
+msgstr "Hledat Texty"
+
 msgid "On"
 msgstr ""
 
@@ -3650,6 +3758,9 @@ msgid "Online Lookups"
 msgstr ""
 
 msgid "Only fill missing information"
+msgstr ""
+
+msgid "Only the host turns Auto DJ on or off"
 msgstr ""
 
 msgid "Opacity (%)"
@@ -4108,6 +4219,11 @@ msgstr "Předchozí"
 msgid "Privacy & Security"
 msgstr "Soukromí a bezpečnost"
 
+#, fuzzy
+#| msgid "Privacy and Security"
+msgid "Privacy policy"
+msgstr "Soukromí a bezpečnost"
+
 msgid "Private mode is off"
 msgstr "Soukromý režim je vypnutý"
 
@@ -4136,6 +4252,9 @@ msgstr "Složky"
 
 msgid "Proxy casting through Rufin"
 msgstr "Proxy casting přes Rufin"
+
+msgid "Public relays"
+msgstr ""
 
 msgid "Public"
 msgstr ""
@@ -4411,6 +4530,11 @@ msgid "Remove from folder"
 msgstr "Odebrat složku"
 
 #, fuzzy
+#| msgid "Remove from Pins"
+msgid "Remove from room"
+msgstr "Odepnout"
+
+#, fuzzy
 #| msgid "Remove rule"
 msgid "Remove group"
 msgstr "Odebrat pravidlo"
@@ -4571,6 +4695,12 @@ msgstr "Rock"
 
 msgid "Romaji"
 msgstr "Rómadži (romanizace japonštiny)"
+
+msgid "Room"
+msgstr ""
+
+msgid "Rooms"
+msgstr ""
 
 msgid "Rounded bars"
 msgstr ""
@@ -5011,6 +5141,14 @@ msgstr "Nastavení aplikace"
 msgid "Shadow"
 msgstr ""
 
+#, fuzzy
+#| msgid "Shared secret"
+msgid "Share invite"
+msgstr "Sdílený tajný klíč"
+
+msgid "Share songs"
+msgstr ""
+
 msgid "Share"
 msgstr ""
 
@@ -5021,6 +5159,9 @@ msgstr "Sdílený tajný klíč"
 
 msgid "Shared secret"
 msgstr "Sdílený tajný klíč"
+
+msgid "Shares your queue. Your music keeps playing."
+msgstr ""
 
 #, fuzzy
 #| msgid "Show Rufin"
@@ -5190,6 +5331,11 @@ msgstr "Singl"
 
 msgid "Singles"
 msgstr "Singly"
+
+#, fuzzy
+#| msgid "Metadata source"
+msgid "Sitting this one out"
+msgstr "Zdroj metadat"
 
 msgid "Size in gigabytes"
 msgstr ""
@@ -5398,6 +5544,9 @@ msgstr ""
 msgid "Stereo"
 msgstr ""
 
+msgid "Stop casting to listen together"
+msgstr ""
+
 msgid "Stop"
 msgstr ""
 
@@ -5549,6 +5698,20 @@ msgstr ""
 msgid "The files are deleted where they are stored. This cannot be undone."
 msgstr ""
 
+msgid "The room ended"
+msgstr ""
+
+msgid "The room is full"
+msgstr ""
+
+msgid "The room is not playing this song"
+msgstr ""
+
+#, fuzzy
+#| msgid "Server is unreachable"
+msgid "The room is unreachable"
+msgstr "Server je nedostupný"
+
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr ""
 
@@ -5575,6 +5738,16 @@ msgstr ""
 msgid "This device"
 msgstr "Toto zařízení"
 
+#, fuzzy
+#| msgid "Metadata editing is no longer available"
+msgid "This invite is no longer valid"
+msgstr "Úprava metadat již není k dispozici"
+
+#, fuzzy
+#| msgid "This isn't available"
+msgid "This is not a room invite"
+msgstr "Toto není dostupné"
+
 msgid "This is owned by {source} and synced to it."
 msgstr ""
 
@@ -5587,6 +5760,26 @@ msgstr ""
 msgid "This playlist only accepts {source} tracks"
 msgstr ""
 
+msgid "This room does not share songs"
+msgstr ""
+
+msgid "This room no longer shares songs"
+msgstr ""
+
+msgid "This room shares songs with listeners who don't have them"
+msgstr ""
+
+msgid "This room uses another version of Rufin. Please update Rufin."
+msgstr ""
+
+msgid "This room uses no relay"
+msgstr ""
+
+#, fuzzy
+#| msgid "Playing on this device"
+msgid "This song is not on this device"
+msgstr "Přehrává se na tomto zařízení"
+
 msgid "This source cannot edit this field"
 msgstr "Tento zdroj nemůže toto pole upravit"
 
@@ -5594,6 +5787,12 @@ msgid "This time last year"
 msgstr ""
 
 msgid "This will remove all configured state. Do you want to continue?"
+msgstr ""
+
+msgid "Through public relays"
+msgstr ""
+
+msgid "Through {relay}"
 msgstr ""
 
 msgid "Thursday"
@@ -5846,9 +6045,6 @@ msgstr ""
 msgid "Use a number above zero"
 msgstr "Zadejte číslo větší než nula"
 
-msgid "Use a public relay"
-msgstr ""
-
 #, fuzzy
 #| msgid "Accent color"
 msgid "Use accent color"
@@ -5879,6 +6075,9 @@ msgstr ""
 #| msgid "Lyrics settings"
 msgid "Use existing"
 msgstr "Nastavení textu skladeb"
+
+msgid "Use for my rooms"
+msgstr ""
 
 msgid "Use for this output"
 msgstr ""
@@ -6073,10 +6272,16 @@ msgstr "Žlutá"
 msgid "Yes"
 msgstr "Ano"
 
+msgid "You have {have} of {songs} songs"
+msgstr ""
+
 #, fuzzy
 #| msgid "No sources configured"
 msgid "You need to configure a local address"
 msgstr "Nejsou nakonfigurovány žádné zdroje"
+
+msgid "You"
+msgstr ""
 
 msgid "Your library is ready"
 msgstr ""
@@ -6085,8 +6290,18 @@ msgid "Your music belongs here"
 msgstr ""
 
 #, fuzzy
+#| msgid "Artist name"
+msgid "Your name"
+msgstr "Jméno interpreta"
+
+#, fuzzy
 #| msgid "API key"
 msgid "Your own API key"
+msgstr "API klíč"
+
+#, fuzzy
+#| msgid "API key"
+msgid "Your own relay"
 msgstr "API klíč"
 
 msgid "Your queue is empty."
@@ -6237,11 +6452,19 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
+#, fuzzy
+#| msgid "Delete Playlist"
+msgid "{count} listening"
+msgstr "Smazat playlist"
+
 msgid "{count} month ago"
 msgid_plural "{count} months ago"
 msgstr[0] "před {count} měsícem"
 msgstr[1] "před {count} měsíci"
 msgstr[2] "před {count} měsíci"
+
+msgid "{count} of {members} can play this"
+msgstr ""
 
 #, fuzzy
 #| msgid "{count} day ago"
@@ -6295,6 +6518,20 @@ msgstr[1] ""
 msgstr[2] ""
 
 msgid "{minutes} min"
+msgstr ""
+
+msgid "{name} added {count} songs"
+msgstr ""
+
+msgid "{name} added {title}"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select All"
+msgid "{name} played {title}"
+msgstr "Vybrat vše"
+
+msgid "{name}'s room"
 msgstr ""
 
 msgid "{stage} ({completed} of {total}, {cached} cached)"
@@ -6472,9 +6709,6 @@ msgstr ""
 
 #~ msgid "Enter API credentials first"
 #~ msgstr "Nejprve zadejte přihlašovací údaje k API"
-
-#~ msgid "External site links"
-#~ msgstr "Odkazy na externí stránky"
 
 #, fuzzy
 #~| msgid "Connection"

@@ -25,6 +25,15 @@ msgstr ""
 "heruntergeladen. Diese Einstellung erhöht außerdem den Ressourcenverbrauch."
 
 msgid ""
+"A relay helps your devices and rooms reach each other when they cannot "
+"connect directly."
+msgstr ""
+
+msgid ""
+"A relay locked with a token takes it at the end of its address: ?token=..."
+msgstr ""
+
+msgid ""
 "Approving gives this device access to your profile and saved source logins."
 msgstr ""
 "Durch die Bestätigung erhält dieses Gerät Zugriff auf dein Profil und die "
@@ -113,6 +122,10 @@ msgstr ""
 "Vertrauliche Angaben und absolute Ordnerpfade sind in den Protokollen "
 "bereits unkenntlich gemacht. Prüfe die Protokolle trotzdem, bevor du sie "
 "teilst."
+
+msgid ""
+"Music never passes through a public relay. A relay of your own may carry it."
+msgstr ""
 
 msgid "No results ¯\\_(°╭╮°)_/¯"
 msgstr "Keine Ergebnisse ¯\\_(°╭╮°)_/¯"
@@ -241,6 +254,10 @@ msgstr ""
 "beanspruchen."
 
 msgid ""
+"Run by the Iroh project. They see who connects to whom, never what is sent."
+msgstr ""
+
+msgid ""
 "Some changes were saved. Close this editor and reopen it to review the "
 "result."
 msgstr ""
@@ -328,6 +345,10 @@ msgstr ""
 "Du musst dich über die Clients, die du verwendest, mit dem neuen API-"
 "Schlüssel neu verbinden."
 
+msgid ""
+"{room} shares songs: members who have a song play it for listeners who don't"
+msgstr ""
+
 msgid "(hold to shuffle)"
 msgstr "(halten für Zufallswiedergabe)"
 
@@ -392,6 +413,11 @@ msgstr "API-Schlüssel"
 
 msgid "About Rufin"
 msgstr "Über Rufin"
+
+#, fuzzy
+#| msgid "Use a public relay"
+msgid "About the public relays"
+msgstr "Öffentliches Relay verwenden"
 
 msgid "Absolute"
 msgstr "Absolut"
@@ -500,6 +526,11 @@ msgstr "Neue Titel hinzufügen, wenn weniger als dieser Wert verbleibt"
 
 msgid "Add"
 msgstr "Hinzufügen"
+
+#, fuzzy
+#| msgid "Find in {name}"
+msgid "Added by {name}"
+msgstr "In {name} suchen"
 
 msgid "Added to"
 msgstr "Hinzugefügt zu"
@@ -731,6 +762,9 @@ msgstr "Automatisch"
 
 msgid "BPM"
 msgstr "BPM"
+
+msgid "Back in the room"
+msgstr ""
 
 msgid "Back"
 msgstr "Zurück"
@@ -1195,10 +1229,18 @@ msgstr "Controller-Status"
 msgid "Controller"
 msgstr "Controller"
 
+msgid "Copied"
+msgstr ""
+
 msgid "Copy access token"
 msgstr "Zugriffstoken kopieren"
 
 msgid "Copy invitation"
+msgstr "Einladung kopieren"
+
+#, fuzzy
+#| msgid "Copy invitation"
+msgid "Copy invite"
 msgstr "Einladung kopieren"
 
 msgid "Copy link"
@@ -1296,6 +1338,11 @@ msgstr "Playlist erstellen"
 
 msgid "Create playlist"
 msgstr "Playlist erstellen"
+
+#, fuzzy
+#| msgid "Create"
+msgid "Create room"
+msgstr "Erstellen"
 
 msgid "Create"
 msgstr "Erstellen"
@@ -1730,6 +1777,14 @@ msgstr "Sicherungen verschlüsseln"
 msgid "End of this track"
 msgstr "Ende dieses Titels"
 
+msgid "End room"
+msgstr ""
+
+#, fuzzy
+#| msgid "Edit theme"
+msgid "End the room?"
+msgstr "Design bearbeiten"
+
 msgid "Ends around {time}"
 msgstr "Endet gegen {time}"
 
@@ -1776,6 +1831,9 @@ msgstr "Alle Titel deiner Lieblingsalben"
 
 msgid "Every track of your favorite artists"
 msgstr "Alle Titel deiner Lieblingskünstler"
+
+msgid "Everyone stops listening together"
+msgstr ""
 
 msgid "Everything, including new tracks"
 msgstr "Alles, einschließlich neuer Titel"
@@ -2179,6 +2237,9 @@ msgstr "Übersicht"
 msgid "Homepage"
 msgstr "Homepage"
 
+msgid "Host"
+msgstr ""
+
 msgid "Hour"
 msgstr "Stunde"
 
@@ -2253,6 +2314,11 @@ msgstr "Instrumental"
 msgid "Integrations"
 msgstr "Integrationen"
 
+#, fuzzy
+#| msgid "Invite"
+msgid "Invite link"
+msgstr "Einladen"
+
 msgid "Invite"
 msgstr "Einladen"
 
@@ -2282,11 +2348,19 @@ msgstr "Japanisches Wörterbuch"
 msgid "Jellyfin"
 msgstr "Jellyfin"
 
+#, fuzzy
+#| msgid "Join profile"
+msgid "Join a room"
+msgstr "Profil beitreten"
+
 msgid "Join profile"
 msgstr "Profil beitreten"
 
 msgid "Join to copy its sources and sign-ins"
 msgstr "Beitreten, um Quellen und Anmeldedaten zu übernehmen"
+
+msgid "Join {room}?"
+msgstr ""
 
 msgid "Join"
 msgstr "Beitreten"
@@ -2378,8 +2452,14 @@ msgstr "Für ein unverschlüsseltes Archiv leer lassen."
 msgid "Leave out tracks rated two stars or lower"
 msgstr "Titel mit zwei Sternen oder weniger auslassen"
 
+msgid "Leave room"
+msgstr ""
+
 msgid "Leave the password empty to keep the saved credential"
 msgstr "Passwort leer lassen, um die gespeicherten Zugangsdaten beizubehalten"
+
+msgid "Leave this room first"
+msgstr ""
 
 msgid "Left sidebar"
 msgstr "Linke Seitenleiste"
@@ -2442,6 +2522,11 @@ msgstr "ListenBrainz-API"
 
 msgid "ListenBrainz or Audioscrobbler API"
 msgstr "ListenBrainz- oder Audioscrobbler-API"
+
+#, fuzzy
+#| msgid "Listening"
+msgid "Listener"
+msgstr "Hören"
 
 msgid "Listening overview"
 msgstr "Höraktivität"
@@ -2551,6 +2636,11 @@ msgstr "Abfrage"
 msgid "Lookups"
 msgstr "Abfragen"
 
+#, fuzzy
+#| msgid "Connection lost. Reconnecting..."
+msgid "Lost the room. Reconnecting..."
+msgstr "Verbindung verloren. Verbindung wird wiederhergestellt …"
+
 msgid "Loudness normalization"
 msgstr "Lautstärkenormalisierung"
 
@@ -2621,6 +2711,9 @@ msgstr "Maximum"
 
 msgid "May {year}"
 msgstr "Mai {year}"
+
+msgid "Members who have a song play it for listeners who don't"
+msgstr ""
 
 msgid "Menu"
 msgstr "Menü"
@@ -3005,14 +3098,28 @@ msgstr "Noch keine Titel vorhanden"
 msgid "No"
 msgstr "Nein"
 
+msgid "Nobody in the room can send this song"
+msgstr ""
+
 msgid "None"
 msgstr "Keines"
 
 msgid "Normalization scope"
 msgstr "Normalisierungsbereich"
 
+msgid "Not available while listening together"
+msgstr ""
+
 msgid "Not connected"
 msgstr "Nicht verbunden"
+
+#, fuzzy
+#| msgid "While your library loads"
+msgid "Not in your library"
+msgstr "Während deine Bibliothek geladen wird"
+
+msgid "Not in your library. Sitting this one out."
+msgstr ""
 
 msgid "Not needed for most servers"
 msgstr "Für die meisten Server nicht erforderlich"
@@ -3080,6 +3187,11 @@ msgstr "Offline"
 msgid "On repeat"
 msgstr "In Dauerschleife"
 
+#, fuzzy
+#| msgid "Search this network"
+msgid "On this network only"
+msgstr "Dieses Netzwerk durchsuchen"
+
 msgid "On"
 msgstr "An"
 
@@ -3104,6 +3216,9 @@ msgstr "Online-Abfragen"
 
 msgid "Only fill missing information"
 msgstr "Nur fehlende Informationen ausfüllen"
+
+msgid "Only the host turns Auto DJ on or off"
+msgstr ""
 
 msgid "Opacity (%)"
 msgstr "Deckkraft (%)"
@@ -3475,6 +3590,11 @@ msgstr "Zurück"
 msgid "Privacy & Security"
 msgstr "Datenschutz & Sicherheit"
 
+#, fuzzy
+#| msgid "Privacy & Security"
+msgid "Privacy policy"
+msgstr "Datenschutz & Sicherheit"
+
 msgid "Private mode is off"
 msgstr "Privater Modus ist deaktiviert"
 
@@ -3501,6 +3621,11 @@ msgstr "Anbieter"
 
 msgid "Proxy casting through Rufin"
 msgstr "Übertragung über Rufin-Proxy"
+
+#, fuzzy
+#| msgid "Use a public relay"
+msgid "Public relays"
+msgstr "Öffentliches Relay verwenden"
 
 msgid "Public"
 msgstr "Öffentlich"
@@ -3721,6 +3846,11 @@ msgstr "Aus „Gespeichert“ entfernen"
 msgid "Remove from folder"
 msgstr "Aus Ordner entfernen"
 
+#, fuzzy
+#| msgid "Removed from"
+msgid "Remove from room"
+msgstr "Entfernt aus"
+
 msgid "Remove group"
 msgstr "Gruppe entfernen"
 
@@ -3853,6 +3983,12 @@ msgstr "Rock"
 
 msgid "Romaji"
 msgstr "Romaji"
+
+msgid "Room"
+msgstr ""
+
+msgid "Rooms"
+msgstr ""
 
 msgid "Rounded bars"
 msgstr "Abgerundete Balken"
@@ -4201,6 +4337,16 @@ msgstr "Einstellungen"
 msgid "Shadow"
 msgstr "Schatten"
 
+#, fuzzy
+#| msgid "Shared file size"
+msgid "Share invite"
+msgstr "Geteilte Dateigröße"
+
+#, fuzzy
+#| msgid "Share"
+msgid "Share songs"
+msgstr "Freigabe"
+
 msgid "Share"
 msgstr "Freigabe"
 
@@ -4209,6 +4355,9 @@ msgstr "Geteilte Dateigröße"
 
 msgid "Shared secret"
 msgstr "Shared Secret"
+
+msgid "Shares your queue. Your music keeps playing."
+msgstr ""
 
 msgid "Show Rufin in headline"
 msgstr "Rufin in der Kopfzeile anzeigen"
@@ -4350,6 +4499,11 @@ msgstr "Single"
 
 msgid "Singles"
 msgstr "Singles"
+
+#, fuzzy
+#| msgid "Settings and sources"
+msgid "Sitting this one out"
+msgstr "Einstellungen und Quellen"
 
 msgid "Size in gigabytes"
 msgstr "Größe in Gigabyte"
@@ -4514,6 +4668,9 @@ msgstr "Stereo für verlustbehaftete Formate"
 msgid "Stereo"
 msgstr "Stereo"
 
+msgid "Stop casting to listen together"
+msgstr ""
+
 msgid "Stop"
 msgstr "Stopp"
 
@@ -4639,6 +4796,20 @@ msgstr ""
 "Die Dateien werden an ihrem Speicherort gelöscht. Dies kann nicht rückgängig "
 "gemacht werden."
 
+msgid "The room ended"
+msgstr ""
+
+msgid "The room is full"
+msgstr ""
+
+msgid "The room is not playing this song"
+msgstr ""
+
+#, fuzzy
+#| msgid "Server is unreachable"
+msgid "The room is unreachable"
+msgstr "Server ist nicht erreichbar"
+
 msgid "The sheet a long press opens. Tap an entry to show or hide it."
 msgstr ""
 "Das Menü, das durch langes Drücken geöffnet wird. Tippe auf einen Eintrag, "
@@ -4665,6 +4836,16 @@ msgstr "Dieses Gerät wurde aus dem Profil entfernt"
 msgid "This device"
 msgstr "Dieses Gerät"
 
+#, fuzzy
+#| msgid "Item is no longer available"
+msgid "This invite is no longer valid"
+msgstr "Element ist nicht mehr verfügbar"
+
+#, fuzzy
+#| msgid "This isn't available"
+msgid "This is not a room invite"
+msgstr "Dies ist nicht verfügbar"
+
 msgid "This is owned by {source} and synced to it."
 msgstr "Dies wird von {source} verwaltet und damit synchronisiert."
 
@@ -4677,6 +4858,30 @@ msgstr "Für dieses Element ist kein Link zum Teilen vorhanden"
 msgid "This playlist only accepts {source} tracks"
 msgstr "Diese Playlist akzeptiert nur Titel von {source}"
 
+#, fuzzy
+#| msgid "This item has no link to share"
+msgid "This room does not share songs"
+msgstr "Für dieses Element ist kein Link zum Teilen vorhanden"
+
+#, fuzzy
+#| msgid "The connection no longer exists"
+msgid "This room no longer shares songs"
+msgstr "Die Verbindung existiert nicht mehr"
+
+msgid "This room shares songs with listeners who don't have them"
+msgstr ""
+
+msgid "This room uses another version of Rufin. Please update Rufin."
+msgstr ""
+
+msgid "This room uses no relay"
+msgstr ""
+
+#, fuzzy
+#| msgid "Playing on this device"
+msgid "This song is not on this device"
+msgstr "Wiedergabe auf diesem Gerät"
+
 msgid "This source cannot edit this field"
 msgstr "Diese Quelle kann dieses Feld nicht bearbeiten"
 
@@ -4687,6 +4892,16 @@ msgid "This will remove all configured state. Do you want to continue?"
 msgstr ""
 "Dadurch wird der gesamte konfigurierte Zustand entfernt. Möchtest du "
 "fortfahren?"
+
+#, fuzzy
+#| msgid "Use a public relay"
+msgid "Through public relays"
+msgstr "Öffentliches Relay verwenden"
+
+#, fuzzy
+#| msgid "Via relay"
+msgid "Through {relay}"
+msgstr "Über Relay"
 
 msgid "Thursday"
 msgstr "Donnerstag"
@@ -4891,9 +5106,6 @@ msgstr "Diese Quelle verwenden"
 msgid "Use a number above zero"
 msgstr "Verwende eine Zahl größer als null"
 
-msgid "Use a public relay"
-msgstr "Öffentliches Relay verwenden"
-
 msgid "Use accent color"
 msgstr "Akzentfarbe verwenden"
 
@@ -4914,6 +5126,9 @@ msgstr "Eigenes Cover jedes Titels verwenden, sofern verfügbar"
 
 msgid "Use existing"
 msgstr "Vorhandene verwenden"
+
+msgid "Use for my rooms"
+msgstr ""
 
 msgid "Use for this output"
 msgstr "Für diese Ausgabe verwenden"
@@ -5085,8 +5300,14 @@ msgstr "Gelb"
 msgid "Yes"
 msgstr "Ja"
 
+msgid "You have {have} of {songs} songs"
+msgstr ""
+
 msgid "You need to configure a local address"
 msgstr "Lege zuerst eine lokale Adresse fest."
+
+msgid "You"
+msgstr ""
 
 msgid "Your library is ready"
 msgstr "Deine Bibliothek ist bereit"
@@ -5094,7 +5315,17 @@ msgstr "Deine Bibliothek ist bereit"
 msgid "Your music belongs here"
 msgstr "Deine Musik gehört hierhin"
 
+#, fuzzy
+#| msgid "Sort name"
+msgid "Your name"
+msgstr "Sortiername"
+
 msgid "Your own API key"
+msgstr "Eigener API-Schlüssel"
+
+#, fuzzy
+#| msgid "Your own API key"
+msgid "Your own relay"
 msgstr "Eigener API-Schlüssel"
 
 msgid "Your queue is empty."
@@ -5228,10 +5459,19 @@ msgid_plural "{count} listens were already in Rufin."
 msgstr[0] "{count} Wiedergabe war bereits in Rufin vorhanden."
 msgstr[1] "{count} Wiedergaben waren bereits in Rufin vorhanden."
 
+#, fuzzy
+#| msgid "Imported {count} listen."
+#| msgid_plural "Imported {count} listens."
+msgid "{count} listening"
+msgstr "{count} Wiedergabe importiert."
+
 msgid "{count} month ago"
 msgid_plural "{count} months ago"
 msgstr[0] "vor {count} Monat"
 msgstr[1] "vor {count} Monaten"
+
+msgid "{count} of {members} can play this"
+msgstr ""
 
 msgid "{count} play"
 msgid_plural "{count} plays"
@@ -5273,6 +5513,20 @@ msgstr[1] "{field} · Unterschiedlich in {count} Titeln"
 
 msgid "{minutes} min"
 msgstr "{minutes} Min."
+
+msgid "{name} added {count} songs"
+msgstr ""
+
+msgid "{name} added {title}"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select {title}"
+msgid "{name} played {title}"
+msgstr "{title} auswählen"
+
+msgid "{name}'s room"
+msgstr ""
 
 msgid "{stage} ({completed} of {total}, {cached} cached)"
 msgstr "{stage} ({completed} von {total}, {cached} zwischengespeichert)"
