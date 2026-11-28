@@ -203,6 +203,7 @@ fn apply_source_configuration(shell: &Rc<Shell>) {
         .map(|(_, toast)| toast.clone())
         .collect::<Vec<_>>();
     *shell.source.configured.borrow_mut() = configured;
+    shell.chrome.topbar.refresh_current_source(shell);
     for toast in found {
         toast.dismiss();
     }

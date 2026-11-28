@@ -108,6 +108,13 @@ pub(crate) fn install_source_menu_actions(shell: &Rc<Shell>) {
     shell.chrome.window.add_action(&add_library);
 }
 
+pub(crate) fn current_source_label(shell: &Shell) -> (String, &'static str) {
+    let configured = shell.source.configured.borrow();
+    let selected = shell.selected_library();
+    let content = source_menu_content(&configured, selected.as_deref());
+    (content.name, content.icon_name)
+}
+
 pub(crate) fn source_submenu(shell: &Rc<Shell>) -> (String, &'static str, gio::Menu) {
     let configured = shell.source.configured.borrow();
     let selected = shell.selected_library();

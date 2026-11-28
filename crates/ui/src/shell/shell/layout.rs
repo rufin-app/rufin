@@ -647,6 +647,7 @@ impl Shell {
             .root
             .set_vexpand(!content);
         self.chrome.topbar.apply_window_size(
+            width,
             narrow,
             mini != crate::player::MiniPlayer::Off,
             &self.player_ui.views.fullscreen_player.playback_targets_host,

@@ -78,6 +78,14 @@
     </object></property>
     <child type="end"><object class="GtkBox" id="actions">
       <property name="spacing">2</property>
+      <child><object class="GtkBox" id="current_source">
+        <property name="spacing">6</property>
+        <property name="margin-end">8</property>
+        <property name="valign">center</property>
+        <child><object class="GtkImage" id="current_source_icon"/></child>
+        <child><object class="GtkLabel" id="current_source_label"/></child>
+        <style><class name="topbar-source"/></style>
+      </object></child>
       <child><object class="GtkMenuButton" id="source">
         <property name="icon-name">rufin-library-symbolic</property>
         <property name="tooltip-text" translatable="yes">Select Source</property>
