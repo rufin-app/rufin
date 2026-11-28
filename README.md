@@ -213,6 +213,12 @@ Homebrew Cask is the primary macOS installation:
 brew install --cask screwys/tap/rufin
 ```
 
+You need to clear the quarantine flag once after installing:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Rufin.app
+```
+
 You can turn on **Automatic updates** in General preferences to have
 Rufin install an available update when the app starts or manually click `Update` button in Version History on the latest release.
 
